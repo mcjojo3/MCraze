@@ -106,13 +106,10 @@ public class UIRenderer {
 	 * @param tileSize Size of tiles in pixels
 	 */
 	public void drawBuildMineIcons(GraphicsHandler g, Player player, float cameraX, float cameraY, int tileSize) {
-		if (player.handBreakPos.x != -1) {
+		if (player.handTargetPos.x != -1) {
 			Int2 pos = StockMethods.computeDrawLocationInPlace(cameraX, cameraY, tileSize,
-					tileSize, tileSize, player.handBuildPos.x, player.handBuildPos.y);
-			builderIcon.draw(g, pos.x, pos.y, tileSize, tileSize);
-
-			pos = StockMethods.computeDrawLocationInPlace(cameraX, cameraY, tileSize, tileSize,
-					tileSize, player.handBreakPos.x, player.handBreakPos.y);
+					tileSize, tileSize, player.handTargetPos.x, player.handTargetPos.y);
+			// Show miner icon as the unified target indicator
 			minerIcon.draw(g, pos.x, pos.y, tileSize, tileSize);
 		}
 	}

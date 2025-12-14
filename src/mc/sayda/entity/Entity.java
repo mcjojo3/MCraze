@@ -25,6 +25,7 @@ public abstract class Entity implements java.io.Serializable {
 	protected static final float gravityAcceleration = .03f;
 	protected static final float waterAcceleration = .015f;
 	protected static final float maxWaterDY = .05f;
+	protected static final float swimUpVelocity = .055f;  // Slightly higher than maxWaterDY for active swimming
 	
 	public float x;
 	public float y;

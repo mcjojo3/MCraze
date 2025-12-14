@@ -42,16 +42,25 @@ public class MainMenu {
 	private boolean newGame = false;
 	private Game game;
 	private UIRenderer uiRenderer;
-	
+	private long ticksRunning = 0;  // For UI animation
+
 	public MainMenu(Game g, UIRenderer uiRenderer) {
 		this.game = g;
 		this.uiRenderer = uiRenderer;
 	}
 
+	/**
+	 * Set Game reference (called after construction to avoid circular dependency)
+	 */
+	public void setGame(Game g) {
+		this.game = g;
+	}
+
 	public void draw(GraphicsHandler g) {
+		ticksRunning++;  // Increment for animation
 		uiRenderer.drawTileBackground(g, menu_bgTile, 32);
 		uiRenderer.drawCenteredX(g, menu_logo, 70, 397, 50);
-		float tagScale = ((float) Math.abs((game.ticksRunning % 100) - 50)) / 50 + 1;
+		float tagScale = ((float) Math.abs((ticksRunning % 100) - 50)) / 50 + 1;
 		menu_tag.draw(g, 450, 70, (int) (60 * tagScale), (int) (37 * tagScale));
 
 		if (newGame) {
@@ -62,54 +71,76 @@ public class MainMenu {
 	}
 	
 	private void drawStartMenu(GraphicsHandler g) {
-		uiRenderer.drawCenteredX(g, menu_newUp, 150, 160, 64);
-		uiRenderer.drawCenteredX(g, menu_loadUp, 250, 160, 64);
-		uiRenderer.drawCenteredX(g, menu_quitUp, 350, 160, 64);
-		int mouseY = game.screenMousePos.y;
-		// TODO: use the mouse x-value as well
-		if (mouseY >= 350 && mouseY <= 414) {
-			uiRenderer.drawCenteredX(g, menu_quitDown, 350, 160, 64);
-		} else if (mouseY >= 250 && mouseY <= 314) {
-			uiRenderer.drawCenteredX(g, menu_loadDown, 250, 160, 64);
-		} else if (mouseY >= 150 && mouseY <= 214) {
-			uiRenderer.drawCenteredX(g, menu_newDown, 150, 160, 64);
+		final int buttonWidth = 160;
+		final int buttonHeight = 64;
+		final int centerX = g.getScreenWidth() / 2;
+		final int buttonLeft = centerX - buttonWidth / 2;
+		final int buttonRight = centerX + buttonWidth / 2;
+
+		uiRenderer.drawCenteredX(g, menu_newUp, 150, buttonWidth, buttonHeight);
+		uiRenderer.drawCenteredX(g, menu_loadUp, 250, buttonWidth, buttonHeight);
+		uiRenderer.drawCenteredX(g, menu_quitUp, 350, buttonWidth, buttonHeight);
+
+		int mouseX = game.getClient().screenMousePos.x;
+		int mouseY = game.getClient().screenMousePos.y;
+		boolean mouseInButtonX = mouseX >= buttonLeft && mouseX <= buttonRight;
+
+		if (mouseInButtonX && mouseY >= 350 && mouseY <= 350 + buttonHeight) {
+			uiRenderer.drawCenteredX(g, menu_quitDown, 350, buttonWidth, buttonHeight);
+		} else if (mouseInButtonX && mouseY >= 250 && mouseY <= 250 + buttonHeight) {
+			uiRenderer.drawCenteredX(g, menu_loadDown, 250, buttonWidth, buttonHeight);
+		} else if (mouseInButtonX && mouseY >= 150 && mouseY <= 150 + buttonHeight) {
+			uiRenderer.drawCenteredX(g, menu_newDown, 150, buttonWidth, buttonHeight);
 		}
-		if (!game.leftClick) {
+
+		if (!game.getClient().leftClick) {
 			return;
 		}
-		game.leftClick = false;
-		if (mouseY >= 350 && mouseY <= 414) {
+		game.getClient().leftClick = false;
+
+		if (mouseInButtonX && mouseY >= 350 && mouseY <= 350 + buttonHeight) {
 			game.quit();  // "quit" button
-		} else if (mouseY >= 250 && mouseY <= 314) {
+		} else if (mouseInButtonX && mouseY >= 250 && mouseY <= 250 + buttonHeight) {
 			game.startGame(true, menu_mediumWidth);  // "load" button
-		} else if (mouseY >= 150 && mouseY <= 214) {
+		} else if (mouseInButtonX && mouseY >= 150 && mouseY <= 150 + buttonHeight) {
 			newGame = true;  // "new" button
 		}
 	}
 	
 	private void drawNewMenu(GraphicsHandler g) {
-		uiRenderer.drawCenteredX(g, menu_miniUp, 150, 160, 64);
-		uiRenderer.drawCenteredX(g, menu_mediumUp, 250, 160, 64);
-		uiRenderer.drawCenteredX(g, menu_bigUp, 350, 160, 64);
-		int mouseY = game.screenMousePos.y;
-		// TODO: use the mouse x-value as well
-		if (mouseY >= 350 && mouseY <= 414) {
-			uiRenderer.drawCenteredX(g, menu_bigDown, 350, 160, 64);
-		} else if (mouseY >= 250 && mouseY <= 314) {
-			uiRenderer.drawCenteredX(g, menu_mediumDown, 250, 160, 64);
-		} else if (mouseY >= 150 && mouseY <= 214) {
-			uiRenderer.drawCenteredX(g, menu_miniDown, 150, 160, 64);
+		final int buttonWidth = 160;
+		final int buttonHeight = 64;
+		final int centerX = g.getScreenWidth() / 2;
+		final int buttonLeft = centerX - buttonWidth / 2;
+		final int buttonRight = centerX + buttonWidth / 2;
+
+		uiRenderer.drawCenteredX(g, menu_miniUp, 150, buttonWidth, buttonHeight);
+		uiRenderer.drawCenteredX(g, menu_mediumUp, 250, buttonWidth, buttonHeight);
+		uiRenderer.drawCenteredX(g, menu_bigUp, 350, buttonWidth, buttonHeight);
+
+		int mouseX = game.getClient().screenMousePos.x;
+		int mouseY = game.getClient().screenMousePos.y;
+		boolean mouseInButtonX = mouseX >= buttonLeft && mouseX <= buttonRight;
+
+		if (mouseInButtonX && mouseY >= 350 && mouseY <= 350 + buttonHeight) {
+			uiRenderer.drawCenteredX(g, menu_bigDown, 350, buttonWidth, buttonHeight);
+		} else if (mouseInButtonX && mouseY >= 250 && mouseY <= 250 + buttonHeight) {
+			uiRenderer.drawCenteredX(g, menu_mediumDown, 250, buttonWidth, buttonHeight);
+		} else if (mouseInButtonX && mouseY >= 150 && mouseY <= 150 + buttonHeight) {
+			uiRenderer.drawCenteredX(g, menu_miniDown, 150, buttonWidth, buttonHeight);
 		}
-		if (!game.leftClick) {
+
+		if (!game.getClient().leftClick) {
 			return;
 		}
-		game.leftClick = false;
+		game.getClient().leftClick = false;
 		newGame = false;
-		if (mouseY >= 350 && mouseY <= 414) {
+
+		if (mouseInButtonX && mouseY >= 350 && mouseY <= 350 + buttonHeight) {
 			game.startGame(false, menu_bigWidth);
-		} else if (mouseY >= 250 && mouseY <= 314) {
+		} else if (mouseInButtonX && mouseY >= 250 && mouseY <= 250 + buttonHeight) {
 			game.startGame(false, menu_mediumWidth);
-		} else if (mouseY >= 150 && mouseY <= 214) {
+		} else if (mouseInButtonX && mouseY >= 150 && mouseY <= 150 + buttonHeight) {
 			game.startGame(false, menu_miniWidth);
 		}
 	}

@@ -23,6 +23,7 @@ public abstract class LivingEntity extends Entity {
 	public int hitPoints;
 	public boolean climbing = false;
 	public boolean facingRight = true;
+	public boolean dead = false;  // Track if entity has died to prevent multiple death triggers
 	public Inventory inventory;
 	
 	protected final float walkSpeed = .1f;
@@ -51,12 +52,12 @@ public abstract class LivingEntity extends Entity {
 		if (jumping) {
 			return;
 		}
-		
+
 		if (!this.isInWater(world, tileSize)) {
 			dy = -.3f;
 			jumping = true;
 		} else {
-			dy = -maxWaterDY - .000001f;// BIG HACK
+			dy = -swimUpVelocity;  // Use dedicated swim velocity for upward movement in water
 		}
 	}
 	
@@ -72,7 +73,7 @@ public abstract class LivingEntity extends Entity {
 		if (climbing) {
 			if (isSwimClimb) {
 				jumping = false;
-				dy = -maxWaterDY - .000001f;// BIG HACK
+				dy = -swimUpVelocity;  // Use dedicated swim velocity for climbing in water
 			} else {
 				jump(world, tileSize);
 			}
@@ -158,9 +159,44 @@ public abstract class LivingEntity extends Entity {
 	
 	@Override
 	public void takeDamage(int amount) {
+		if (dead) {
+			return;  // Don't take damage if already dead
+		}
+
 		this.hitPoints -= amount;
-		// TODO: play sound, check for death
+
+		// Clamp health to 0 minimum (don't go below 0)
+		if (this.hitPoints < 0) {
+			this.hitPoints = 0;
+		}
+
 		System.out.println("Took " + amount + " damage. Current health = " + this.hitPoints);
+
+		// TODO: Add sound effect when sound system is implemented
+		// Example: SoundPlayer.play("hit");
+
+		// Trigger death immediately when health reaches exactly 0
+		if (this.hitPoints == 0 && !dead) {
+			dead = true;  // Mark as dead before calling onDeath
+			onDeath();
+		}
+	}
+
+	/**
+	 * Check if this entity is dead (health <= 0)
+	 * @return true if dead
+	 */
+	public boolean isDead() {
+		return hitPoints <= 0;
+	}
+
+	/**
+	 * Called when the entity dies. Subclasses can override for specific death behavior.
+	 */
+	protected void onDeath() {
+		System.out.println(getClass().getSimpleName() + " has died!");
+		// TODO: Add death sound effect when sound system is implemented
+		// Example: SoundPlayer.play("death");
 	}
 	
 	@Override

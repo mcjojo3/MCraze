@@ -77,13 +77,19 @@ public class BlockInteractionSystem {
 	public void handleBlockBreaking(GraphicsHandler g, Player player, World world,
 			ArrayList<Entity> entities, float cameraX, float cameraY, int tileSize, boolean isBreaking) {
 
-		if (isBreaking && player.handBreakPos.x != -1) {
-			if (player.handBreakPos.equals(breakingPos)) {
+		if (isBreaking && player.handTargetPos.x != -1) {
+			// Only allow breaking if there's actually a block to break
+			if (!world.isBreakable(player.handTargetPos.x, player.handTargetPos.y)) {
+				breakingTicks = 0;
+				return;
+			}
+
+			if (player.handTargetPos.equals(breakingPos)) {
 				breakingTicks++;
 			} else {
 				breakingTicks = 0;
 			}
-			breakingPos = player.handBreakPos;
+			breakingPos = player.handTargetPos;
 
 			InventoryItem inventoryItem = player.inventory.selectedItem();
 			Item item = inventoryItem.getItem();
@@ -105,7 +111,7 @@ public class BlockInteractionSystem {
 				}
 
 				breakingTicks = 0;
-				TileID name = world.removeTile(player.handBreakPos.x, player.handBreakPos.y);
+				TileID name = world.removeTile(player.handTargetPos.x, player.handTargetPos.y);
 
 				// Convert certain blocks when broken
 				if (name == TileID.GRASS) {
@@ -122,9 +128,9 @@ public class BlockInteractionSystem {
 				Item newItem = Constants.itemTypes.get((char) name.breaksInto);
 				if (newItem != null) {
 					newItem = (Item) newItem.clone();
-					newItem.x = player.handBreakPos.x + random.nextFloat()
+					newItem.x = player.handTargetPos.x + random.nextFloat()
 							* (1 - (float) newItem.widthPX / tileSize);
-					newItem.y = player.handBreakPos.y + random.nextFloat()
+					newItem.y = player.handTargetPos.y + random.nextFloat()
 							* (1 - (float) newItem.widthPX / tileSize);
 					newItem.dy = -.07f;
 					entities.add(newItem);
@@ -136,31 +142,51 @@ public class BlockInteractionSystem {
 	}
 
 	/**
-	 * Handle block placing logic
+	 * Handle block placing logic at the targeted position.
+	 * Only allows placing if the target position is empty and has an adjacent block.
+	 *
 	 * @param player Player entity
 	 * @param world Game world
 	 * @param tileSize Size of tiles in pixels
 	 * @return true if right-click was consumed, false otherwise
 	 */
 	public boolean handleBlockPlacing(Player player, World world, int tileSize) {
-		if (world.isCraft(player.handBreakPos.x, player.handBreakPos.y)) {
-			// Clicked on a crafting table
+		// Check if clicking on a crafting table
+		if (world.isCraft(player.handTargetPos.x, player.handTargetPos.y)) {
 			player.inventory.tableSizeAvailable = 3;
 			player.inventory.setVisible(true);
 			return true;
-		} else {
-			// Placing a block
-			InventoryItem current = player.inventory.selectedItem();
-			if (!current.isEmpty()) {
-				TileID itemID = Constants.tileIDs.get(current.getItem().item_id);
-				boolean isPassable = Constants.tileTypes.get(itemID).type.passable;
+		}
 
-				if (isPassable || !player.inBoundingBox(player.handBuildPos, tileSize)) {
-					if (world.addTile(player.handBuildPos, itemID)) {
-						// Placed successfully
-						player.inventory.decreaseSelected(1);
-						return true;
-					}
+		// Placing a block
+		InventoryItem current = player.inventory.selectedItem();
+		if (!current.isEmpty()) {
+			TileID itemID = Constants.tileIDs.get(current.getItem().item_id);
+
+			// Can only place if the target position is empty (not a solid block)
+			if (world.isBreakable(player.handTargetPos.x, player.handTargetPos.y)) {
+				return false;  // Cannot place - there's already a block here
+			}
+
+			// Check if there's at least one adjacent block (up, down, left, right)
+			int x = player.handTargetPos.x;
+			int y = player.handTargetPos.y;
+			boolean hasAdjacentBlock = world.isBreakable(x - 1, y) || // left
+					world.isBreakable(x + 1, y) || // right
+					world.isBreakable(x, y - 1) || // up
+					world.isBreakable(x, y + 1);   // down
+
+			if (!hasAdjacentBlock) {
+				return false;  // Cannot place - no adjacent block
+			}
+
+			// Check if the block would collide with the player
+			boolean isPassable = Constants.tileTypes.get(itemID).type.passable;
+			if (isPassable || !player.inBoundingBox(player.handTargetPos, tileSize)) {
+				if (world.addTile(player.handTargetPos, itemID)) {
+					// Placed successfully
+					player.inventory.decreaseSelected(1);
+					return true;
 				}
 			}
 		}

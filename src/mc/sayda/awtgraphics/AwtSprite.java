@@ -23,13 +23,26 @@ public class AwtSprite implements mc.sayda.Sprite {
 	private static final long serialVersionUID = 1L;
 	
 	/** The image to be drawn for this sprite */
-	transient public Image image;
+	transient private Image image;
 	public String ref;
+
+	/**
+	 * Get the image for this sprite, loading it lazily if needed after deserialization.
+	 * @return The loaded image
+	 */
+	public Image getImage() {
+		if (image == null && ref != null) {
+			// Lazy load after deserialization
+			AwtSprite loaded = (AwtSprite) SpriteStore.get().loadSprite(ref);
+			// Access the private field directly since we're in the same class
+			this.image = loaded.image;
+		}
+		return image;
+	}
 	
 	// for serialization loading
 	public AwtSprite() {
-		AwtSprite s = (AwtSprite) SpriteStore.get().getSprite(ref);
-		this.image = s.image;
+		// Image will be lazy-loaded via getImage() when needed
 	}
 	
 	/**
@@ -45,20 +58,20 @@ public class AwtSprite implements mc.sayda.Sprite {
 	
 	/**
 	 * Get the width of the drawn sprite
-	 * 
+	 *
 	 * @return The width in pixels of this sprite
 	 */
 	public int getWidth() {
-		return image.getWidth(null);
+		return getImage().getWidth(null);
 	}
-	
+
 	/**
 	 * Get the height of the drawn sprite
-	 * 
+	 *
 	 * @return The height in pixels of this sprite
 	 */
 	public int getHeight() {
-		return image.getHeight(null);
+		return getImage().getHeight(null);
 	}
 	
 	/**
@@ -94,10 +107,8 @@ public class AwtSprite implements mc.sayda.Sprite {
 	@Override
 	public void readObject(ObjectInputStream aInputStream) throws ClassNotFoundException,
 			IOException {
-		// always perform the default de-serialization first
-		// aInputStream.defaultReadObject();
+		// Read the sprite reference, image will be lazy-loaded via getImage()
 		ref = (String) aInputStream.readObject();
-		this.image = ((AwtSprite) AwtSpriteStore.get().getSprite(ref)).image;
 	}
 	
 	/**

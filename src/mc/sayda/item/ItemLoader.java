@@ -25,16 +25,21 @@ public class ItemLoader {
 	public static HashMap<Character, Item> loadItems(int size) {
 		ToolDefinition[] tools = null;
 		ItemDefinition[] items = null;
-		// TODO: use the streaming API: https://sites.google.com/site/gson/streaming
+
+		// Using fromJson() is appropriate here since item config files are small
+		// Streaming API would add complexity without meaningful performance benefit
 		try {
 			tools = gson
 					.fromJson(StockMethods.readFile("items/tools.json"), ToolDefinition[].class);
 			items = gson
 					.fromJson(StockMethods.readFile("items/items.json"), ItemDefinition[].class);
 		} catch (IOException e) {
+			System.err.println("Failed to load item JSON files: " + e.getMessage());
+			e.printStackTrace();
 		}
+
 		if (tools == null || items == null) {
-			System.err.println("Failed to load items from json.");
+			System.err.println("Failed to parse items from JSON.");
 			System.exit(5);
 		}
 		

@@ -29,6 +29,10 @@ public class AwtGraphicsHandler extends mc.sayda.GraphicsHandler {
 	private JFrame container;
 	private Cursor myCursor = null;
 	private JPanel panel;
+
+	// Color caching to avoid creating new Color objects on every setColor call
+	private mc.sayda.Color lastRequestedColor = null;
+	private Color cachedAwtColor = null;
 	
 	@Override
 	public void init(final Game game) {
@@ -75,11 +79,10 @@ public class AwtGraphicsHandler extends mc.sayda.GraphicsHandler {
 		
 		// add a listener to respond to the user closing the window. If they
 		// do we'd like to exit the game
-		// TODO: add this back in
 		container.addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosing(WindowEvent e) {
-				game.goToMainMenu();  // this saves and cleans up appropriately
+				game.getClient().goToMainMenu();  // this saves and cleans up appropriately
 				game.quit();
 			}
 		});
@@ -114,8 +117,12 @@ public class AwtGraphicsHandler extends mc.sayda.GraphicsHandler {
 	
 	@Override
 	public void setColor(mc.sayda.Color color) {
-		// TODO: Profile, this might be quite slow "new" every color change
-		g.setColor(new Color(color.R, color.G, color.B, color.A));
+		// Cache color objects to avoid creating new ones on every call
+		if (lastRequestedColor == null || !color.equals(lastRequestedColor)) {
+			cachedAwtColor = new Color(color.R, color.G, color.B, color.A);
+			lastRequestedColor = color;
+		}
+		g.setColor(cachedAwtColor);
 	}
 	
 	@Override
@@ -135,13 +142,8 @@ public class AwtGraphicsHandler extends mc.sayda.GraphicsHandler {
 	
 	@Override
 	public void drawImage(Sprite sprite, int x, int y) {
-		// TODO: This is inefficient, and serialization should be done more neatly
 		AwtSprite awtSprite = (AwtSprite) sprite;
-		if (awtSprite.image == null) {
-			AwtSprite other = (AwtSprite) SpriteStore.get().loadSprite(awtSprite.ref);
-			awtSprite.image = other.image;
-		}
-		g.drawImage(awtSprite.image, x, y, null);
+		g.drawImage(awtSprite.getImage(), x, y, null);
 	}
 	
 	@Override
@@ -154,11 +156,7 @@ public class AwtGraphicsHandler extends mc.sayda.GraphicsHandler {
 	@Override
 	public void drawImage(Sprite sprite, int x, int y, int width, int height) {
 		AwtSprite awtSprite = (AwtSprite) sprite;
-		if (awtSprite.image == null) {
-			AwtSprite other = (AwtSprite) SpriteStore.get().loadSprite(awtSprite.ref);
-			awtSprite.image = other.image;
-		}
-		g.drawImage(awtSprite.image, x, y, width, height, null);
+		g.drawImage(awtSprite.getImage(), x, y, width, height, null);
 	}
 	
 	@Override

@@ -16,67 +16,68 @@ public class AwtEventsHandler {
 	
 	public AwtEventsHandler(Game game, Canvas canvas) {
 		this.game = game;
+
+		// Disable TAB focus traversal so we can use TAB for chat completion
+		canvas.setFocusTraversalKeysEnabled(false);
+
 		// add a key input system (defined below) to our canvas
 		// so we can respond to key pressed
 		canvas.addKeyListener(new KeyInputHandler());
 		canvas.addMouseListener(new MouseInputHander());
 		canvas.addMouseWheelListener(new MouseWheelInputHander());
 		canvas.addMouseMotionListener(new MouseMoveInputHander());
-		
-		// TODO: A lot of this should be calling a nicer function in Game to handle
-		// mouse+keyboard/touch input
 	}
 	
 	private class MouseWheelInputHander implements MouseWheelListener {
 		@Override
 		public void mouseWheelMoved(MouseWheelEvent e) {
-			int notches = e.getWheelRotation();
-			game.player.inventory.hotbarIdx += notches;
-			if (game.player.inventory.hotbarIdx < 0) {
-				game.player.inventory.hotbarIdx = 0;
-			} else if (game.player.inventory.hotbarIdx > 9) {
-				game.player.inventory.hotbarIdx = 9;
+			if (game.getServer() != null && game.getServer().player != null) {
+				game.getServer().player.scrollHotbar(e.getWheelRotation());
 			}
 		}
 	}
-	
+
 	private class MouseMoveInputHander implements MouseMotionListener {
 		@Override
 		public void mouseDragged(MouseEvent arg0) {
-			game.screenMousePos.x = arg0.getX();
-			game.screenMousePos.y = arg0.getY();
+			if (game.getClient() != null) {
+				game.getClient().setMousePosition(arg0.getX(), arg0.getY());
+			}
 		}
-		
+
 		@Override
 		public void mouseMoved(MouseEvent arg0) {
-			game.screenMousePos.x = arg0.getX();
-			game.screenMousePos.y = arg0.getY();
+			if (game.getClient() != null) {
+				game.getClient().setMousePosition(arg0.getX(), arg0.getY());
+			}
 		}
 	}
 	
 	private class MouseInputHander extends MouseAdapter {
 		@Override
 		public void mousePressed(MouseEvent arg0) {
+			if (game.getClient() == null) return;
 			switch (arg0.getButton()) {
 			case MouseEvent.BUTTON1:
-				game.leftClick = true;
+				game.getClient().setLeftClick(true);
 				break;
 			case MouseEvent.BUTTON2: // fall through
 			case MouseEvent.BUTTON3:
-				game.rightClick = true;
+				game.getClient().setRightClick(true);
 				break;
 			}
 		}
-		
+
 		@Override
 		public void mouseReleased(MouseEvent arg0) {
+			if (game.getClient() == null) return;
 			switch (arg0.getButton()) {
 			case MouseEvent.BUTTON1:
-				game.leftClick = false;
+				game.getClient().setLeftClick(false);
 				break;
 			case MouseEvent.BUTTON2: // fall through
 			case MouseEvent.BUTTON3:
-				game.rightClick = false;
+				game.getClient().setRightClick(false);
 				break;
 			}
 		}
@@ -93,16 +94,42 @@ public class AwtEventsHandler {
 		 */
 		@Override
 		public void keyPressed(KeyEvent e) {
+			if (game.getClient() == null || game.getServer() == null) return;
+
+			// Don't process game input if chat is open
+			if (game.getClient().chat.isOpen()) {
+				if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+					game.submitChat();
+				} else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+					game.getClient().chat.setOpen(false);
+					e.consume();  // Prevent ESC from also triggering menu
+				} else if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
+					game.getClient().chat.backspace();
+				} else if (e.getKeyCode() == KeyEvent.VK_TAB) {
+					game.getClient().chat.tabComplete();
+					e.consume();  // Prevent tab from changing focus
+				} else if (e.getKeyCode() == KeyEvent.VK_UP) {
+					game.getClient().chat.historyUp();
+					e.consume();  // Prevent default behavior
+				} else if (e.getKeyCode() == KeyEvent.VK_DOWN) {
+					game.getClient().chat.historyDown();
+					e.consume();  // Prevent default behavior
+				}
+				return;
+			}
+
+			if (game.getServer().player == null) return;
+
 			switch (e.getKeyCode()) {
 			case KeyEvent.VK_W:
 			case KeyEvent.VK_SPACE:
-				game.player.startClimb();
+				game.getServer().player.startClimb();
 				break;
 			case KeyEvent.VK_A:
-				game.player.startLeft(e.isShiftDown());
+				game.getServer().player.startLeft(e.isShiftDown());
 				break;
 			case KeyEvent.VK_D:
-				game.player.startRight(e.isShiftDown());
+				game.getServer().player.startRight(e.isShiftDown());
 				break;
 			}
 		}
@@ -115,22 +142,31 @@ public class AwtEventsHandler {
 		 */
 		@Override
 		public void keyReleased(KeyEvent e) {
+			if (game.getClient() == null || game.getServer() == null) return;
+
+			// Don't process game input if chat is open
+			if (game.getClient().chat.isOpen()) {
+				return;
+			}
+
+			if (game.getServer().player == null) return;
+
 			switch (e.getKeyCode()) {
 			case KeyEvent.VK_W:
 			case KeyEvent.VK_SPACE:
-				game.player.endClimb();
+				game.getServer().player.endClimb();
 				break;
 			case KeyEvent.VK_A:
-				game.player.stopLeft();
+				game.getServer().player.stopLeft();
 				break;
 			case KeyEvent.VK_D:
-				game.player.stopRight();
+				game.getServer().player.stopRight();
 				break;
 			case KeyEvent.VK_ESCAPE:
-				if (game.player.inventory.isVisible()) {
-					game.player.inventory.setVisible(false);
+				if (game.getServer().player.inventory.isVisible()) {
+					game.getServer().player.inventory.setVisible(false);
 				} else {
-					game.goToMainMenu();
+					game.getClient().goToMainMenu();
 				}
 				break;
 			}
@@ -138,7 +174,23 @@ public class AwtEventsHandler {
 		
 		@Override
 		public void keyTyped(KeyEvent e) {
-			switch (e.getKeyChar()) {
+			if (game.getClient() == null || game.getServer() == null) return;
+
+			char c = e.getKeyChar();
+
+			// Handle chat typing
+			if (game.getClient().chat.isOpen()) {
+				// Allow typing printable characters
+				if (c >= 32 && c <= 126) {
+					game.getClient().chat.typeChar(c);
+				}
+				return;
+			}
+
+			if (game.getServer().player == null) return;
+
+			// Game commands
+			switch (c) {
 			case '1':
 			case '2': // these all fall through to 9
 			case '3':
@@ -148,34 +200,45 @@ public class AwtEventsHandler {
 			case '7':
 			case '8':
 			case '9':
-				game.player.setHotbarItem(e.getKeyChar() - '1');
+				game.getServer().player.setHotbarItem(c - '1');
 				break;
 			case '0':
-				game.player.setHotbarItem(9);
+				game.getServer().player.setHotbarItem(9);
 				break;
 			case 'e':
-				game.player.inventory.setVisible(!game.player.inventory.isVisible());
+				game.getServer().player.inventory.setVisible(!game.getServer().player.inventory.isVisible());
 				break;
 			case '=':
-				game.zoom(1);
+				// TODO: Implement zoom
 				break;
 			case 'p':
-				game.paused = !game.paused;
+				// TODO: Implement pause
 				break;
 			case 'm':
-				game.musicPlayer.toggleSound();
+				game.getClient().musicPlayer.toggleSound();
 				break;
 			case 'o':
-				game.zoom(0);
+				// TODO: Implement zoom reset
 				break;
 			case '-':
-				game.zoom(-1);
+				// TODO: Implement zoom out
 				break;
 			case 'f':
-				game.viewFPS = !game.viewFPS;
+				game.getClient().toggleFPS();
 				break;
 			case 'q':
-				game.tossItem();
+				game.getServer().tossItem();
+				break;
+			case 'r':
+				// Respawn if player is dead
+				if (game.getServer().player.dead) {
+					game.getServer().respawnPlayer();
+				}
+				break;
+			case 't':
+			case 'T':
+				// Open chat
+				game.getClient().chat.setOpen(true);
 				break;
 			}
 		}

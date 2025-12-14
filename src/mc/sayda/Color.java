@@ -38,4 +38,35 @@ public class Color implements java.io.Serializable {
 		int dB = (int) (amount * (c.B - this.B));
 		return new Color(this.R + dR, this.G + dG, this.B + dB, this.A);
 	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) return true;
+		if (obj == null || getClass() != obj.getClass()) return false;
+		Color other = (Color) obj;
+		return R == other.R && G == other.G && B == other.B && A == other.A;
+	}
+
+	@Override
+	public int hashCode() {
+		return (R << 24) | (G << 16) | (B << 8) | A;
+	}
+
+	/**
+	 * Convert color to ARGB integer for network serialization
+	 */
+	public int toRGB() {
+		return (A << 24) | (R << 16) | (G << 8) | B;
+	}
+
+	/**
+	 * Create color from ARGB integer
+	 */
+	public static Color fromRGB(int argb) {
+		int a = (argb >> 24) & 0xFF;
+		int r = (argb >> 16) & 0xFF;
+		int g = (argb >> 8) & 0xFF;
+		int b = argb & 0xFF;
+		return new Color(r, g, b, a);
+	}
 }

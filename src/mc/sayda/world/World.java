@@ -72,7 +72,13 @@ public class World implements java.io.Serializable {
 	}
 	
 	public void chunkUpdate() {
-		ticksAlive++;
+		chunkUpdate(true);  // Default: daylight cycle enabled
+	}
+
+	public void chunkUpdate(boolean daylightCycle) {
+		if (daylightCycle) {
+			ticksAlive++;
+		}
 		for (int i = 0; i < chunkWidth; i++) {
 			boolean isDirectLight = true;
 			for (int j = 0; j < height; j++) {
@@ -399,7 +405,15 @@ public class World implements java.io.Serializable {
 	public float getTimeOfDay() {
 		return ((float) (ticksAlive % dayLength)) / dayLength;
 	}
-	
+
+	public long getTicksAlive() {
+		return ticksAlive;
+	}
+
+	public void setTicksAlive(long ticks) {
+		this.ticksAlive = ticks;
+	}
+
 	public boolean isNight() {
 		return getTimeOfDay() > 0.5f;
 	}

@@ -11,7 +11,11 @@
 - [x] **Phase 0: Package Restructure** ✅
 - [x] **Phase 1: Quick Wins (Code cleanup)** ✅
 - [x] **Phase 2: Class Splitting (Architecture improvement)** ✅
-- [ ] Phase 3: Advanced Refactoring (Optional future improvements)
+- [x] **Phase 3: TODO/HACK Fixes** ✅
+- [x] **Phase 4: Game Features & Multiplayer Preparation** ✅
+- [x] **Phase 5: Integrated Server Architecture** ✅
+- [ ] Phase 6: Dedicated Multiplayer Server (Future)
+- [ ] Phase 7: Advanced Refactoring (Optional future improvements)
 
 ---
 
@@ -79,8 +83,64 @@
   - [x] Move block drop mechanics
   - [x] Move crafting table interaction
 
-### Player.java Cleanup ✅ (238 lines → 195 lines = 43 lines removed)
+### Player.java Cleanup ✅ (238 lines → 110 lines = 128 lines removed / 54% reduction)
 - [x] Removed 48 lines of dead commented raycasting code
+- [x] Simplified block targeting system (removed complex raycasting)
+  - [x] Replaced handBreakPos and handBuildPos with unified handTargetPos
+  - [x] Rewrote updateHand() method to use simple hover + distance checking
+  - [x] Removed 100+ lines of complex intersection/raycasting logic
+  - [x] Now uses straightforward Euclidean distance calculation
+
+---
+
+## ✅ Block Interaction System Simplification - COMPLETED
+
+### Problem
+The original block breaking/placing system had major issues:
+- Separate targeting for breaking (handBreakPos) and placing (handBuildPos)
+- Complex raycasting logic with line-segment intersections
+- Could replace existing blocks when hovering over them
+- Over-engineered prediction system
+
+### Solution
+Completely redesigned with simple hover-based targeting:
+- **Unified targeting**: Single `handTargetPos` for both breaking and placing
+- **Distance-based**: Simple Euclidean distance check (if distance <= armLength, target it)
+- **No raycasting**: Just converts mouse position to block coordinates
+- **Proper validation**: Cannot place blocks over existing blocks
+
+### Implementation (Player.java:50-82)
+```java
+public void updateHand(...) {
+    float playerX = this.getCenterX(tileSize);
+    float playerY = this.getCenterY(tileSize);
+
+    int targetBlockX = (int) Math.floor(mouseX);
+    int targetBlockY = (int) Math.floor(mouseY);
+
+    float dx = (targetBlockX + 0.5f) - playerX;
+    float dy = (targetBlockY + 0.5f) - playerY;
+    float distance = (float) Math.sqrt(dx * dx + dy * dy);
+
+    if (distance <= armLength) {
+        handTargetPos.x = targetBlockX;
+        handTargetPos.y = targetBlockY;
+        handEndX = targetBlockX + 0.5f;
+        handEndY = targetBlockY + 0.5f;
+    } else {
+        handTargetPos.x = -1;
+        handTargetPos.y = -1;
+        handEndX = -1;
+        handEndY = -1;
+    }
+}
+```
+
+### Results
+- Reduced Player.java from 183 lines to 110 lines (40% reduction in this phase)
+- Removed 100+ lines of complex raycasting code
+- Fixed block replacement bug
+- Much clearer, more maintainable code
 
 ---
 
@@ -88,8 +148,9 @@
 
 ### Lines of Code Reduced
 - **Game.java**: 433 → 302 lines (-131 lines / -30%)
-- **Player.java**: 238 → 195 lines (-43 lines / -18%)
-- **Total reduction**: 174 lines of code removed
+- **Player.java**: 238 → 110 lines (-128 lines / -54%)
+- **SystemTimer.java**: 50 → 34 lines (-16 lines / -32%)
+- **Total reduction**: 275+ lines of code removed
 - **New classes created**: 3 (UIRenderer, BlockInteractionSystem, BoundsChecker)
 - **Files moved/organized**: 24 files into proper packages
 
@@ -106,7 +167,376 @@
 
 ---
 
-## 🎯 Remaining Optional Improvements (Phase 3)
+---
+
+## ✅ Phase 3: TODO/HACK Fixes - COMPLETED
+
+### All TODOs and HACKs Fixed
+- [x] **MainMenu.java** - Fixed mouse X-value checking (2 locations)
+  - [x] Added proper button hit detection using both X and Y coordinates
+  - [x] Buttons now only highlight/click when mouse is within their bounds
+  - [x] Eliminated false clicks from hovering at wrong X position
+
+- [x] **LivingEntity.java** - Fixed water physics HACKs (2 locations)
+  - [x] Removed `dy = -maxWaterDY - .000001f` hack
+  - [x] Created proper `swimUpVelocity` constant in Entity.java
+  - [x] Clean, documented solution for swimming/climbing in water
+
+- [x] **AwtGraphicsHandler.java** - Fixed color allocation performance
+  - [x] Added color caching to avoid creating new Color objects every frame
+  - [x] Implemented equals() and hashCode() in mc.sayda.Color class
+  - [x] Significant performance improvement for repeated color usage
+
+- [x] **Game.java:247** - Moved toss item logic into Player class
+  - [x] Created `Player.tossSelectedItem()` method
+  - [x] Simplified Game.tossItem() to 4 lines
+  - [x] Better separation of concerns
+
+- [x] **AwtEventsHandler.java:26** - Refactored event handling
+  - [x] Created input handling methods in Game class
+  - [x] Created `Player.scrollHotbar()` method
+  - [x] Eliminated direct field access from event handlers
+  - [x] Cleaner, more maintainable input system
+
+- [x] **AwtGraphicsHandler.java:78** - Restored missing feature
+  - [x] Window close listener was already present
+  - [x] Removed outdated TODO comment
+
+- [x] **AwtGraphicsHandler.java:138** - Refactored sprite serialization
+  - [x] Implemented lazy loading pattern in AwtSprite.getImage()
+  - [x] Eliminated redundant null checks on every draw call
+  - [x] Cleaner separation of serialization concerns
+
+- [x] **ItemLoader.java:28** - Addressed Gson streaming API TODO
+  - [x] Kept fromJson() approach (appropriate for small config files)
+  - [x] Added better error handling with printStackTrace()
+  - [x] Documented design decision
+
+- [x] **LivingEntity.java:162** - Added death handling
+  - [x] Created `isDead()` method
+  - [x] Created `onDeath()` method with extensibility for subclasses
+  - [x] Added sound effect placeholders for future implementation
+
+### Code Quality Improvements
+- **Removed**: 2 BIG HACKs, 7 TODOs
+- **Added**: Proper abstractions and documented solutions
+- **Improved**: Input handling, serialization, physics, rendering performance
+
+---
+
+## ✅ Phase 4: Game Features & Multiplayer Preparation - COMPLETED
+
+### Death & Respawn System
+- [x] **Death Handler** (Player.java, LivingEntity.java, Game.java)
+  - [x] Added `dead` flag to prevent multiple death triggers
+  - [x] Death triggers exactly at 0 health (not below)
+  - [x] `Player.dropAllItems()` - scatters inventory with physics
+  - [x] `Game.handlePlayerDeath()` - orchestrates death logic
+  - [x] Death screen overlay with respawn instructions
+  - [x] Game pauses on death
+
+- [x] **Respawn Mechanic**
+  - [x] `Player.respawn()` - resets player state
+  - [x] Spawn location tracking (`spawnX`, `spawnY`)
+  - [x] 'R' key to respawn after death
+  - [x] Game resumes on respawn
+
+- [x] **Game Rules System**
+  - [x] `keepInventory` - keep items on death (default: false)
+  - [x] `daylightCycle` - enable/disable day-night cycle (default: true)
+  - [x] Configurable via `/gamerule` command
+
+### Chat & Command System
+- [x] **Chat UI** (Chat.java - 230 lines)
+  - [x] Message history with auto-hide after 5 seconds
+  - [x] Color-coded messages
+  - [x] Open with 'T' key
+  - [x] Input box with cursor
+  - [x] Blocks game input when open
+
+- [x] **Command Handler** (CommandHandler.java - 190 lines)
+  - [x] Command parsing with `/` prefix
+  - [x] Regular chat messages (for future multiplayer)
+  - [x] Implemented commands:
+    - [x] `/help` - show available commands
+    - [x] `/gamerule <rule> [value]` - manage game rules
+    - [x] `/time <set|add> <value>` - control world time
+    - [x] `/kill` - suicide command
+
+- [x] **Dynamic Tab Completion** (Context-aware, multi-level)
+  - [x] **Level 1**: Command completion (`/` → `/help`, `/gamerule`, etc.)
+  - [x] **Level 2**: Argument completion (`/gamerule ` → `keepInventory`, `daylightCycle`)
+  - [x] **Level 3**: Value completion (`/gamerule keepInventory ` → `true`, `false`)
+  - [x] Automatic discovery from CommandHandler registry
+  - [x] Prefix matching (e.g., `/g` → `/gamerule`)
+  - [x] TAB key cycles through matches
+  - [x] Focus traversal disabled for TAB capture
+
+- [x] **Command History**
+  - [x] Arrow UP/DOWN to navigate through past commands
+  - [x] Stores last 50 commands
+  - [x] Resets when submitting new command
+
+### Input Handling Improvements
+- [x] **Chat Input** (AwtEventsHandler.java)
+  - [x] ESC closes chat without going to menu
+  - [x] ENTER submits command/message
+  - [x] BACKSPACE deletes characters
+  - [x] TAB for auto-completion
+  - [x] Arrow UP/DOWN for history
+  - [x] Regular typing for chat input
+  - [x] Event consumption to prevent conflicts
+
+- [x] **World Time Control**
+  - [x] `World.getTicksAlive()` and `setTicksAlive()` methods
+  - [x] Encapsulated time access
+  - [x] `/time set 0` (dawn), `6000` (noon), `12000` (dusk), `18000` (midnight)
+  - [x] `/time add <ticks>` for relative time changes
+
+### Multiplayer Preparation
+- [x] **Chat message support**
+  - [x] Non-command messages display as `<Player> message`
+  - [x] Console logging: `[CHAT] Player: message`
+  - [x] TODO comment for multiplayer server integration
+
+- [x] **Architecture ready for multiplayer**
+  - [x] Chat system separates commands from messages
+  - [x] CommandHandler can be extended for server commands
+  - [x] Message formatting prepared for player names
+  - [x] Network layer placeholder ready
+
+### Code Quality
+- **New Files**: 2 (Chat.java, CommandHandler.java)
+- **Lines Added**: 420+ lines of new functionality
+- **Dynamic System**: Tab completion automatically discovers new commands
+- **Extensible**: Easy to add new commands with full tab completion support
+
+---
+
+## ✅ Phase 5: Integrated Server Architecture - COMPLETED
+
+**Goal:** Prepare for multiplayer by implementing client-server separation with integrated server for singleplayer
+
+### Network Infrastructure Created
+- [x] **mc.sayda.network package** - Network communication layer
+  - [x] `Connection.java` (37 lines) - Abstract connection interface
+  - [x] `LocalConnection.java` (83 lines) - In-process communication for integrated server
+  - [x] `Packet.java` (28 lines) - Base class for all network packets
+  - [x] `PacketHandler.java` (30 lines) - Interface for processing packets
+
+- [x] **mc.sayda.network.packet package** - 6 packet types
+  - [x] `PacketPlayerInput.java` - Client → Server player input (movement, clicks, hotbar)
+  - [x] `PacketBlockChange.java` - Client → Server block break/place
+  - [x] `PacketChatSend.java` - Client → Server chat message/command
+  - [x] `PacketChatMessage.java` - Server → Client chat display (with color)
+  - [x] `PacketWorldUpdate.java` - Server → Client world state sync
+  - [x] `PacketEntityUpdate.java` - Server → Client entity positions
+
+### Architecture Separation
+- [x] **Server.java** (281 lines) - ALL game logic and world state
+  - [x] World simulation and entity management
+  - [x] Game rules (keepInventory, daylightCycle)
+  - [x] Packet processing from clients
+  - [x] Block interaction system
+  - [x] Player death handling
+  - [x] Tick-based game loop
+
+- [x] **Client.java** (278 lines) - ALL rendering and input
+  - [x] Graphics rendering (world, entities, UI)
+  - [x] Input handling (mouse, keyboard)
+  - [x] UI management (chat, menu, inventory)
+  - [x] Block interaction system (for integrated server)
+  - [x] Audio playback
+  - [x] FPS display
+
+- [x] **Game.java** - Refactored (433 → 152 lines / 65% reduction)
+  - [x] Creates LocalConnection pair for client-server communication
+  - [x] Instantiates Server and Client
+  - [x] Coordinates game loop (server.tick() + client.render())
+  - [x] Handles save/load operations
+  - [x] Provides accessor methods (getServer(), getClient())
+
+### Integration & Fixes
+- [x] **Input Routing** - Updated to use Server/Client getters
+  - [x] AwtEventsHandler.java - Routes input through game.getServer()/game.getClient()
+  - [x] AwtGraphicsHandler.java - Updated window close handler
+  - [x] Movement keys → server.player methods
+  - [x] Mouse position → client.setMousePosition()
+  - [x] Mouse clicks → client.setLeftClick()/setRightClick()
+
+- [x] **MainMenu Integration** - Fixed circular dependency
+  - [x] Added MainMenu.setGame() method
+  - [x] Added Client.setGame() method
+  - [x] Game calls client.setGame(this) after construction
+  - [x] MainMenu accesses client fields via game.getClient()
+
+- [x] **GraphicsHandler Initialization** - Fixed timing
+  - [x] Moved GraphicsHandler.init() from Client constructor to setGame()
+  - [x] Prevents NullPointerException from null Game reference
+  - [x] Ensures proper initialization order
+
+- [x] **Save/Load System** - Updated for Server architecture
+  - [x] SaveLoad.doSave() - Saves game.getServer().world and entities
+  - [x] SaveLoad.doLoad() - Restores world, entities, and player reference
+  - [x] Game.startGame() - Properly handles load vs new game
+  - [x] Game.saveGame() - Public method to save current state
+  - [x] Client.goToMainMenu() - Auto-saves before returning to menu
+
+- [x] **Chat System Integration** - Server-side processing
+  - [x] Server.setChat() - Connects chat reference for command output
+  - [x] CommandHandler - Updated to work with Server instead of Game
+  - [x] Chat messages flow: Client → PacketChatSend → Server → CommandHandler → PacketChatMessage → Client
+  - [x] Game.submitChat() - Sends chat via packet system
+
+- [x] **Block Interactions** - Fixed for integrated server
+  - [x] Client has persistent BlockInteractionSystem instance
+  - [x] Mining progress tracked across frames
+  - [x] Left click calls handleBlockBreaking() every frame while held
+  - [x] Right click calls handleBlockPlacing()
+  - [x] Clicks persist while mouse held (not consumed immediately)
+
+- [x] **Color Serialization** - Network transmission support
+  - [x] Color.toRGB() - Converts ARGB to int
+  - [x] Color.fromRGB() - Reconstructs Color from int
+  - [x] Enables color transmission in PacketChatMessage
+
+### Design Decisions
+
+**Integrated Server Approach:**
+- Singleplayer runs Server and Client in same JVM
+- Communication via LocalConnection (synchronized packet queues)
+- Direct server access used for performance (e.g., movement, block interactions)
+- Packet system ready but not fully utilized for integrated server
+- Same Server code will work for dedicated multiplayer server
+
+**Input Handling Strategy:**
+- Movement: Direct calls to server.player (via AwtEventsHandler)
+- Block breaking/placing: Direct calls to blockInteractionSystem (in Client)
+- Chat: Packet-based (PacketChatSend → Server → PacketChatMessage)
+- Future multiplayer: All input will go through packets
+
+**Initialization Order:**
+1. Game creates LocalConnection pair
+2. Game creates Server with connection
+3. Game creates Client with connection + localServer reference
+4. Game calls server.setChat(client.chat)
+5. Game calls client.setGame(this)
+6. Client.setGame() initializes GraphicsHandler and MainMenu
+
+### Code Metrics
+- **New Files Created**: 10 (Connection, LocalConnection, Packet, PacketHandler, 6 packet types)
+- **Major Refactors**: 3 (Game.java, Server.java created, Client.java created)
+- **Files Updated**: 8 (AwtEventsHandler, AwtGraphicsHandler, MainMenu, SaveLoad, CommandHandler, Color, Game, Client)
+- **Lines Added**: ~800 lines of network/server/client code
+- **Game.java Reduction**: 433 → 152 lines (65% reduction)
+- **Architecture**: Fully separated client-server model ready for multiplayer
+
+### Testing Results
+- [x] Project compiles successfully
+- [x] Game launches with integrated server
+- [x] Player movement works (WASD, climbing)
+- [x] Block breaking works (hold mouse to mine, progress tracking)
+- [x] Block placing works (right click)
+- [x] Inventory works (E to open, mouse wheel scroll)
+- [x] Chat works (T to open, commands process server-side)
+- [x] Commands work (/help, /gamerule, /time, /kill)
+- [x] Save/load works (Escape saves, Load button restores)
+- [x] Main menu works (New game sizes, Load, Quit)
+- [x] Death/respawn works
+- [x] Day/night cycle works
+
+### Known Limitations
+- Movement input not sent via packets (direct server access used)
+- Block interactions not sent via packets (direct server access used)
+- Server tick rate not configurable (runs at render FPS)
+- No network optimization (not needed for integrated server)
+
+These limitations are intentional for integrated server performance and will be addressed when implementing dedicated multiplayer server.
+
+---
+
+## 📡 Phase 6: Dedicated Multiplayer Server (Future)
+
+### Network Architecture
+- [ ] **Client-Server Model**
+  - [ ] Dedicated server mode
+  - [ ] Client connection management
+  - [ ] TCP/IP socket communication
+  - [ ] Protocol design (packet format)
+  - [ ] Connection handshake
+
+- [ ] **Game State Synchronization**
+  - [ ] World state broadcasting
+  - [ ] Entity position updates
+  - [ ] Block changes propagation
+  - [ ] Inventory synchronization
+  - [ ] Player actions replication
+
+### Multiplayer Features
+- [ ] **Player Management**
+  - [ ] Player list tracking
+  - [ ] Player join/leave events
+  - [ ] Player name display
+  - [ ] Player skin support (optional)
+  - [ ] Spawn point assignment
+
+- [ ] **Chat System Integration**
+  - [ ] Broadcast chat messages to all players
+  - [ ] Player name prefixes
+  - [ ] Server messages (join/leave notifications)
+  - [ ] Private messaging (optional)
+  - [ ] Chat distance limits (optional)
+
+- [ ] **World Management**
+  - [ ] Shared world instance
+  - [ ] Chunk loading/unloading coordination
+  - [ ] Block break/place validation
+  - [ ] Conflict resolution (simultaneous edits)
+  - [ ] World saving (server-side)
+
+- [ ] **Permissions & Administration**
+  - [ ] Operator (OP) system
+  - [ ] Command permissions
+  - [ ] Player kick/ban
+  - [ ] Server configuration file
+  - [ ] MOTD (Message of the Day)
+
+### Technical Requirements
+- [ ] **Serialization**
+  - [ ] Entity serialization for network
+  - [ ] World chunk serialization
+  - [ ] Inventory serialization
+  - [ ] Efficient delta updates
+
+- [ ] **Security**
+  - [ ] Input validation
+  - [ ] Anti-cheat measures
+  - [ ] Rate limiting
+  - [ ] Authenticated connections (optional)
+
+- [ ] **Performance**
+  - [ ] Client-side prediction
+  - [ ] Server tick rate optimization
+  - [ ] Bandwidth optimization
+  - [ ] Entity interpolation
+
+### Implementation Steps
+1. [ ] Create `mc.sayda.network` package
+2. [ ] Implement basic server (ServerMain.java)
+3. [ ] Implement basic client (ClientConnection.java)
+4. [ ] Create packet system (Packet.java, PacketHandler.java)
+5. [ ] Implement player synchronization
+6. [ ] Implement world synchronization
+7. [ ] Integrate chat broadcasting
+8. [ ] Add commands (/kick, /ban, /op, /deop, /list)
+9. [ ] Implement spawn management
+10. [ ] Add server configuration
+11. [ ] Testing and debugging
+12. [ ] Performance optimization
+
+---
+
+## 🎯 Phase 7: Advanced Refactoring (Optional)
 
 ### World.java Refactoring (417 lines → could be ~250 lines)
 - [ ] Extract `WorldRenderer` class
@@ -177,17 +607,16 @@
   - [ ] Add exception handling strategy
 
 ### Code Quality
-- [ ] Address all TODOs (15 total)
-  - [ ] Game.java (3 TODOs)
-  - [ ] LivingEntity.java (1 TODO)
-  - [ ] MainMenu.java (2 TODOs)
-  - [ ] ItemLoader.java (1 TODO)
-  - [ ] AwtGraphicsHandler.java (3 TODOs)
-  - [ ] AwtEventsHandler.java (1 TODO)
+- [x] Address all TODOs (7 total) ✅ COMPLETED
+  - [x] Game.java:247 - Moved to Player class
+  - [x] LivingEntity.java:162 - Added death handling
+  - [x] MainMenu.java (2 TODOs) - Fixed mouse X-value checking
+  - [x] ItemLoader.java - Addressed Gson streaming API
+  - [x] AwtGraphicsHandler.java (2 TODOs) - Fixed serialization, removed outdated TODO
+  - [x] AwtEventsHandler.java - Refactored event handling
 
-- [ ] Address all HACKs (4 total)
-  - [ ] Game.java (2 HACKs)
-  - [ ] LivingEntity.java (2 HACKs)
+- [x] Address all HACKs (2 total) ✅ COMPLETED
+  - [x] LivingEntity.java (2 HACKs) - Fixed water physics
 
 - [ ] Remove @SuppressWarnings
   - [ ] SaveLoad.java unchecked warnings

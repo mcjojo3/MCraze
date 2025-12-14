@@ -28,21 +28,21 @@ import mc.sayda.world.World;
 public class SaveLoad {
 	
 	public static void doSave(Game game) {
-		
+
 		try {
-			if (game.world == null) {
+			if (game.getServer().world == null) {
 				return;
 			}
-			
+
 			FileOutputStream fileOut = new FileOutputStream("MiniCraft.sav");
 			ObjectOutputStream out = new ObjectOutputStream(fileOut);
-			
-			out.writeObject(game.world);
-			out.writeObject(game.entities);
-			
+
+			out.writeObject(game.getServer().world);
+			out.writeObject(game.getServer().entities);
+
 			out.close();
 			fileOut.close();
-			
+
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -53,7 +53,7 @@ public class SaveLoad {
 	@SuppressWarnings("unchecked")
 	public static boolean doLoad(Game game) {
 		File f = new File("MiniCraft.sav");
-		
+
 		ObjectInputStream in = null;
 		try {
 			in = new ObjectInputStream(new FileInputStream(f));
@@ -67,11 +67,19 @@ public class SaveLoad {
 		if (in == null) {
 			return false;
 		}
-		
+
 		try {
-			game.world = (World) in.readObject();
-			game.entities = (ArrayList<Entity>) in.readObject();
+			game.getServer().world = (World) in.readObject();
+			game.getServer().entities = (ArrayList<Entity>) in.readObject();
 			in.close();
+
+			// Find and set player reference
+			for (Entity entity : game.getServer().entities) {
+				if (entity instanceof mc.sayda.entity.Player) {
+					game.getServer().player = (mc.sayda.entity.Player) entity;
+					break;
+				}
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 			return false;
