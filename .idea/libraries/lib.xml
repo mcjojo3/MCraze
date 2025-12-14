@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="lib">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/jorbis-0.0.15.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/easyogg.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/gson-2.1.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/timer.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/jogg-0.0.7.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

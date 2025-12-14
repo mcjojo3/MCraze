@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="MCraze - Debug Mode" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="mc.sayda.Game" />
+    <module name="MCraze" />
+    <option name="PROGRAM_PARAMETERS" value="--debug" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="mc.sayda.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
