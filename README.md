@@ -1,5 +1,5 @@
 # MCraze a1.0
-Based on "Minicraft v1.0.2"
+MCraze is based on "Minicraft v1.0.2"
 
 <table>
 <tr><td>Programming</td><td>mc_jojo3</td></tr>
@@ -12,7 +12,7 @@ Based on "Minicraft v1.0.2"
 
 ## Inspiration
 
-MCraze was initially conceived as a
+Minicraft was initially conceived as a
 [demake](http://en.wikipedia.org/wiki/Video_game_remake#.22Demakes.22) of
 [Minecraft](http://minecraft.net/) for
 [Game Jolt](http://gamejolt.com/)'s
