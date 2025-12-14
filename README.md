@@ -1,7 +1,10 @@
-# Minicraft v1.0.2
+# MCraze a1.0
+Based on "Minicraft v1.0.2"
 
 <table>
+<tr><td>Programming</td><td>mc_jojo3</td></tr>
 <tr><td>Programming</td><td>Jonathan Leahey</td></tr>
+<tr><td>Art</td><td>mc_jojo3</td></tr>
 <tr><td>Art</td><td>John McDowell</td></tr>
 <tr><td>Music</td><td>Tom Quinn (T5)</td></tr>
 <tr><td>Inspiration</td><td>Markus Persson "Notch"</td></tr>
@@ -9,7 +12,7 @@
 
 ## Inspiration
 
-Minicraft was initially conceived as a
+MCraze was initially conceived as a
 [demake](http://en.wikipedia.org/wiki/Video_game_remake#.22Demakes.22) of
 [Minecraft](http://minecraft.net/) for
 [Game Jolt](http://gamejolt.com/)'s
@@ -102,15 +105,8 @@ Axes break wood tiles faster, and shovels break dirt, sand, and leaves very quic
 
 ## Change Log
 
- * Version 1.0 (7/7/2010)
+ * Version a1.0 (x/x/202x)
     - Initial Release
- * Version 1.0.1 (7/8/2010)
-    - Exe launcher
-    - Bug fixes (shovel template and inventory Updating)
- * Version 1.0.2 (7/9/2010)
-    - Tool durability
-    - Inventory Bug fix
-    - Tools will no longer stack
 
 ## Future Plans
 
