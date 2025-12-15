@@ -35,6 +35,7 @@ This was neccessary so that you can get around the world in 2D.
 <tr><td>mouse 1</td><td>Break Block</td></tr>
 <tr><td>mouse 2</td><td>Build Block</td></tr>
 <tr><td>number keys<br>mouse wheel</td><td>Change Selection</td></tr>
+<tr><td>t</td><td>Open Chat</td></tr>
 <tr><td>i</td><td>Open Inventory</td></tr>
 <tr><td>+</td><td>Zoom In</td></tr>
 <tr><td>-</td><td>Zoom Out</td></tr>
@@ -45,8 +46,6 @@ This was neccessary so that you can get around the world in 2D.
 </table>
 
 ## How To Play
-
-Watch your blue and red selectors. They show where you will build or break blocks, respectively.
 
 Crafting is very similar to Minecraft: put items into the crafting table to craft them.
 Right-click on the crafting table to open it and your inventory.
@@ -110,14 +109,12 @@ Axes break wood tiles faster, and shovels break dirt, sand, and leaves very quic
 
 ## Future Plans
 
- * Version 1.1 (we hope)
-    - Day/Night ✓
-    - Life ✓
-    - Drowning ✓
+ * Todo list:
     - Furnaces
-    - Enemies
+    - Enemies/AI
     - Chests
     - Infinite Levels
+    - Fully string ID's
     - ...
 
 ## Libraries
