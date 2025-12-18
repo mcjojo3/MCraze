@@ -27,6 +27,7 @@ public class PacketWorldInit extends Packet {
 	public float spawnX;
 	public float spawnY;
 	public String playerUUID;  // UUID of this client's player entity
+	public int totalPacketsExpected;  // Total number of world update + entity packets to expect
 
 	public PacketWorldInit() {}
 

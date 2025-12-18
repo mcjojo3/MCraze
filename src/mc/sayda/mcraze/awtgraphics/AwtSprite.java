@@ -1,25 +1,14 @@
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/awtgraphics/AwtSprite.java
-package com.github.jleahey.minicraft.awtgraphics;
-========
 package mc.sayda.mcraze.awtgraphics;
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/awtgraphics/AwtSprite.java
 
 import java.awt.Image;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/awtgraphics/AwtSprite.java
-import com.github.jleahey.minicraft.Color;
-import com.github.jleahey.minicraft.GraphicsHandler;
-import com.github.jleahey.minicraft.Sprite;
-import com.github.jleahey.minicraft.SpriteStore;
-========
 import mc.sayda.mcraze.Color;
 import mc.sayda.mcraze.GraphicsHandler;
 import mc.sayda.mcraze.Sprite;
 import mc.sayda.mcraze.SpriteStore;
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/awtgraphics/AwtSprite.java
 
 /**
  * A sprite to be displayed on the screen. Note that a sprite
@@ -27,29 +16,25 @@ import mc.sayda.mcraze.SpriteStore;
  * not the location. This allows us to use a single sprite in
  * lots of different places without having to store multiple
  * copies of the image.
- * 
+ *
  * @author Kevin Glass
  */
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/awtgraphics/AwtSprite.java
-public class AwtSprite implements com.github.jleahey.minicraft.Sprite {
-========
 public class AwtSprite implements mc.sayda.mcraze.Sprite {
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/awtgraphics/AwtSprite.java
 	private static final long serialVersionUID = 1L;
-	
+
 	/** The image to be drawn for this sprite */
 	transient public Image image;
 	public String ref;
-	
+
 	// for serialization loading
 	public AwtSprite() {
 		AwtSprite s = (AwtSprite) SpriteStore.get().getSprite(ref);
 		this.image = s.image;
 	}
-	
+
 	/**
 	 * Create a new sprite based on an image
-	 * 
+	 *
 	 * @param image
 	 *            The image that is this sprite
 	 */
@@ -57,28 +42,28 @@ public class AwtSprite implements mc.sayda.mcraze.Sprite {
 		this.image = image;
 		this.ref = ref;
 	}
-	
+
 	/**
 	 * Get the width of the drawn sprite
-	 * 
+	 *
 	 * @return The width in pixels of this sprite
 	 */
 	public int getWidth() {
 		return image.getWidth(null);
 	}
-	
+
 	/**
 	 * Get the height of the drawn sprite
-	 * 
+	 *
 	 * @return The height in pixels of this sprite
 	 */
 	public int getHeight() {
 		return image.getHeight(null);
 	}
-	
+
 	/**
 	 * Draw the sprite onto the graphics context provided
-	 * 
+	 *
 	 * @param g
 	 *            The graphics context on which to draw the sprite
 	 * @param x
@@ -89,19 +74,19 @@ public class AwtSprite implements mc.sayda.mcraze.Sprite {
 	public void draw(GraphicsHandler g, int x, int y) {
 		g.drawImage(this, x, y);
 	}
-	
+
 	public void draw(GraphicsHandler g, int x, int y, Color tint) {
 		g.drawImage(this, x, y, tint);
 	}
-	
+
 	public void draw(GraphicsHandler g, int x, int y, int width, int height) {
 		g.drawImage(this, x, y, width, height);
 	}
-	
+
 	public void draw(GraphicsHandler g, int x, int y, int width, int height, Color tint) {
 		g.drawImage(this, x, y, width, height, tint);
 	}
-	
+
 	/**
 	 * Always treat de-serialization as a full-blown constructor, by
 	 * validating the final state of the de-serialized object.
@@ -114,7 +99,7 @@ public class AwtSprite implements mc.sayda.mcraze.Sprite {
 		ref = (String) aInputStream.readObject();
 		this.image = ((AwtSprite) AwtSpriteStore.get().getSprite(ref)).image;
 	}
-	
+
 	/**
 	 * This is the default implementation of writeObject.
 	 * Customise if necessary.

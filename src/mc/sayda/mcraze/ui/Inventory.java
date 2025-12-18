@@ -1,21 +1,15 @@
 /*
- * Copyright 2012 Jonathan Leahey
+ * Copyright 2025 SaydaGames (mc_jojo3)
  * 
- * This file is part of Minicraft
+ * This file is part of MCraze
  * 
- * Minicraft is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * MCraze is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * 
- * Minicraft is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * MCraze is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Minicraft. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU General Public License along with MCraze. If not, see http://www.gnu.org/licenses/.
  */
 
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/Inventory.java
-package com.github.jleahey.minicraft;
-
-import java.util.Map;
-
-========
 package mc.sayda.mcraze.ui;
 
 import java.util.Map;
@@ -28,7 +22,16 @@ import mc.sayda.mcraze.item.Item;
 import mc.sayda.mcraze.item.Tool;
 import mc.sayda.mcraze.util.Int2;
 
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/ui/Inventory.java
+import java.util.Map;
+
+import mc.sayda.mcraze.Color;
+import mc.sayda.mcraze.Constants;
+import mc.sayda.mcraze.GraphicsHandler;
+import mc.sayda.mcraze.item.InventoryItem;
+import mc.sayda.mcraze.item.Item;
+import mc.sayda.mcraze.item.Tool;
+import mc.sayda.mcraze.util.Int2;
+
 public class Inventory implements java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 	
@@ -100,6 +103,12 @@ public class Inventory implements java.io.Serializable {
 	// returns true if the mouse hit in the inventory
 	public boolean updateInventory(int screenWidth, int screenHeight,
 			Int2 mousePos, boolean leftClick, boolean rightClick) {
+		return updateInventory(screenWidth, screenHeight, mousePos, leftClick, rightClick, null);
+	}
+
+	// Version with connection for packet sending
+	public boolean updateInventory(int screenWidth, int screenHeight,
+			Int2 mousePos, boolean leftClick, boolean rightClick, mc.sayda.mcraze.network.Connection connection) {
 		if (!visible) {
 			return false;
 		}
@@ -125,6 +134,14 @@ public class Inventory implements java.io.Serializable {
 		
 		Int2 position = mouseToCoor(mousePos.x - x, mousePos.y - y, seperation, tileSize);
 		if (position != null) {
+			// Send packet to server for inventory action (works in singleplayer and multiplayer)
+			if (connection != null) {
+				mc.sayda.mcraze.network.packet.PacketInventoryAction packet =
+					new mc.sayda.mcraze.network.packet.PacketInventoryAction(
+						position.x, position.y, leftClick, false);
+				connection.sendPacket(packet);
+			}
+
 			if (holding.isEmpty()) {
 				if (rightClick && inventoryItems[position.x][position.y].count > 1) {
 					holding.item = inventoryItems[position.x][position.y].item;
@@ -194,6 +211,14 @@ public class Inventory implements java.io.Serializable {
 		if (mousePos.x >= x && mousePos.x <= x + tileSize + 10 && mousePos.y >= y
 				&& mousePos.y <= y + tileSize * 2 + 10) {
 			craftThisUpdate = true;
+
+			// Send craft packet to server
+			if (connection != null) {
+				mc.sayda.mcraze.network.packet.PacketInventoryAction packet =
+					new mc.sayda.mcraze.network.packet.PacketInventoryAction(
+						0, 0, leftClick, true);  // craftClick = true
+				connection.sendPacket(packet);
+			}
 		}
 		
 		// check for a construction

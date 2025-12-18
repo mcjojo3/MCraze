@@ -1,8 +1,4 @@
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/awtgraphics/AwtSpriteStore.java
-package com.github.jleahey.minicraft.awtgraphics;
-========
 package mc.sayda.mcraze.awtgraphics;
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/awtgraphics/AwtSpriteStore.java
 
 import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsEnvironment;
@@ -14,11 +10,7 @@ import java.net.URL;
 
 import javax.imageio.ImageIO;
 
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/awtgraphics/AwtSpriteStore.java
-import com.github.jleahey.minicraft.Sprite;
-========
 import mc.sayda.mcraze.Sprite;
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/awtgraphics/AwtSpriteStore.java
 
 /**
  * A resource manager for sprites in the game. Its often quite important
@@ -30,12 +22,8 @@ import mc.sayda.mcraze.Sprite;
  * <p>
  * @author Kevin Glass
  */
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/awtgraphics/AwtSpriteStore.java
-public class AwtSpriteStore extends com.github.jleahey.minicraft.SpriteStore {
-========
 public class AwtSpriteStore extends mc.sayda.mcraze.SpriteStore {
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/awtgraphics/AwtSpriteStore.java
-	
+
 	@Override
 	public Sprite loadSprite(String ref) {
 		// otherwise, go away and grab the sprite from the resource
@@ -91,10 +79,10 @@ public class AwtSpriteStore extends mc.sayda.mcraze.SpriteStore {
 		Sprite sprite = (Sprite) new AwtSprite(image, actualRef);
 		return sprite;
 	}
-	
+
 	/**
 	 * Utility method to handle resource loading failure
-	 * 
+	 *
 	 * @param message
 	 *            The message to display on failure
 	 */

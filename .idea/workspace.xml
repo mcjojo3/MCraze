@@ -10,133 +10,96 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="36013f05-078b-438b-9291-a28f0a890249" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/artifacts/MCraze_jar.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.classpath" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/easycode.ignore" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/runConfigurations/MCraze.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/runConfigurations/MCraze.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/runConfigurations/MCraze_Debug.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/runConfigurations/MCraze_Server.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/items/items.json" beforeDir="false" afterPath="$PROJECT_DIR$/classes/items/items.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/items/tools.json" beforeDir="false" afterPath="$PROJECT_DIR$/classes/items/tools.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sounds/music.ogg" beforeDir="false" afterPath="$PROJECT_DIR$/classes/sounds/music.ogg" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/entities/left_zombie.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/entities/right_zombie.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/entities/zombie.gif" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/entities/zombie.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/menus/big_down.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/menus/big_up.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/menus/load_down.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/menus/load_up.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/menus/med_down.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/menus/med_up.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/menus/mini_down.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/menus/mini_up.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/menus/new_down.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/menus/new_up.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/menus/quit_down.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/menus/quit_up.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/other/builder.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/other/miner.png" beforeDir="false" afterPath="$PROJECT_DIR$/classes/sprites/other/miner.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tiles/adminite.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tiles/coalore.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tiles/diamondore.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tiles/dirtwithgrass.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tiles/ironore.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/dAxe.png" beforeDir="false" afterPath="$PROJECT_DIR$/classes/sprites/tools/dAxe.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/dPic.png" beforeDir="false" afterPath="$PROJECT_DIR$/classes/sprites/tools/dPic.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/dShovel.png" beforeDir="false" afterPath="$PROJECT_DIR$/classes/sprites/tools/dShovel.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/mAxe.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/mPic.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/mShovel.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/miner.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/sAxe.png" beforeDir="false" afterPath="$PROJECT_DIR$/classes/sprites/tools/sAxe.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/sPic.png" beforeDir="false" afterPath="$PROJECT_DIR$/classes/sprites/tools/sPic.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/sShovel.png" beforeDir="false" afterPath="$PROJECT_DIR$/classes/sprites/tools/sShovel.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/wAxe.png" beforeDir="false" afterPath="$PROJECT_DIR$/classes/sprites/tools/wAxe.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/wPic.png" beforeDir="false" afterPath="$PROJECT_DIR$/classes/sprites/tools/wPic.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/wShovel.png" beforeDir="false" afterPath="$PROJECT_DIR$/classes/sprites/tools/wShovel.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/items/items.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/items/items.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/items/tools.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/items/tools.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/Color.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/Constants.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/Game.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/GraphicsHandler.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/MusicPlayer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/SaveLoad.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/Sprite.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/SpriteStore.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/awtgraphics/AwtEventsHandler.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/awtgraphics/AwtGraphicsHandler.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/awtgraphics/AwtSprite.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/awtgraphics/AwtSpriteStore.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/client/Client.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/entity/Entity.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/entity/LivingEntity.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/entity/Player.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/item/InventoryItem.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/item/Item.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/item/ItemLoader.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/item/Tool.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/network/Connection.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/network/LocalConnection.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/network/Packet.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/network/PacketHandler.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/network/packet/PacketBlockChange.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/network/packet/PacketChatMessage.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/network/packet/PacketChatSend.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/network/packet/PacketEntityUpdate.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/network/packet/PacketPlayerInput.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/network/packet/PacketWorldUpdate.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/server/Server.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/system/BlockInteractionSystem.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/system/LightingEngine.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/ui/Chat.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/ui/CommandHandler.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/ui/Inventory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/ui/MainMenu.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/ui/UIRenderer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/util/BoundsChecker.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/util/Int2.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/util/StockMethods.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/util/SystemTimer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/util/Template.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/world/Tile.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/world/TileTemplate.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/world/TileType.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/world/World.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/world/WorldGenerator.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sounds/music.ogg" beforeDir="false" afterPath="$PROJECT_DIR$/src/sounds/music.ogg" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/menus/big_down.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/menus/big_up.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/menus/load_down.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/menus/load_up.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/menus/med_down.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/menus/med_up.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/menus/mini_down.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/menus/mini_up.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/menus/new_down.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/menus/new_up.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/menus/quit_down.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/menus/quit_up.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/other/builder.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/other/miner.png" beforeDir="false" afterPath="$PROJECT_DIR$/src/sprites/other/miner.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tiles/adminite.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tiles/coalore.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tiles/diamondore.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tiles/dirtwithgrass.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tiles/ironore.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tools/dAxe.png" beforeDir="false" afterPath="$PROJECT_DIR$/src/sprites/tools/dAxe.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tools/dPic.png" beforeDir="false" afterPath="$PROJECT_DIR$/src/sprites/tools/dPic.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tools/dShovel.png" beforeDir="false" afterPath="$PROJECT_DIR$/src/sprites/tools/dShovel.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tools/mAxe.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tools/mPic.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tools/mShovel.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tools/miner.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tools/sAxe.png" beforeDir="false" afterPath="$PROJECT_DIR$/src/sprites/tools/sAxe.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tools/sPic.png" beforeDir="false" afterPath="$PROJECT_DIR$/src/sprites/tools/sPic.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tools/sShovel.png" beforeDir="false" afterPath="$PROJECT_DIR$/src/sprites/tools/sShovel.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tools/wAxe.png" beforeDir="false" afterPath="$PROJECT_DIR$/src/sprites/tools/wAxe.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tools/wPic.png" beforeDir="false" afterPath="$PROJECT_DIR$/src/sprites/tools/wPic.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sprites/tools/wShovel.png" beforeDir="false" afterPath="$PROJECT_DIR$/src/sprites/tools/wShovel.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.project" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.settings/org.eclipse.jdt.core.prefs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.xml" beforeDir="false" afterPath="$PROJECT_DIR$/build.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classes/items/items.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/classes/items/tools.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/classes/sounds/music.ogg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/classes/sprites/other/miner.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/dAxe.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/dPic.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/dShovel.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/sAxe.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/sPic.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/sShovel.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/wAxe.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/wPic.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/classes/sprites/tools/wShovel.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/timer.jar" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/META-INF/MANIFEST.MF" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/Color.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/Constants.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/Entity.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/Game.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/GraphicsHandler.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/Int2.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/Inventory.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/InventoryItem.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/Item.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/ItemLoader.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/LightingEngine.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/LivingEntity.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/MainMenu.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/MusicPlayer.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/Player.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/SaveLoad.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/Sprite.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/SpriteStore.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/StockMethods.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/SystemTimer.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/Template.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/Tile.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/TileTemplate.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/TileType.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/Tool.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/World.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/WorldGenerator.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/awtgraphics/AwtEventsHandler.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/awtgraphics/AwtGraphicsHandler.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/awtgraphics/AwtSprite.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/com/github/jleahey/minicraft/awtgraphics/AwtSpriteStore.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/Color.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/Color.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/Constants.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/Constants.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/Game.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/Game.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/GraphicsHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/GraphicsHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/MusicPlayer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/MusicPlayer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/Sprite.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/Sprite.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/SpriteStore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/SpriteStore.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/awtgraphics/AwtEventsHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/awtgraphics/AwtEventsHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/awtgraphics/AwtGraphicsHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/awtgraphics/AwtGraphicsHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/awtgraphics/AwtSprite.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/awtgraphics/AwtSprite.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/awtgraphics/AwtSpriteStore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/awtgraphics/AwtSpriteStore.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/client/Client.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/client/Client.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/Entity.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/Entity.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/LivingEntity.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/LivingEntity.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/Player.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/Player.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/item/InventoryItem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/item/InventoryItem.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/item/Item.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/item/Item.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/item/ItemLoader.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/item/ItemLoader.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/item/Tool.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/item/Tool.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/PacketHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/PacketHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketEntityUpdate.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketEntityUpdate.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketInventoryUpdate.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketInventoryUpdate.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketWorldInit.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketWorldInit.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/PlayerConnection.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/PlayerConnection.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/Server.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/Server.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/SharedWorld.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/SharedWorld.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/system/LightingEngine.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/system/LightingEngine.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/CommandHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/CommandHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/Inventory.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/Inventory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/PauseMenu.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/PauseMenu.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/util/Int2.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/util/Int2.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/util/StockMethods.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/util/StockMethods.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/Tile.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/Tile.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/TileTemplate.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/TileTemplate.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/TileType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/TileType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/World.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/World.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/WorldGenerator.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/WorldGenerator.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -178,13 +141,14 @@
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "git-widget-placeholder": "master",
+    "git-widget-placeholder": "dev",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "G:/Github/MCraze/.idea/runConfigurations",
-    "project.structure.last.edited": "Artifacts",
+    "onboarding.tips.debug.path": "G:/Github/MCraze/src/Main.java",
+    "project.structure.last.edited": "Modules",
     "project.structure.proportion": "0.15",
     "project.structure.side.proportion": "0.2",
-    "settings.editor.selected.configurable": "configurable.group.appearance"
+    "settings.editor.selected.configurable": "preferences.pluginManager"
   }
 }]]></component>
   <component name="RecentsManager">
@@ -196,6 +160,7 @@
     <configuration name="MCraze2" type="Application" factoryName="Application">
       <option name="MAIN_CLASS_NAME" value="mc.sayda.mcraze.Game" />
       <module name="MCraze" />
+      <option name="PROGRAM_PARAMETERS" value="--username Player1 --password 123" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>

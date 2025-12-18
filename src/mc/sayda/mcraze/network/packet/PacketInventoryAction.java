@@ -16,33 +16,33 @@ import mc.sayda.mcraze.network.Packet;
 import mc.sayda.mcraze.network.PacketHandler;
 
 /**
- * Server -> Client: Entity state update (positions, health, etc.)
+ * Client -> Server: Inventory click action
+ * Sent when player clicks in their inventory to move/split/craft items
  */
-public class PacketEntityUpdate extends Packet {
+public class PacketInventoryAction extends Packet {
 	private static final long serialVersionUID = 1L;
 
-	public int[] entityIds;
-	public String[] entityTypes;  // Entity type: "Player", "Item", etc.
-	public String[] entityUUIDs;  // Entity UUIDs for stable tracking across disconnects
-	public float[] entityX;
-	public float[] entityY;
-	public float[] entityDX;
-	public float[] entityDY;
-	public int[] entityHealth;
-	public boolean[] facingRight;  // Entity facing direction
-	public boolean[] dead;  // Entity death state
-	public String[] itemIds;  // Item ID (for Item entities only, null for others)
-	public String[] playerNames;  // Player username (for Player entities only, null for others)
+	public int slotX;          // Clicked slot X coordinate
+	public int slotY;          // Clicked slot Y coordinate
+	public boolean leftClick;  // true = left click, false = right click
+	public boolean craftClick; // true if clicking craft output slot
 
-	public PacketEntityUpdate() {}
+	public PacketInventoryAction() {}
+
+	public PacketInventoryAction(int slotX, int slotY, boolean leftClick, boolean craftClick) {
+		this.slotX = slotX;
+		this.slotY = slotY;
+		this.leftClick = leftClick;
+		this.craftClick = craftClick;
+	}
 
 	@Override
 	public int getPacketId() {
-		return 6;
+		return 11;  // New packet ID
 	}
 
 	@Override
 	public void handle(PacketHandler handler) {
-		handler.handleEntityUpdate(this);
+		handler.handleInventoryAction(this);
 	}
 }

@@ -58,12 +58,18 @@ public class Client implements PacketHandler {
 	public boolean rightClick = false;
 	public Int2 screenMousePos = new Int2(0, 0);
 
+	// Frame timing for FPS calculation
+	private long lastFrameTime = System.nanoTime();
+	private long frameDeltaMs = 16;  // Default to ~60 FPS
+
 	// UI
 	public Chat chat;
 	private MainMenu menu;
 	private boolean inMenu = true;
 	private mc.sayda.mcraze.ui.PauseMenu pauseMenu;
 	private boolean inPauseMenu = false;
+	private mc.sayda.mcraze.ui.SettingsMenu settingsMenu;
+	private boolean inSettingsMenu = false;
 	private mc.sayda.mcraze.ui.LoadingScreen loadingScreen;
 	private boolean inLoadingScreen = false;
 
@@ -104,6 +110,7 @@ public class Client implements PacketHandler {
 		this.game = game;
 		menu.setGame(game);
 		pauseMenu = new mc.sayda.mcraze.ui.PauseMenu(game, uiRenderer);
+		settingsMenu = new mc.sayda.mcraze.ui.SettingsMenu(game, uiRenderer, pauseMenu);
 		// Initialize graphics handler now that we have the Game reference
 		GraphicsHandler.get().init(game);
 	}
@@ -123,6 +130,11 @@ public class Client implements PacketHandler {
 
 		// Process incoming packets from server (for multiplayer)
 		processPackets();
+
+		// Send input packets regularly in multiplayer/LAN mode (for continuous movement)
+		if (isMultiplayerOrLAN()) {
+			sendInputFromEventHandler();
+		}
 
 		GraphicsHandler g = GraphicsHandler.get();
 		g.startDrawing();
@@ -189,15 +201,34 @@ public class Client implements PacketHandler {
 		for (mc.sayda.mcraze.entity.Entity entity : localServer.entities) {
 			if (entity != null) {
 				entity.draw(g, cameraX, cameraY, screenWidth, screenHeight, tileSize);
+
+				// Draw username above player heads
+				if (entity instanceof mc.sayda.mcraze.entity.Player) {
+					mc.sayda.mcraze.entity.Player player = (mc.sayda.mcraze.entity.Player) entity;
+					if (player.username != null && !player.username.isEmpty()) {
+						// Calculate screen position above player's head
+						mc.sayda.mcraze.util.Int2 pos = mc.sayda.mcraze.util.StockMethods.computeDrawLocationInPlace(
+							cameraX, cameraY, screenWidth, screenHeight, tileSize, entity.x, entity.y
+						);
+
+						if (mc.sayda.mcraze.util.StockMethods.onScreen) {
+							// Draw username centered above player (offset by entity height + 8 pixels)
+							int textX = pos.x + (entity.widthPX / 2) - (player.username.length() * 4);
+							int textY = pos.y - 8;
+							g.setColor(mc.sayda.mcraze.Color.white);
+							g.drawString(player.username, textX, textY);
+						}
+					}
+				}
 			}
 		}
 
 		// Don't process game input if chat is open
 		boolean chatOpen = chat.isOpen();
 
-		// Update inventory UI
+		// Update inventory UI (with connection for packet sending)
 		boolean inventoryFocus = localServer.player.inventory.updateInventory(screenWidth, screenHeight,
-				screenMousePos, leftClick && !chatOpen, rightClick && !chatOpen);
+				screenMousePos, leftClick && !chatOpen, rightClick && !chatOpen, connection);
 		if (inventoryFocus || chatOpen) {
 			leftClick = false;
 			rightClick = false;
@@ -248,11 +279,23 @@ public class Client implements PacketHandler {
 
 		// Render UI
 		if (viewFPS) {
-			uiRenderer.drawFPS(g, 16);  // TODO: Calculate actual delta
+			// Calculate frame delta for FPS display
+			long currentTime = System.nanoTime();
+			frameDeltaMs = (currentTime - lastFrameTime) / 1_000_000;  // Convert to milliseconds
+			lastFrameTime = currentTime;
+
+			uiRenderer.drawFPS(g, frameDeltaMs);
 		}
 
 		uiRenderer.drawBuildMineIcons(g, localServer.player, cameraX, cameraY, tileSize);
 		localServer.player.inventory.draw(g, screenWidth, screenHeight);
+
+		// Settings menu (drawn over pause menu if open)
+		if (inSettingsMenu && settingsMenu != null) {
+			settingsMenu.draw(g);
+			g.finishDrawing();
+			return;
+		}
 
 		// Pause menu (drawn over everything else)
 		if (inPauseMenu && pauseMenu != null) {
@@ -287,12 +330,12 @@ public class Client implements PacketHandler {
 	public void sendInput() {
 		if (localServer == null || localServer.player == null) return;
 
-		// For now, we're accessing server state directly (integrated server)
-		// TODO: Send proper input packets
+		// Movement keys are tracked and sent in AwtEventsHandler.sendInputPacket()
+		// This packet sending here is for click events only
 
-		// Send player input
+		// Send player input (clicks and mouse position)
 		PacketPlayerInput inputPacket = new PacketPlayerInput(
-				false, false, false,  // TODO: Track movement keys
+				false, false, false,  // Movement keys handled by AwtEventsHandler
 				leftClick, rightClick,
 				screenMousePos.x, screenMousePos.y,
 				localServer.player.inventory.hotbarIdx
@@ -333,13 +376,12 @@ public class Client implements PacketHandler {
 				mc.sayda.mcraze.Constants.TileID itemAsTile = mc.sayda.mcraze.Constants.TileID.fromItemId(currentItem.getItem().itemId);
 				if (itemAsTile != null) {
 					tileId = (char) itemAsTile.ordinal();
-				} else {
-					// Item exists but can't be placed (tool, stick, etc.)
-					// Don't send packet - not a valid placement
-					return;
 				}
+				// If item can't be placed, tileId stays 0 - still send packet for block interactions (crafting table)
 			}
-			// If empty hand, tileId=0 - will be sent for block interactions (e.g., crafting table)
+			// tileId=0 will be sent for:
+			//   - Empty hand (for block interactions like crafting tables)
+			//   - Non-placeable items (tools, sticks, etc. - also for interactions)
 		}
 
 		// Send packet
@@ -531,6 +573,22 @@ public class Client implements PacketHandler {
 	}
 
 	/**
+	 * Open the settings menu
+	 */
+	public void openSettingsMenu() {
+		inSettingsMenu = true;
+		inPauseMenu = false;  // Hide pause menu when showing settings
+	}
+
+	/**
+	 * Close the settings menu (returns to pause menu)
+	 */
+	public void closeSettingsMenu() {
+		inSettingsMenu = false;
+		inPauseMenu = true;  // Show pause menu again
+	}
+
+	/**
 	 * Show the loading screen
 	 */
 	public void showLoadingScreen() {
@@ -587,6 +645,27 @@ public class Client implements PacketHandler {
 		return running;
 	}
 
+	/**
+	 * Check if we're in multiplayer or LAN mode (need continuous input packets)
+	 */
+	private boolean isMultiplayerOrLAN() {
+		// NetworkConnection = multiplayer client
+		// LocalConnection + game has LAN enabled = LAN mode (host or client)
+		return connection instanceof mc.sayda.mcraze.network.NetworkConnection ||
+		       (game != null && game.getServer() != null && game.getServer().isLANEnabled());
+	}
+
+	/**
+	 * Called by render loop to send input packets from AwtEventsHandler state
+	 * This requests AwtEventsHandler to send the current input state
+	 */
+	private void sendInputFromEventHandler() {
+		// Request AwtEventsHandler to send current input state via Game
+		if (game != null) {
+			game.sendCurrentInputState();
+		}
+	}
+
 	public boolean isInMenu() {
 		return inMenu;
 	}
@@ -629,9 +708,14 @@ public class Client implements PacketHandler {
 			logger.info("Client: My player UUID is " + myPlayerUUID);
 		}
 
-		// Enable unlimited packet processing for initial world data (expect ~150 PacketWorldUpdate packets)
-		worldInitPacketsRemaining = 200;
-		worldInitTotalPackets = 200;
+		// Enable unlimited packet processing for initial world data
+		// Use server's expected packet count (or fallback to 200 for old servers)
+		int expectedPackets = (packet.totalPacketsExpected > 0) ? packet.totalPacketsExpected : 200;
+		worldInitPacketsRemaining = expectedPackets;
+		worldInitTotalPackets = expectedPackets;
+		if (logger != null) {
+			logger.info("Client: Expecting " + expectedPackets + " world initialization packets");
+		}
 
 		if (localServer != null) {
 			try {
@@ -747,6 +831,11 @@ public class Client implements PacketHandler {
 						7 * 4,  // width
 						14 * 4  // height
 					);
+
+					// Set player username
+					if (packet.playerNames != null && i < packet.playerNames.length && packet.playerNames[i] != null) {
+						((mc.sayda.mcraze.entity.Player) entity).username = packet.playerNames[i];
+					}
 				}
 
 				localServer.entities.set(i, entity);
@@ -824,6 +913,16 @@ public class Client implements PacketHandler {
 			return;
 		}
 
+		// Only apply inventory update if it's for THIS player
+		String localPlayerUUID = localServer.player.getUUID();
+		if (packet.playerUUID == null || !packet.playerUUID.equals(localPlayerUUID)) {
+			// This inventory update is for a different player - ignore it
+			if (logger != null && logger.isDebugEnabled()) {
+				logger.debug("Client.handleInventoryUpdate: Ignoring inventory for different player (packet UUID: " + packet.playerUUID + ", local UUID: " + localPlayerUUID + ")");
+			}
+			return;
+		}
+
 		mc.sayda.mcraze.ui.Inventory inv = localServer.player.inventory;
 		int width = inv.inventoryItems.length;
 		int height = inv.inventoryItems[0].length;
@@ -838,7 +937,8 @@ public class Client implements PacketHandler {
 		inv.hotbarIdx = packet.hotbarIndex;
 
 		// Update inventory UI state
-		inv.setVisible(packet.visible);
+		// NOTE: Do NOT sync visibility - it's client-side UI state
+		// inv.setVisible(packet.visible);  // This would close the inventory immediately!
 		inv.tableSizeAvailable = packet.tableSizeAvailable;
 
 		// Unflatten inventory array
@@ -892,6 +992,9 @@ public class Client implements PacketHandler {
 
 	@Override
 	public void handleBlockChange(PacketBlockChange packet) {}
+
+	@Override
+	public void handleInventoryAction(PacketInventoryAction packet) {}
 
 	@Override
 	public void handleChatSend(PacketChatSend packet) {}

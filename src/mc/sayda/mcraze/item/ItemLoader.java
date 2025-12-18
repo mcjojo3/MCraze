@@ -1,34 +1,27 @@
 /*
- * Copyright 2012 Jonathan Leahey
- * 
- * This file is part of Minicraft
- * 
- * Minicraft is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
- * Minicraft is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with Minicraft. If not, see http://www.gnu.org/licenses/.
+ * Copyright 2025 SaydaGames (mc_jojo3)
+ *
+ * This file is part of MCraze
+ *
+ * MCraze is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * MCraze is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MCraze. If not, see http://www.gnu.org/licenses/.
  */
 
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/ItemLoader.java
-package com.github.jleahey.minicraft;
-========
 package mc.sayda.mcraze.item;
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/item/ItemLoader.java
 
 import java.io.IOException;
 import java.util.HashMap;
 
 import com.google.gson.Gson;
 
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/ItemLoader.java
-========
 import mc.sayda.mcraze.util.StockMethods;
 
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/item/ItemLoader.java
 public class ItemLoader {
 	private static final Gson gson = new Gson();
-	
+
 	public static HashMap<String, Item> loadItems(int size) {
 		ToolDefinition[] tools = null;
 		ItemDefinition[] items = null;

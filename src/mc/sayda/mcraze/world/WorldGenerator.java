@@ -1,30 +1,24 @@
 /*
- * Copyright 2012 Jonathan Leahey
+ * Copyright 2025 SaydaGames (mc_jojo3)
  * 
- * This file is part of Minicraft
+ * This file is part of MCraze
  * 
- * Minicraft is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * MCraze is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * 
- * Minicraft is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * MCraze is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Minicraft. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU General Public License along with MCraze. If not, see http://www.gnu.org/licenses/.
  */
 
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/WorldGenerator.java
-package com.github.jleahey.minicraft;
-========
 package mc.sayda.mcraze.world;
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/world/WorldGenerator.java
 
 import java.util.ArrayList;
 import java.util.Random;
 
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/WorldGenerator.java
-import com.github.jleahey.minicraft.Constants.TileID;
-========
 import mc.sayda.mcraze.Constants.TileID;
 import mc.sayda.mcraze.util.Int2;
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/world/WorldGenerator.java
+import mc.sayda.mcraze.Constants.TileID;
+import mc.sayda.mcraze.util.Int2;
 
 public class WorldGenerator {
 	

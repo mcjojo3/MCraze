@@ -133,7 +133,8 @@ public class SharedWorld {
 			7 * 4,
 			14 * 4
 		);
-		if (logger != null) logger.debug("SharedWorld.addPlayer: Player entity created");
+		player.username = username;  // Set player's display name
+		if (logger != null) logger.debug("SharedWorld.addPlayer: Player entity created for " + username);
 
 		// Load or create playerdata
 		if (playerData == null) {
@@ -238,25 +239,7 @@ public class SharedWorld {
 			logger.debug("SharedWorld.sendInitialWorldState: World dimensions: " + world.width + "x" + world.height);
 		}
 
-		// Send world initialization packet with dimensions and spawn location
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Sending PacketWorldInit...");
-
-		// Get this player's UUID
-		String playerUUID = playerConnection.getPlayer().getUUID();
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Player UUID: " + playerUUID);
-
-		PacketWorldInit initPacket = new PacketWorldInit(
-			world.width,
-			world.height,
-			0,
-			world.spawnLocation.x,
-			world.spawnLocation.y
-		);
-		initPacket.playerUUID = playerUUID;
-		playerConnection.getConnection().sendPacket(initPacket);
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: PacketWorldInit sent with playerUUID=" + playerUUID);
-
-		// Send all non-air tiles
+		// Send all non-air tiles (count first to determine total packets)
 		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Collecting non-air tiles...");
 		ArrayList<Integer> changedX = new ArrayList<>();
 		ArrayList<Integer> changedY = new ArrayList<>();
@@ -289,9 +272,31 @@ public class SharedWorld {
 			logger.info("SharedWorld: Tile range - X:" + minX + "-" + maxX + ", Y:" + minY + "-" + maxY);
 		}
 
-		// Send in chunks of 1000 tiles
+		// Calculate total packets (world update chunks + 1 entity update)
 		int chunkSize = 1000;
 		int numChunks = (int) Math.ceil((double) changedX.size() / chunkSize);
+		int totalPackets = numChunks + 1;  // +1 for entity update
+
+		// Send world initialization packet with dimensions and spawn location
+		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Sending PacketWorldInit...");
+
+		// Get this player's UUID
+		String playerUUID = playerConnection.getPlayer().getUUID();
+		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Player UUID: " + playerUUID);
+
+		PacketWorldInit initPacket = new PacketWorldInit(
+			world.width,
+			world.height,
+			0,
+			world.spawnLocation.x,
+			world.spawnLocation.y
+		);
+		initPacket.playerUUID = playerUUID;
+		initPacket.totalPacketsExpected = totalPackets;
+		playerConnection.getConnection().sendPacket(initPacket);
+		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: PacketWorldInit sent with playerUUID=" + playerUUID + ", totalPackets=" + totalPackets);
+
+		// Send in chunks of 1000 tiles
 		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Sending " + numChunks + " chunks of world data...");
 
 		for (int i = 0; i < changedX.size(); i += chunkSize) {
@@ -353,6 +358,7 @@ public class SharedWorld {
 		packet.facingRight = new boolean[entityCount];
 		packet.dead = new boolean[entityCount];
 		packet.itemIds = new String[entityCount];
+		packet.playerNames = new String[entityCount];
 
 		for (int i = 0; i < entityCount; i++) {
 			Entity entity = allEntities.get(i);
@@ -367,12 +373,15 @@ public class SharedWorld {
 			if (entity instanceof Player) {
 				packet.entityTypes[i] = "Player";
 				packet.itemIds[i] = null;
+				packet.playerNames[i] = ((Player) entity).username;  // Send player name
 			} else if (entity instanceof Item) {
 				packet.entityTypes[i] = "Item";
 				packet.itemIds[i] = ((Item) entity).itemId;
+				packet.playerNames[i] = null;
 			} else {
 				packet.entityTypes[i] = "Unknown";
 				packet.itemIds[i] = null;
+				packet.playerNames[i] = null;
 			}
 
 			if (entity instanceof LivingEntity) {
@@ -437,6 +446,9 @@ public class SharedWorld {
 			logger.debug("SharedWorld.tick: Updating " + allEntities.size() + " entities...");
 		}
 
+		// Track entities to remove from worldEntities after iteration
+		List<Entity> entitiesToRemove = new ArrayList<>();
+
 		Iterator<Entity> it = allEntities.iterator();
 		while (it.hasNext()) {
 			Entity entity = it.next();
@@ -455,8 +467,8 @@ public class SharedWorld {
 						mc.sayda.mcraze.item.Item item = (mc.sayda.mcraze.item.Item) entity;
 						int leftover = player.giveItem(item, 1);
 						if (leftover == 0) {
-							// Item fully picked up
-							it.remove();
+							// Item fully picked up - mark for removal from worldEntities
+							entitiesToRemove.add(entity);
 							pickedUp = true;
 							if (logger != null && ticksRunning <= 10) {
 								logger.debug("SharedWorld.tick: Player " + pc.getPlayerName() + " picked up " + item.itemId);
@@ -486,14 +498,38 @@ public class SharedWorld {
 						for (PlayerConnection pc : players) {
 							if (pc.getPlayer() == deadPlayer) {
 								pc.getConnection().sendPacket(new PacketPlayerDeath());
+
+								// Drop all items from inventory
+								java.util.ArrayList<Item> droppedItems = deadPlayer.dropAllItems(random);
+								for (Item item : droppedItems) {
+									worldEntities.add(item);
+								}
+								System.out.println("Player " + deadPlayer.username + " died and dropped " + droppedItems.size() + " items");
+
 								break;
 							}
 						}
 					}
-					// TODO: Handle death (drop items, respawn, etc.)
 				}
 			}
 		}
+
+		// Remove picked-up items from worldEntities
+		if (!entitiesToRemove.isEmpty()) {
+			// Send entity removal packets immediately to all clients
+			for (Entity entity : entitiesToRemove) {
+				mc.sayda.mcraze.network.packet.PacketEntityRemove removePacket =
+					new mc.sayda.mcraze.network.packet.PacketEntityRemove();
+				removePacket.entityUUID = entity.getUUID();
+				broadcastPacket(removePacket);
+			}
+
+			worldEntities.removeAll(entitiesToRemove);
+			if (logger != null && ticksRunning <= 10) {
+				logger.debug("SharedWorld.tick: Removed " + entitiesToRemove.size() + " entities from world");
+			}
+		}
+
 		if (logger != null && ticksRunning <= 5) {
 			logger.debug("SharedWorld.tick: Entities updated");
 		}
@@ -559,6 +595,7 @@ public class SharedWorld {
 		packet.facingRight = new boolean[entityCount];
 		packet.dead = new boolean[entityCount];
 		packet.itemIds = new String[entityCount];
+		packet.playerNames = new String[entityCount];
 
 		for (int i = 0; i < entityCount; i++) {
 			Entity entity = allEntities.get(i);
@@ -573,12 +610,15 @@ public class SharedWorld {
 			if (entity instanceof Player) {
 				packet.entityTypes[i] = "Player";
 				packet.itemIds[i] = null;
+				packet.playerNames[i] = ((Player) entity).username;  // Send player name
 			} else if (entity instanceof Item) {
 				packet.entityTypes[i] = "Item";
 				packet.itemIds[i] = ((Item) entity).itemId;
+				packet.playerNames[i] = null;
 			} else {
 				packet.entityTypes[i] = "Unknown";
 				packet.itemIds[i] = null;
+				packet.playerNames[i] = null;
 			}
 
 			if (entity instanceof LivingEntity) {
@@ -620,6 +660,9 @@ public class SharedWorld {
 			}
 
 			PacketInventoryUpdate packet = new PacketInventoryUpdate();
+
+			// Set player UUID so clients know whose inventory this is
+			packet.playerUUID = player.getUUID();
 
 			mc.sayda.mcraze.ui.Inventory inv = player.inventory;
 			int width = inv.inventoryItems.length;
@@ -810,12 +853,12 @@ public class SharedWorld {
 
 			// Block placing - validate and apply
 			Constants.TileID tileId = null;
-			if (packet.newTileId > 0 && packet.newTileId < Constants.TileID.values().length) {
+			if (packet.newTileId >= 0 && packet.newTileId < Constants.TileID.values().length) {
 				tileId = Constants.TileID.values()[packet.newTileId];
 			}
 
-			if (tileId == null) {
-				return;
+			if (tileId == null || tileId == Constants.TileID.AIR || tileId == Constants.TileID.NONE) {
+				return;  // Cannot place air or invalid tiles
 			}
 
 			// Can only place if the target position is empty (not a solid block)
@@ -852,9 +895,67 @@ public class SharedWorld {
 		}
 	}
 
+	/**
+	 * Handle inventory action from client (slot clicks, crafting)
+	 * Server-authoritative inventory manipulation
+	 */
+	public void handleInventoryAction(PlayerConnection playerConnection, mc.sayda.mcraze.network.packet.PacketInventoryAction packet) {
+		Player player = playerConnection.getPlayer();
+		if (player == null || player.inventory == null) {
+			return;
+		}
+
+		// Dead players cannot interact with inventory
+		if (player.dead) {
+			return;
+		}
+
+		// The player's inventory will handle the action server-side
+		mc.sayda.mcraze.ui.Inventory inv = player.inventory;
+
+		// Construct fake screen dimensions and mouse position to call updateInventory()
+		// This allows us to reuse the existing inventory manipulation logic
+		int fakeScreenWidth = 800;
+		int fakeScreenHeight = 600;
+
+		// Calculate mouse position for the clicked slot
+		// Based on Inventory.draw() layout calculations
+		int tileSize = 16;
+		int separation = 15;
+		int panelWidth = inv.inventoryItems.length * (tileSize + separation) + separation;
+		int panelHeight = inv.inventoryItems[0].length * (tileSize + separation) + separation;
+		int panelX = fakeScreenWidth / 2 - panelWidth / 2;
+		int panelY = fakeScreenHeight / 2 - panelHeight / 2;
+
+		// Calculate click position for the slot
+		int mouseX = panelX + packet.slotX * (tileSize + separation) + separation + tileSize/2;
+		int mouseY = panelY + (packet.slotY + 1) * (tileSize + separation) + separation + tileSize/2;
+
+		// Handle craft clicks differently
+		if (packet.craftClick) {
+			// Craft output slot position
+			mouseX = panelX + (inv.inventoryItems.length - inv.tableSizeAvailable - 1) * (tileSize + separation);
+			mouseY = panelY + separation * 2 + tileSize + tileSize/2;
+		}
+
+		mc.sayda.mcraze.util.Int2 mousePos = new mc.sayda.mcraze.util.Int2(mouseX, mouseY);
+
+		// Apply the inventory action server-side by calling updateInventory
+		// Pass null for connection to avoid sending packets from server
+		inv.updateInventory(fakeScreenWidth, fakeScreenHeight, mousePos,
+			packet.leftClick, !packet.leftClick, null);
+
+		// Broadcast updated inventory to all clients
+		broadcastInventoryUpdates();
+	}
+
 	// Getters
 	public World getWorld() {
 		return world;
+	}
+
+	public List<PlayerConnection> getPlayers() {
+		return players;
 	}
 
 	/**

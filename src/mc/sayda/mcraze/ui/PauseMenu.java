@@ -95,11 +95,12 @@ public class PauseMenu {
 	}
 
 	/**
-	 * Open settings menu (placeholder)
+	 * Open settings menu
 	 */
 	private void openSettings() {
-		System.out.println("Settings menu - coming soon!");
-		// TODO: Implement settings menu
+		if (game.getClient() != null) {
+			game.getClient().openSettingsMenu();
+		}
 	}
 
 	/**

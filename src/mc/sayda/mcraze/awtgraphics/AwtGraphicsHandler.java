@@ -1,8 +1,4 @@
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/awtgraphics/AwtGraphicsHandler.java
-package com.github.jleahey.minicraft.awtgraphics;
-========
 package mc.sayda.mcraze.awtgraphics;
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/awtgraphics/AwtGraphicsHandler.java
 
 import java.awt.Canvas;
 import java.awt.Color;
@@ -23,38 +19,28 @@ import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/awtgraphics/AwtGraphicsHandler.java
-import com.github.jleahey.minicraft.Game;
-import com.github.jleahey.minicraft.Sprite;
-import com.github.jleahey.minicraft.SpriteStore;
-
-public class AwtGraphicsHandler extends com.github.jleahey.minicraft.GraphicsHandler {
-========
 import mc.sayda.mcraze.Game;
 import mc.sayda.mcraze.Sprite;
 import mc.sayda.mcraze.SpriteStore;
 
 public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/awtgraphics/AwtGraphicsHandler.java
 	private Canvas canvas;
 	private BufferStrategy strategy;
 	private JFrame container;
 	private Cursor myCursor = null;
 	private JPanel panel;
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/awtgraphics/AwtGraphicsHandler.java
-========
+	private AwtEventsHandler eventsHandler;
 
 	// Color caching to avoid creating new Color objects on every setColor call
 	private mc.sayda.mcraze.Color lastRequestedColor = null;
 	private Color cachedAwtColor = null;
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/awtgraphics/AwtGraphicsHandler.java
-	
+
 	@Override
 	public void init(final Game game) {
 		canvas = new Canvas();
 		// create a frame to contain our game
-		container = new JFrame("Minicraft");
-		
+		container = new JFrame("MCraze");
+
 		try {
 			ImageIcon ii = new ImageIcon(new URL("file:sprites/other/mouse.png"));
 			Image im = ii.getImage();
@@ -63,7 +49,7 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 		} catch (Exception e) {
 			System.out.println("myCursor creation failed " + e);
 		}
-		
+
 		// get hold the content of the frame and set up the resolution of the game
 		panel = (JPanel) container.getContentPane();
 		panel.setPreferredSize(new Dimension(screenWidth, screenHeight));
@@ -78,20 +64,20 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 				screenHeight = d.height;
 			}
 		});
-		
+
 		// setup our canvas size and put it into the content of the frame
 		canvas.setBounds(0, 0, screenWidth + 10, screenHeight + 10);
 		panel.add(canvas);
-		
+
 		// Tell AWT not to bother repainting our canvas since we're
 		// going to do that our self in accelerated mode
 		canvas.setIgnoreRepaint(true);
-		
+
 		// finally make the window visible
 		container.pack();
 		container.setResizable(true);
 		container.setVisible(true);
-		
+
 		// add a listener to respond to the user closing the window. If they
 		// do we'd like to exit the game
 		// TODO: add this back in
@@ -102,19 +88,19 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 				game.quit();
 			}
 		});
-		new AwtEventsHandler(game, canvas);
-		
+		eventsHandler = new AwtEventsHandler(game, canvas);
+
 		// request the focus so key events come to us
 		canvas.requestFocus();
-		
+
 		// create the buffering strategy which will allow AWT
 		// to manage our accelerated graphics
 		canvas.createBufferStrategy(2);
 		strategy = canvas.getBufferStrategy();
 	}
-	
+
 	Graphics2D g;
-	
+
 	@Override
 	public void startDrawing() {
 		// Get hold of a graphics context for the accelerated
@@ -122,21 +108,16 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 		g = (Graphics2D) strategy.getDrawGraphics();
 		g.setColor(Color.black);
 		g.fillRect(0, 0, screenWidth, screenHeight);
-		
+
 	}
-	
+
 	@Override
 	public void finishDrawing() {
 		g.dispose();
 		strategy.show();
 	}
-	
+
 	@Override
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/awtgraphics/AwtGraphicsHandler.java
-	public void setColor(com.github.jleahey.minicraft.Color color) {
-		// TODO: Profile, this might be quite slow "new" every color change
-		g.setColor(new Color(color.R, color.G, color.B, color.A));
-========
 	public void setColor(mc.sayda.mcraze.Color color) {
 		// Cache color objects to avoid creating new ones on every call
 		if (lastRequestedColor == null || !color.equals(lastRequestedColor)) {
@@ -144,9 +125,8 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 			lastRequestedColor = color;
 		}
 		g.setColor(cachedAwtColor);
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/awtgraphics/AwtGraphicsHandler.java
 	}
-	
+
 	@Override
 	public void fillRect(int x, int y, int width, int height) {
 		g.fillRect(x, y, width, height);
@@ -156,17 +136,17 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 	public void drawRect(int x, int y, int width, int height) {
 		g.drawRect(x, y, width, height);
 	}
-	
+
 	@Override
 	public void drawString(String string, int x, int y) {
 		g.drawString(string, x, y);
 	}
-	
+
 	@Override
 	public void fillOval(int x, int y, int width, int height) {
 		g.fillOval(x, y, width, height);
 	}
-	
+
 	@Override
 	public void drawImage(Sprite sprite, int x, int y) {
 		// TODO: This is inefficient, and serialization should be done more neatly
@@ -177,18 +157,14 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 		}
 		g.drawImage(awtSprite.image, x, y, null);
 	}
-	
+
 	@Override
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/awtgraphics/AwtGraphicsHandler.java
-	public void drawImage(Sprite sprite, int x, int y, com.github.jleahey.minicraft.Color tint) {
-========
 	public void drawImage(Sprite sprite, int x, int y, mc.sayda.mcraze.Color tint) {
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/awtgraphics/AwtGraphicsHandler.java
 		int width = sprite.getWidth();
 		int height = sprite.getHeight();
 		drawImage(sprite, x, y, width, height, tint);
 	}
-	
+
 	@Override
 	public void drawImage(Sprite sprite, int x, int y, int width, int height) {
 		AwtSprite awtSprite = (AwtSprite) sprite;
@@ -198,18 +174,21 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 		}
 		g.drawImage(awtSprite.image, x, y, width, height, null);
 	}
-	
+
 	@Override
 	public void drawImage(Sprite sprite, int x, int y, int width, int height,
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/awtgraphics/AwtGraphicsHandler.java
-			com.github.jleahey.minicraft.Color tint) {
-========
 			mc.sayda.mcraze.Color tint) {
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/awtgraphics/AwtGraphicsHandler.java
 		drawImage(sprite, x, y, width, height);
 		java.awt.Color old = g.getColor();
 		this.setColor(tint);
 		this.fillRect(x, y, width, height);
 		g.setColor(old);
+	}
+
+	/**
+	 * Get the events handler for accessing input state
+	 */
+	public AwtEventsHandler getEventsHandler() {
+		return eventsHandler;
 	}
 }

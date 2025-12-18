@@ -1,35 +1,32 @@
 /*
- * Copyright 2012 Jonathan Leahey
- * 
- * This file is part of Minicraft
- * 
- * Minicraft is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
- * Minicraft is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with Minicraft. If not, see http://www.gnu.org/licenses/.
+ * Copyright 2025 SaydaGames (mc_jojo3)
+ *
+ * This file is part of MCraze
+ *
+ * MCraze is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * MCraze is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MCraze. If not, see http://www.gnu.org/licenses/.
  */
 
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/LivingEntity.java
-package com.github.jleahey.minicraft;
-========
 package mc.sayda.mcraze.entity;
 
 import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.item.Item;
 import mc.sayda.mcraze.ui.Inventory;
 import mc.sayda.mcraze.world.World;
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/entity/LivingEntity.java
 
 public abstract class LivingEntity extends Entity {
 	private static final long serialVersionUID = 1L;
 	protected static final int maxHP = 100;
-	
+
 	public int hitPoints;
 	public boolean climbing = false;
 	public boolean facingRight = true;
 	public Inventory inventory;
-	
+	public boolean dead = false;
+
 	protected final float walkSpeed = .1f;
 	protected final float swimSpeed = .04f;
 	protected float armLength = Constants.ARM_LENGTH;
@@ -37,7 +34,7 @@ public abstract class LivingEntity extends Entity {
 	protected long ticksAlive = 0;
 	protected int ticksUnderwater = 0;
 	protected boolean jumping = false;
-	
+
 	public LivingEntity(boolean gravityApplies, float x, float y, int width, int height) {
 		super(null, gravityApplies, x, y, width, height);
 		this.hitPoints = maxHP;
@@ -53,16 +50,16 @@ public abstract class LivingEntity extends Entity {
 	public int giveItem(Item item, int count) {
 		return inventory.addItem(item, count);
 	}
-	
+
 	public int airRemaining() {
 		return Math.max(10 - (ticksUnderwater / 50), 0);
 	}
-	
+
 	public void jump(World world, int tileSize) {
 		if (dead || jumping) {
 			return;
 		}
-		
+
 		if (!this.isInWater(world, tileSize)) {
 			dy = -.3f;
 			jumping = true;
@@ -70,7 +67,7 @@ public abstract class LivingEntity extends Entity {
 			dy = -maxWaterDY - .000001f;// BIG HACK
 		}
 	}
-	
+
 	@Override
 	public void updatePosition(World world, int tileSize) {
 		ticksAlive++;
@@ -117,7 +114,7 @@ public abstract class LivingEntity extends Entity {
 			ticksUnderwater = 0;
 		}
 	}
-	
+
 	public void startLeft(boolean slow) {
 		if (dead) return;  // Prevent movement when dead
 		facingRight = false;
@@ -158,7 +155,7 @@ public abstract class LivingEntity extends Entity {
 	public void endClimb() {
 		climbing = false;
 	}
-	
+
 	public float findIntersection(float rayOx, float rayOy, float m, float p1x, float p1y,
 			float p2x, float p2y) {
 		float freeVar = -1;
@@ -179,14 +176,10 @@ public abstract class LivingEntity extends Entity {
 		}
 		return freeVar;
 	}
-	
+
 	@Override
 	public void takeDamage(int amount) {
 		this.hitPoints -= amount;
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/LivingEntity.java
-		// TODO: play sound, check for death
-		System.out.println("Took " + amount + " damage. Current health = " + this.hitPoints);
-========
 
 		// Clamp health to 0 minimum (don't go below 0)
 		if (this.hitPoints < 0) {
@@ -218,9 +211,8 @@ public abstract class LivingEntity extends Entity {
 		System.out.println(getClass().getSimpleName() + " has died!");
 		// TODO: Add death sound effect when sound system is implemented
 		// Example: SoundPlayer.play("death");
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/entity/LivingEntity.java
 	}
-	
+
 	@Override
 	public void heal(int amount) {
 		int newHP = this.hitPoints + amount;

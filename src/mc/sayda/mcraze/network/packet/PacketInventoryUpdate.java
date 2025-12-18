@@ -22,6 +22,9 @@ import mc.sayda.mcraze.network.PacketHandler;
 public class PacketInventoryUpdate extends Packet {
 	private static final long serialVersionUID = 1L;
 
+	// Player identification
+	public String playerUUID;  // UUID of the player this inventory belongs to
+
 	// Flattened inventory grid: inventoryWidth * inventoryHeight
 	public String[] itemIds;  // Item ID strings (null for empty slots)
 	public int[] itemCounts;  // Item counts

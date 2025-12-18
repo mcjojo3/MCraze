@@ -1,30 +1,24 @@
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/Constants.java
-package com.github.jleahey.minicraft;
-========
 package mc.sayda.mcraze;
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/Constants.java
 
 import java.util.HashMap;
 import java.util.Map;
 
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/Constants.java
-========
 import mc.sayda.mcraze.item.Item;
 import mc.sayda.mcraze.item.ItemLoader;
 import mc.sayda.mcraze.world.Tile;
 import mc.sayda.mcraze.world.TileType;
 
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/Constants.java
 public class Constants {
-	
+
 	public enum TileID {
+		NONE(null),      // NONE/AIR should be first (ordinal 0) to avoid issues with default values
+		AIR(null),
 		DIRT("dirt"),
 		GRASS(null),
 		LEAVES(null),
 		PLANK("plank"),
 		WOOD("wood"),
 		STONE("stone"),
-		AIR(null),
 		WATER(null),
 		SAND("sand"),
 		IRON_ORE("iron_ore"),
@@ -36,8 +30,7 @@ public class Constants {
 		BEDROCK(null),
 		SAPLING("sapling"),
 		LADDER("ladder"),
-		TORCH("torch"),
-		NONE(null);
+		TORCH("torch");
 
 		// The string ID of the item this tile drops when broken (null = no drop)
 		public final String itemDropId;
@@ -62,13 +55,22 @@ public class Constants {
 				}
 			}
 
+			// Try matching by enum name (for tiles without itemDropId or with different names)
+			try {
+				// Convert item ID to uppercase and try to match enum name
+				String enumName = itemId.toUpperCase().replace("_", "_");  // Keep underscores
+				return TileID.valueOf(enumName);
+			} catch (IllegalArgumentException e) {
+				// Not a valid enum name, continue to special cases
+			}
+
 			// Special cases where item names don't match tile names
 			if (itemId.equals("craft")) return CRAFTING_BENCH;
 
 			return null;
 		}
 	}
-	
+
 	public static Map<TileID, Tile> tileTypes = new HashMap<TileID, Tile>();
 
 	static {
@@ -112,7 +114,7 @@ public class Constants {
 	static {
 		itemTypes = ItemLoader.loadItems(16);
 	}
-	
+
 	// Tile rendering size in pixels
 	public static final int TILE_SIZE = 32;
 

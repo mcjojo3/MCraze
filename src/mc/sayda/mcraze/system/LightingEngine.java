@@ -1,8 +1,16 @@
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/LightingEngine.java
-package com.github.jleahey.minicraft;
-========
+/*
+ * Copyright 2025 SaydaGames (mc_jojo3)
+ *
+ * This file is part of MCraze
+ *
+ * MCraze is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * MCraze is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MCraze. If not, see http://www.gnu.org/licenses/.
+ */
+
 package mc.sayda.mcraze.system;
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/system/LightingEngine.java
 
 import java.io.Serializable;
 import java.util.Comparator;
@@ -11,29 +19,26 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.PriorityQueue;
 
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/LightingEngine.java
-========
 import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.util.Int2;
 import mc.sayda.mcraze.world.Tile;
 
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/system/LightingEngine.java
 public class LightingEngine implements Serializable {
-	
+
 	private static final long serialVersionUID = 1L;
-	
+
 	public enum Direction {
 		RIGHT, UP_RIGHT, UP, UP_LEFT, LEFT, DOWN_LEFT, DOWN, DOWN_RIGHT, SOURCE, WELL, UNKNOWN
 	};
-	
+
 	public Direction[][] lightFlow;
-	
+
 	private int[][] lightValues;
 	private int width, height;
 	private Tile[][] tiles;
-	
+
 	private final boolean isSun;
-	
+
 	public LightingEngine(int width, int height, Tile[][] tiles, boolean isSun) {
 		this.width = width;
 		this.height = height;
@@ -43,7 +48,7 @@ public class LightingEngine implements Serializable {
 		lightFlow = new Direction[width][height];
 		init();
 	}
-	
+
 	private void init() {
 		for (int x = 0; x < width; x++) {
 			for (int y = 0; y < height; y++) {
@@ -76,11 +81,11 @@ public class LightingEngine implements Serializable {
 		}
 		spreadLightingDijkstra(sources);
 	}
-	
+
 	public int getLightValue(int x, int y) {
 		return lightValues[x][y];
 	}
-	
+
 	public void removedTile(int x, int y) {
 		if (!isSun && lightFlow[x][y] == Direction.SOURCE) {
 			lightFlow[x][y] = Direction.UNKNOWN;
@@ -94,7 +99,7 @@ public class LightingEngine implements Serializable {
 		spreadLightingDijkstra(new LightingPoint(x, y, Direction.UNKNOWN, lightValues[x][y])
 				.getNeighbors(true, width, height));
 	}
-	
+
 	public void addedTile(int x, int y) {
 		lightFlow[x][y] = Direction.UNKNOWN;
 		if (isSun) {
@@ -116,7 +121,7 @@ public class LightingEngine implements Serializable {
 		}
 		resetLighting(x, y);
 	}
-	
+
 	public List<LightingPoint> getSunSources(int column) {
 		LinkedList<LightingPoint> sources = new LinkedList<LightingPoint>();
 		for (int y = 0; y < height - 1; y++) {
@@ -127,14 +132,14 @@ public class LightingEngine implements Serializable {
 		}
 		return sources;
 	}
-	
+
 	public void resetLighting(int x, int y) {
 		int left = Math.max(x - Constants.LIGHT_VALUE_SUN, 0);
 		int right = Math.min(x + Constants.LIGHT_VALUE_SUN, width - 1);
 		int top = Math.max(y - Constants.LIGHT_VALUE_SUN, 0);
 		int bottom = Math.min(y + Constants.LIGHT_VALUE_SUN, height - 1);
 		List<LightingPoint> sources = new LinkedList<LightingPoint>();
-		
+
 		// safely circle around the target zeroed zone
 		boolean bufferLeft = (left > 0);
 		boolean bufferRight = (right < width - 1);
@@ -190,20 +195,20 @@ public class LightingEngine implements Serializable {
 		}
 		spreadLightingDijkstra(sources);
 	}
-	
+
 	private void zeroLightValue(int x, int y) {
 		lightValues[x][y] = 0;
 	}
-	
+
 	private LightingPoint getLightingPoint(int x, int y) {
 		return new LightingPoint(x, y, lightFlow[x][y], lightValues[x][y]);
 	}
-	
+
 	public class LightingPoint {
-		
+
 		public int x, y, lightValue;
 		public Direction flow;
-		
+
 		// public LightingPoint(int x, int y, Direction flow, int lightValue) {
 		// this(x, y, flow, lightValue, true);
 		// }
@@ -214,13 +219,13 @@ public class LightingEngine implements Serializable {
 			this.flow = flow;
 			this.lightValue = lightValue;
 		}
-		
+
 		@Override
 		public boolean equals(Object o) {
 			LightingPoint other = (LightingPoint) o;
 			return other.x == this.x && other.y == this.y;
 		}
-		
+
 		public List<LightingPoint> getNeighbors(boolean sun, int width, int height) {
 			List<LightingPoint> neighbors = new LinkedList<LightingPoint>();
 			if (tiles[x][y] != null && tiles[x][y].type != null && tiles[x][y].type.lightBlocking == Constants.LIGHT_VALUE_OPAQUE) {
@@ -232,15 +237,15 @@ public class LightingEngine implements Serializable {
 
 			return neighbors;
 		}
-		
+
 		public List<LightingPoint> getExactNeighbors(int width, int height, int lightingValue) {
 			LinkedList<LightingPoint> neighbors = new LinkedList<LightingPoint>();
-			
+
 			boolean bufferLeft = (x > 0);
 			boolean bufferRight = (x < width - 1);
 			boolean bufferUp = (y > 0);
 			boolean bufferDown = (y < height - 1);
-			
+
 			if (bufferRight) {
 				neighbors.add(new LightingPoint(x + 1, y, Direction.RIGHT, lightingValue));
 				if (bufferUp) {
@@ -271,14 +276,14 @@ public class LightingEngine implements Serializable {
 			}
 			return neighbors;
 		}
-		
+
 		@Override
 		public int hashCode() {
 			return x * 13 + y * 17;
-			
+
 		}
 	}
-	
+
 	public class LightValueComparator implements Comparator<LightingPoint> {
 		@Override
 		public int compare(LightingPoint arg0, LightingPoint arg1) {
@@ -290,7 +295,7 @@ public class LightingEngine implements Serializable {
 			return 0;
 		}
 	}
-	
+
 	private void spreadLightingDijkstra(List<LightingPoint> sources) {
 		if (sources.isEmpty())
 			return;
@@ -300,12 +305,12 @@ public class LightingEngine implements Serializable {
 		// consider that the input sources are done (this is not a good assumption if different
 		// light sources have different values......)
 		out.addAll(sources);
-		
+
 		in.addAll(sources);
 		while (!in.isEmpty()) {
 			LightingPoint current = in.poll();
 			out.add(current);
-			
+
 			if (current.lightValue <= lightValues[current.x][current.y] || current.lightValue < 0) {
 				continue;
 			}
@@ -320,7 +325,7 @@ public class LightingEngine implements Serializable {
 			}
 		}
 	}
-	
+
 	public Direction oppositeDirection(Direction direction) {
 		switch (direction) {
 		case RIGHT:
@@ -343,7 +348,7 @@ public class LightingEngine implements Serializable {
 			return Direction.UNKNOWN;
 		}
 	}
-	
+
 	public Int2 followDirection(int x, int y, Direction direction) {
 		switch (direction) {
 		case RIGHT:

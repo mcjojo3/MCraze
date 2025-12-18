@@ -163,11 +163,13 @@ public class Game {
 		client.showLoadingScreen();
 		client.setLoadingStatus("Initializing...");
 		client.setLoadingProgress(10);
+		client.render();  // Force render to display loading screen
 
 		// If server is null (e.g., after returning from multiplayer), recreate integrated server
 		if (server == null) {
 			System.out.println("Recreating integrated server for singleplayer");
 			client.addLoadingMessage("Creating server...");
+			client.render();  // Update display
 
 			// Create local connection pair
 			mc.sayda.mcraze.network.LocalConnection[] connections = mc.sayda.mcraze.network.LocalConnection.createPair();
@@ -181,6 +183,7 @@ public class Game {
 		}
 
 		client.setLoadingProgress(30);
+		client.render();  // Update display
 
 		// Load or generate world
 		mc.sayda.mcraze.world.World loadedWorld = null;
@@ -188,6 +191,7 @@ public class Game {
 			// Try to load existing world
 			client.setLoadingStatus("Loading world...");
 			client.addLoadingMessage("Loading world '" + worldName + "'...");
+			client.render();  // Update display
 			loadedWorld = mc.sayda.mcraze.world.WorldSaveManager.loadWorldOnly(worldName);
 
 			if (loadedWorld != null) {
@@ -197,6 +201,7 @@ public class Game {
 				System.out.println("Failed to load world, will generate new one");
 				client.addLoadingMessage("Load failed, generating new world...");
 			}
+			client.render();  // Update display
 		}
 
 		// Start game with loaded world (or null to generate new)
@@ -205,6 +210,7 @@ public class Game {
 			client.addLoadingMessage("Generating new world (" + width + " blocks wide)...");
 		}
 		client.setLoadingProgress(50);
+		client.render();  // Update display
 
 		server.startGame(width, worldName, username, password, loadedWorld);
 
@@ -218,14 +224,17 @@ public class Game {
 			client.addLoadingMessage("World generated successfully");
 		}
 		client.setLoadingProgress(80);
+		client.render();  // Update display
 
 		client.setLoadingStatus("Starting game...");
 		client.addLoadingMessage("Initializing client...");
 		client.setLoadingProgress(90);
+		client.render();  // Update display
 		client.startGame();
 
 		client.setLoadingProgress(100);
 		client.addLoadingMessage("Done!");
+		client.render();  // Update display
 
 		// Hide loading screen after a short delay (so user can see 100%)
 		try {
@@ -278,6 +287,22 @@ public class Game {
 	}
 
 	/**
+	 * Send current input state to server (for continuous movement in multiplayer/LAN)
+	 */
+	public void sendCurrentInputState() {
+		// Access the event handler through the graphics handler
+		mc.sayda.mcraze.GraphicsHandler graphicsHandler = mc.sayda.mcraze.GraphicsHandler.get();
+		if (graphicsHandler instanceof mc.sayda.mcraze.awtgraphics.AwtGraphicsHandler) {
+			mc.sayda.mcraze.awtgraphics.AwtGraphicsHandler awtHandler =
+				(mc.sayda.mcraze.awtgraphics.AwtGraphicsHandler) graphicsHandler;
+			mc.sayda.mcraze.awtgraphics.AwtEventsHandler eventsHandler = awtHandler.getEventsHandler();
+			if (eventsHandler != null) {
+				eventsHandler.sendInputPacket();
+			}
+		}
+	}
+
+	/**
 	 * Submit chat message/command to server
 	 */
 	public void submitChat() {
@@ -308,6 +333,20 @@ public class Game {
 			}
 		} else {
 			System.out.println("Cannot save in multiplayer mode");
+		}
+	}
+
+	/**
+	 * Return to main menu (saves game if in singleplayer)
+	 */
+	public void goToMainMenu() {
+		// Save game if in singleplayer
+		if (server != null) {
+			saveGame();
+		}
+		// Disconnect from multiplayer if needed
+		if (client != null && server == null) {
+			client.disconnectMultiplayer();
 		}
 	}
 
@@ -399,6 +438,8 @@ public class Game {
 		boolean dedicatedServer = false;
 		int serverPort = 25565;
 		int worldWidth = 512;
+		String autoUsername = null;
+		String autoPassword = null;
 
 		// Parse arguments
 		for (int i = 0; i < argv.length; i++) {
@@ -415,6 +456,14 @@ public class Game {
 				if (i + 1 < argv.length) {
 					worldWidth = Integer.parseInt(argv[++i]);
 				}
+			} else if (arg.equals("--username")) {
+				if (i + 1 < argv.length) {
+					autoUsername = argv[++i];
+				}
+			} else if (arg.equals("--password")) {
+				if (i + 1 < argv.length) {
+					autoPassword = argv[++i];
+				}
 			} else if (arg.equals("-h") || arg.equals("--help")) {
 				System.out.println("MCraze - A 2D Minecraft-like game");
 				System.out.println("Usage: java mc.sayda.Game [options]");
@@ -423,6 +472,8 @@ public class Game {
 				System.out.println("  -s, --server             Start dedicated server (no client)");
 				System.out.println("  -p, --port <port>        Server port (default: 25565)");
 				System.out.println("  -w, --world-width <size> World width (default: 512)");
+				System.out.println("  --username <name>        Auto-login with username");
+				System.out.println("  --password <pass>        Auto-login with password");
 				System.out.println("  -h, --help               Show this help message");
 				return;
 			} else {
@@ -464,6 +515,14 @@ public class Game {
 				// Create and start game client
 				logger.info("Starting client with integrated server");
 				Game g = new Game();
+
+				// Auto-login if credentials provided
+				if (autoUsername != null && autoPassword != null) {
+					logger.info("Auto-login with username: " + autoUsername);
+					g.setLoggedInUser(autoUsername, autoPassword);
+					g.showMainMenu();
+				}
+
 				g.gameLoop();
 			}
 

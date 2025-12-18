@@ -1,24 +1,16 @@
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/SpriteStore.java
-package com.github.jleahey.minicraft;
-
-import java.util.HashMap;
-
-import com.github.jleahey.minicraft.awtgraphics.AwtSpriteStore;
-========
 package mc.sayda.mcraze;
 
 import java.util.HashMap;
 
 import mc.sayda.mcraze.awtgraphics.AwtSpriteStore;
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/SpriteStore.java
 
 public abstract class SpriteStore {
 	/** The single instance of this class */
 	protected static SpriteStore single;
-	
+
 	/**
 	 * Get the single instance of this class
-	 * 
+	 *
 	 * @return The single instance of this class
 	 */
 	public static SpriteStore get() {
@@ -31,13 +23,13 @@ public abstract class SpriteStore {
 		}
 		return single;
 	}
-	
+
 	/** The cached sprite map, from reference to sprite instance */
 	private HashMap<String, Sprite> sprites = new HashMap<String, Sprite>();
-	
+
 	/**
 	 * Retrieve a sprite from the store
-	 * 
+	 *
 	 * @param ref
 	 *            The reference to the image to use for the sprite
 	 * @return A sprite instance containing an accelerate image of the request reference
@@ -48,13 +40,13 @@ public abstract class SpriteStore {
 		if (sprites.get(ref) != null) {
 			return sprites.get(ref);
 		}
-		
+
 		// create a sprite, add it the cache then return it
 		Sprite sprite = loadSprite(ref);
 		sprites.put(ref, sprite);
-		
+
 		return sprite;
 	}
-	
+
 	public abstract Sprite loadSprite(String ref);
 }

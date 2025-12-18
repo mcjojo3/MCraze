@@ -207,6 +207,29 @@ public class Server implements PacketHandler {
 
 		ticksRunning++;
 
+		// Check for disconnected players (LAN clients only, host never disconnects)
+		if (lanEnabled) {
+			java.util.List<mc.sayda.mcraze.server.PlayerConnection> disconnectedPlayers = new java.util.ArrayList<>();
+
+			for (mc.sayda.mcraze.server.PlayerConnection pc : sharedWorld.getPlayers()) {
+				// Skip host player (never disconnects - if they do, whole server stops)
+				if (pc == hostPlayerConnection) {
+					continue;
+				}
+
+				// Check if LAN client is still connected
+				if (!pc.isConnected()) {
+					System.out.println("LAN player " + pc.getPlayerName() + " disconnected");
+					disconnectedPlayers.add(pc);
+				}
+			}
+
+			// Remove disconnected players
+			for (mc.sayda.mcraze.server.PlayerConnection pc : disconnectedPlayers) {
+				sharedWorld.removePlayer(pc);
+			}
+		}
+
 		// Delegate all game logic to SharedWorld
 		// SharedWorld handles:
 		// - Processing packets from all players
@@ -370,7 +393,31 @@ public class Server implements PacketHandler {
 			return;
 		}
 
+		System.out.println("Disabling LAN server...");
 		lanEnabled = false;
+
+		// Disconnect all LAN clients (not the host)
+		if (sharedWorld != null) {
+			java.util.List<mc.sayda.mcraze.server.PlayerConnection> lanClients = new java.util.ArrayList<>();
+
+			// Find all LAN clients (players who are not the host)
+			for (mc.sayda.mcraze.server.PlayerConnection pc : sharedWorld.getPlayers()) {
+				if (pc != hostPlayerConnection) {
+					lanClients.add(pc);
+				}
+			}
+
+			// Disconnect each LAN client
+			for (mc.sayda.mcraze.server.PlayerConnection pc : lanClients) {
+				System.out.println("Disconnecting LAN player: " + pc.getPlayerName());
+				// Close the connection
+				pc.getConnection().disconnect();
+				// Remove player from world
+				sharedWorld.removePlayer(pc);
+			}
+
+			System.out.println("Disconnected " + lanClients.size() + " LAN client(s)");
+		}
 
 		// Close server socket
 		if (lanServerSocket != null) {
@@ -527,6 +574,14 @@ public class Server implements PacketHandler {
 		// SharedWorld handles all the block breaking/placing logic and broadcasting
 		if (hostPlayerConnection != null) {
 			hostPlayerConnection.handleBlockChange(packet);
+		}
+	}
+
+	@Override
+	public void handleInventoryAction(PacketInventoryAction packet) {
+		// Delegate to host player connection
+		if (hostPlayerConnection != null) {
+			hostPlayerConnection.handleInventoryAction(packet);
 		}
 	}
 

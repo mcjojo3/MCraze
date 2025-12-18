@@ -1,22 +1,15 @@
 /*
- * Copyright 2012 Jonathan Leahey
+ * Copyright 2025 SaydaGames (mc_jojo3)
  * 
- * This file is part of Minicraft
+ * This file is part of MCraze
  * 
- * Minicraft is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * MCraze is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * 
- * Minicraft is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * MCraze is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Minicraft. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU General Public License along with MCraze. If not, see http://www.gnu.org/licenses/.
  */
 
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/World.java
-package com.github.jleahey.minicraft;
-
-import java.util.Random;
-
-import com.github.jleahey.minicraft.Constants.TileID;
-========
 package mc.sayda.mcraze.world;
 
 import java.util.Random;
@@ -30,7 +23,6 @@ import mc.sayda.mcraze.item.Tool;
 import mc.sayda.mcraze.system.LightingEngine;
 import mc.sayda.mcraze.util.Int2;
 import mc.sayda.mcraze.util.StockMethods;
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/world/World.java
 
 public class World implements java.io.Serializable {
 	private static final long serialVersionUID = 1L;
@@ -49,6 +41,14 @@ public class World implements java.io.Serializable {
 	private final int dayLength = 20000;
 	private LightingEngine lightingEngineSun;
 	private LightingEngine lightingEngineSourceBlocks;
+
+	public long getTicksAlive() {
+		return ticksAlive;
+	}
+
+	public void setTicksAlive(long ticksAlive) {
+		this.ticksAlive = ticksAlive;
+	}
 	
 	// private int[] columnHeights;
 	
@@ -56,7 +56,8 @@ public class World implements java.io.Serializable {
 
 		TileID[][] generated = WorldGenerator.generate(width, height, random);
 		WorldGenerator.visibility = null;
-		this.spawnLocation = WorldGenerator.playerLocation;
+		// Store suggested spawn from WorldGenerator
+		Int2 suggestedSpawn = WorldGenerator.playerLocation;
 		tiles = new Tile[width][height];
 		// columnHeights = new int[width];
 		for (int i = 0; i < width; i++) {
@@ -75,6 +76,11 @@ public class World implements java.io.Serializable {
 		this.chunkCount = (int) Math.ceil((double) width / chunkWidth);
 		this.chunkNeedsUpdate = 0;
 		this.random = random;
+
+		// Find a safe spawn location using the suggested spawn as starting point
+		this.spawnLocation = findSafeSpawn(suggestedSpawn.x);
+		System.out.println("World: Spawn location set to (" + spawnLocation.x + ", " + spawnLocation.y + ")");
+
 		lightingEngineSun = new LightingEngine(width, height, tiles, true);
 		lightingEngineSourceBlocks = new LightingEngine(width, height, tiles, false);
 	}
@@ -166,6 +172,10 @@ public class World implements java.io.Serializable {
 	}
 
 	public void chunkUpdate() {
+		chunkUpdate(true);  // Default: daylight cycle enabled
+	}
+
+	public void chunkUpdate(boolean daylightCycle) {
 		ticksAlive++;
 		for (int i = 0; i < chunkWidth; i++) {
 			boolean isDirectLight = true;

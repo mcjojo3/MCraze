@@ -99,10 +99,17 @@ public class CommandHandler {
 
 	/**
 	 * Execute a command or send a chat message
+	 * @param input The command string
+	 * @param executingPlayer The player executing the command (null = use host player)
 	 */
-	public void executeCommand(String input) {
+	public void executeCommand(String input, mc.sayda.mcraze.entity.Player executingPlayer) {
 		if (input == null || input.trim().isEmpty()) {
 			return;
+		}
+
+		// Default to host player if no player specified
+		if (executingPlayer == null) {
+			executingPlayer = server.player;
 		}
 
 		String[] parts = input.trim().split("\\s+");
@@ -112,7 +119,6 @@ public class CommandHandler {
 			// Regular chat message (for future multiplayer)
 			chat.addMessage("<Player> " + input, Color.white);
 			System.out.println("[CHAT] Player: " + input);
-			// TODO: In multiplayer, send this message to the server
 			return;
 		}
 
@@ -130,22 +136,31 @@ public class CommandHandler {
 				handleGamerule(parts);
 				break;
 			case "give":
-				handleGive(parts);
+				handleGive(parts, executingPlayer);
 				break;
 			case "teleport":
 			case "tp":
-				handleTeleport(parts);
+				handleTeleport(parts, executingPlayer);
 				break;
 			case "time":
 				handleTime(parts);
 				break;
 			case "kill":
-				handleKill();
+				handleKill(executingPlayer);
 				break;
 			default:
 				chat.addMessage("Unknown command: /" + command, new Color(255, 100, 100));
 				chat.addMessage("Type /help for a list of commands", Color.gray);
 		}
+	}
+
+	/**
+	 * Execute a command with default player (host)
+	 * @deprecated Use executeCommand(String, Player) instead
+	 */
+	@Deprecated
+	public void executeCommand(String input) {
+		executeCommand(input, null);
 	}
 
 	private void showHelp() {
@@ -249,18 +264,18 @@ public class CommandHandler {
 		}
 	}
 
-	private void handleKill() {
-		if (server.player != null) {
-			if (server.player.dead) {
+	private void handleKill(mc.sayda.mcraze.entity.Player executingPlayer) {
+		if (executingPlayer != null) {
+			if (executingPlayer.dead) {
 				chat.addMessage("You are already dead!", new Color(255, 100, 100));
 			} else {
-				server.player.takeDamage(server.player.hitPoints);
-				chat.addMessage("Killed player", Color.green);
+				executingPlayer.takeDamage(executingPlayer.hitPoints);
+				chat.addMessage("Killed " + executingPlayer.username, Color.green);
 			}
 		}
 	}
 
-	private void handleGive(String[] parts) {
+	private void handleGive(String[] parts, mc.sayda.mcraze.entity.Player executingPlayer) {
 		if (parts.length < 2) {
 			chat.addMessage("Usage: /give <item> [amount]", new Color(255, 200, 100));
 			chat.addMessage("Example: /give dirt 64", Color.gray);
@@ -294,20 +309,20 @@ public class CommandHandler {
 		}
 
 		// Give the item to player
-		if (server.player != null && server.player.inventory != null) {
+		if (executingPlayer != null && executingPlayer.inventory != null) {
 			mc.sayda.mcraze.item.Item giveItem = item.clone();
-			int remaining = server.player.inventory.addItem(giveItem, amount);
+			int remaining = executingPlayer.inventory.addItem(giveItem, amount);
 			if (remaining == 0) {
-				chat.addMessage("Gave " + amount + "x " + itemId, Color.green);
+				chat.addMessage("Gave " + amount + "x " + itemId + " to " + executingPlayer.username, Color.green);
 			} else if (remaining < amount) {
-				chat.addMessage("Gave " + (amount - remaining) + "x " + itemId + " (inventory full)", new Color(255, 200, 100));
+				chat.addMessage("Gave " + (amount - remaining) + "x " + itemId + " to " + executingPlayer.username + " (inventory full)", new Color(255, 200, 100));
 			} else {
-				chat.addMessage("Inventory full! Could not give any items", new Color(255, 100, 100));
+				chat.addMessage("Inventory full! Could not give any items to " + executingPlayer.username, new Color(255, 100, 100));
 			}
 		}
 	}
 
-	private void handleTeleport(String[] parts) {
+	private void handleTeleport(String[] parts, mc.sayda.mcraze.entity.Player executingPlayer) {
 		if (parts.length < 3) {
 			chat.addMessage("Usage: /teleport <x> <y>", new Color(255, 200, 100));
 			chat.addMessage("Example: /teleport 100 50", Color.gray);
@@ -318,7 +333,7 @@ public class CommandHandler {
 			float x = Float.parseFloat(parts[1]);
 			float y = Float.parseFloat(parts[2]);
 
-			if (server.player != null) {
+			if (executingPlayer != null) {
 				// Check if coordinates are within world bounds
 				if (server.world != null) {
 					if (x < 0 || x >= server.world.width || y < 0 || y >= server.world.height) {
@@ -328,11 +343,11 @@ public class CommandHandler {
 					}
 				}
 
-				server.player.x = x;
-				server.player.y = y;
-				server.player.dx = 0;
-				server.player.dy = 0;
-				chat.addMessage("Teleported to (" + x + ", " + y + ")", Color.green);
+				executingPlayer.x = x;
+				executingPlayer.y = y;
+				executingPlayer.dx = 0;
+				executingPlayer.dy = 0;
+				chat.addMessage("Teleported " + executingPlayer.username + " to (" + x + ", " + y + ")", Color.green);
 			}
 		} catch (NumberFormatException e) {
 			chat.addMessage("Invalid coordinates", new Color(255, 100, 100));

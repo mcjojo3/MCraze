@@ -2,6 +2,7 @@
   <configuration default="false" name="MCraze" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="mc.sayda.mcraze.Game" />
     <module name="MCraze" />
+    <option name="PROGRAM_PARAMETERS" value="--username mc_jojo3 --password mcmc123" />
     <extension name="coverage">
       <pattern>
         <option name="PATTERN" value="mc.sayda.*" />

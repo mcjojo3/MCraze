@@ -23,7 +23,9 @@ import mc.sayda.mcraze.world.World;
 
 public class Player extends LivingEntity {
 	private static final long serialVersionUID = 1L;
-	
+
+	public String username = "Player";  // Player's display name
+
 	public Int2 handTargetPos = new Int2(0, 0);  // Unified position for breaking/placing
 	public float handStartX;
 	public float handStartY;

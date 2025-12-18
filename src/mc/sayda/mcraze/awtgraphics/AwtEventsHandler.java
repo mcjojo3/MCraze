@@ -44,10 +44,47 @@ public class AwtEventsHandler {
 	}
 
 	/**
+	 * Check if we should use packet-based input (true for multiplayer clients AND LAN hosts)
+	 */
+	private boolean shouldUsePackets() {
+		// Use packets if:
+		// 1. We're a multiplayer client (NetworkConnection), OR
+		// 2. We're a LAN host (LocalConnection but LAN is enabled)
+		if (isMultiplayerMode()) {
+			return true;  // Multiplayer client
+		}
+
+		// Check if we're a LAN host
+		if (game.getServer() != null && game.getServer().isLANEnabled()) {
+			return true;  // LAN host - use packets for consistency with clients
+		}
+
+		return false;  // Pure singleplayer - can use direct manipulation
+	}
+
+	/**
+	 * Get the local player (works in both singleplayer and multiplayer)
+	 */
+	private mc.sayda.mcraze.entity.Player getLocalPlayer() {
+		mc.sayda.mcraze.server.Server server = game.getServer();
+		mc.sayda.mcraze.client.Client client = game.getClient();
+
+		if (server != null && server.player != null) {
+			return server.player;  // Singleplayer or LAN host
+		} else if (client != null) {
+			return client.getLocalPlayer();  // Multiplayer client
+		}
+		return null;
+	}
+
+	/**
 	 * Send input packet to server (multiplayer mode)
 	 */
-	private void sendInputPacket() {
+	public void sendInputPacket() {
 		if (game.getClient() == null) return;
+
+		mc.sayda.mcraze.entity.Player player = getLocalPlayer();
+		int hotbarSlot = (player != null && player.inventory != null) ? player.inventory.hotbarIdx : 0;
 
 		mc.sayda.mcraze.network.packet.PacketPlayerInput packet = new mc.sayda.mcraze.network.packet.PacketPlayerInput(
 			moveLeft,
@@ -55,8 +92,9 @@ public class AwtEventsHandler {
 			climb,
 			game.getClient().leftClick,
 			game.getClient().rightClick,
-			0, 0,  // TODO: Add mouse position
-			0  // TODO: Add hotbar slot
+			game.getClient().screenMousePos.x,
+			game.getClient().screenMousePos.y,
+			hotbarSlot
 		);
 
 		game.getClient().connection.sendPacket(packet);
@@ -65,8 +103,10 @@ public class AwtEventsHandler {
 	private class MouseWheelInputHander implements MouseWheelListener {
 		@Override
 		public void mouseWheelMoved(MouseWheelEvent e) {
-			if (game.getServer() != null && game.getServer().player != null) {
-				game.getServer().player.scrollHotbar(e.getWheelRotation());
+			// Get the correct player (works in both SP and MP)
+			mc.sayda.mcraze.entity.Player player = getLocalPlayer();
+			if (player != null) {
+				player.scrollHotbar(e.getWheelRotation());
 			}
 		}
 	}
@@ -167,14 +207,14 @@ public class AwtEventsHandler {
 				return;
 			}
 
-			// In singleplayer, check if player exists
-			if (!isMultiplayerMode() && game.getServer().player == null) return;
+			// In pure singleplayer, check if player exists
+			if (!shouldUsePackets() && game.getServer().player == null) return;
 
 			switch (e.getKeyCode()) {
 			case KeyEvent.VK_W:
 			case KeyEvent.VK_SPACE:
 				climb = true;
-				if (isMultiplayerMode()) {
+				if (shouldUsePackets()) {
 					sendInputPacket();
 				} else {
 					game.getServer().player.startClimb();
@@ -182,7 +222,7 @@ public class AwtEventsHandler {
 				break;
 			case KeyEvent.VK_A:
 				moveLeft = true;
-				if (isMultiplayerMode()) {
+				if (shouldUsePackets()) {
 					sendInputPacket();
 				} else {
 					game.getServer().player.startLeft(e.isShiftDown());
@@ -190,7 +230,7 @@ public class AwtEventsHandler {
 				break;
 			case KeyEvent.VK_D:
 				moveRight = true;
-				if (isMultiplayerMode()) {
+				if (shouldUsePackets()) {
 					sendInputPacket();
 				} else {
 					game.getServer().player.startRight(e.isShiftDown());
@@ -224,14 +264,14 @@ public class AwtEventsHandler {
 				return;
 			}
 
-			// In singleplayer, check if player exists
-			if (!isMultiplayerMode() && game.getServer().player == null) return;
+			// In pure singleplayer, check if player exists
+			if (!shouldUsePackets() && game.getServer().player == null) return;
 
 			switch (e.getKeyCode()) {
 			case KeyEvent.VK_W:
 			case KeyEvent.VK_SPACE:
 				climb = false;
-				if (isMultiplayerMode()) {
+				if (shouldUsePackets()) {
 					sendInputPacket();
 				} else {
 					game.getServer().player.endClimb();
@@ -239,7 +279,7 @@ public class AwtEventsHandler {
 				break;
 			case KeyEvent.VK_A:
 				moveLeft = false;
-				if (isMultiplayerMode()) {
+				if (shouldUsePackets()) {
 					sendInputPacket();
 				} else {
 					game.getServer().player.stopLeft();
@@ -247,7 +287,7 @@ public class AwtEventsHandler {
 				break;
 			case KeyEvent.VK_D:
 				moveRight = false;
-				if (isMultiplayerMode()) {
+				if (shouldUsePackets()) {
 					sendInputPacket();
 				} else {
 					game.getServer().player.stopRight();
@@ -255,8 +295,9 @@ public class AwtEventsHandler {
 				break;
 			case KeyEvent.VK_ESCAPE:
 				// Close inventory if open, otherwise open pause menu
-				if (!isMultiplayerMode() && game.getServer().player.inventory.isVisible()) {
-					game.getServer().player.inventory.setVisible(false);
+				mc.sayda.mcraze.entity.Player player = getLocalPlayer();
+				if (player != null && player.inventory.isVisible()) {
+					player.inventory.setVisible(false);
 				} else {
 					// Autosave before opening pause menu (only in singleplayer)
 					if (game.getServer() != null) {
@@ -352,12 +393,18 @@ public class AwtEventsHandler {
 				game.getClient().toggleFPS();
 				break;
 			case 'q':
-				game.getServer().tossItem();
+				// Toss item - this needs to go through server for multiplayer sync
+				if (game.getServer() != null) {
+					game.getServer().tossItem();
+				}
 				break;
 			case 'r':
 				// Respawn if player is dead
-				if (game.getServer().player.dead) {
-					game.getServer().respawnPlayer();
+				mc.sayda.mcraze.entity.Player respawnPlayer = getLocalPlayer();
+				if (respawnPlayer != null && respawnPlayer.dead) {
+					if (game.getServer() != null) {
+						game.getServer().respawnPlayer();
+					}
 				}
 				break;
 			case 't':

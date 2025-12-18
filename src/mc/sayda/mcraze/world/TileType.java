@@ -1,39 +1,34 @@
 /*
- * Copyright 2012 Jonathan Leahey
+ * Copyright 2025 SaydaGames (mc_jojo3)
  * 
- * This file is part of Minicraft
+ * This file is part of MCraze
  * 
- * Minicraft is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * MCraze is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * 
- * Minicraft is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * MCraze is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Minicraft. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU General Public License along with MCraze. If not, see http://www.gnu.org/licenses/.
  */
 
-<<<<<<<< Updated upstream:src/com/github/jleahey/minicraft/TileType.java
-package com.github.jleahey.minicraft;
-
-import com.github.jleahey.minicraft.Constants.TileID;
-========
 package mc.sayda.mcraze.world;
+
 
 import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.Constants.TileID;
 import mc.sayda.mcraze.GraphicsHandler;
 import mc.sayda.mcraze.Sprite;
 import mc.sayda.mcraze.SpriteStore;
->>>>>>>> Stashed changes:src/mc/sayda/mcraze/world/TileType.java
 
 public class TileType implements java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	/** The sprite that represents this Type */
 	protected Sprite sprite;
-	protected TileID name;
-	protected boolean passable;
+	public TileID name;
+	public boolean passable;
 	protected boolean liquid;
-	protected int lightBlocking;
-	protected int lightEmitting;
+	public int lightBlocking;
+	public int lightEmitting;
 	
 	public TileType(String ref, TileID name) {
 		this(ref, name, false, false, Constants.LIGHT_VALUE_OPAQUE);

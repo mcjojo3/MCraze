@@ -32,6 +32,7 @@ public interface PacketHandler {
 	// Server-bound packets (sent by client, handled by server)
 	void handlePlayerInput(PacketPlayerInput packet);
 	void handleBlockChange(PacketBlockChange packet);
+	void handleInventoryAction(PacketInventoryAction packet);
 	void handleChatSend(PacketChatSend packet);
 	void handleAuthRequest(PacketAuthRequest packet);
 

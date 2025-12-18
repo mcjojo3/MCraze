@@ -116,6 +116,12 @@ public class PlayerConnection implements PacketHandler {
 	}
 
 	@Override
+	public void handleInventoryAction(PacketInventoryAction packet) {
+		// Delegate to SharedWorld for processing and broadcasting
+		sharedWorld.handleInventoryAction(this, packet);
+	}
+
+	@Override
 	public void handleChatSend(PacketChatSend packet) {
 		GameLogger logger = GameLogger.get();
 		if (packet.message == null || packet.message.trim().isEmpty()) {
@@ -131,7 +137,8 @@ public class PlayerConnection implements PacketHandler {
 				if (logger != null) {
 					logger.info("Command [" + playerName + "]: " + packet.message);
 				}
-				cmdHandler.executeCommand(packet.message);
+				// Pass the player who sent the command
+				cmdHandler.executeCommand(packet.message, this.player);
 			} else {
 				// No command handler available (dedicated server)
 				System.out.println("[" + playerName + "] Command not supported: " + packet.message);
