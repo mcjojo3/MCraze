@@ -1,7 +1,10 @@
-# Minicraft v1.0.2
+# MCraze a1.0
+MCraze is based on "Minicraft v1.0.2"
 
 <table>
+<tr><td>Programming</td><td>mc_jojo3</td></tr>
 <tr><td>Programming</td><td>Jonathan Leahey</td></tr>
+<tr><td>Art</td><td>mc_jojo3</td></tr>
 <tr><td>Art</td><td>John McDowell</td></tr>
 <tr><td>Music</td><td>Tom Quinn (T5)</td></tr>
 <tr><td>Inspiration</td><td>Markus Persson "Notch"</td></tr>
@@ -32,18 +35,18 @@ This was neccessary so that you can get around the world in 2D.
 <tr><td>mouse 1</td><td>Break Block</td></tr>
 <tr><td>mouse 2</td><td>Build Block</td></tr>
 <tr><td>number keys<br>mouse wheel</td><td>Change Selection</td></tr>
+<tr><td>t</td><td>Open Chat</td></tr>
 <tr><td>i</td><td>Open Inventory</td></tr>
 <tr><td>+</td><td>Zoom In</td></tr>
 <tr><td>-</td><td>Zoom Out</td></tr>
 <tr><td>m</td><td>Mute/Unmute Sound</td></tr>
+<tr><td>r</td><td>Respawn</td></tr>
 <tr><td>esc</td><td>Save and Quit</td></tr>
 <tr><td>q</td><td>Toss Selected Item</td></tr>
 <tr><td>f</td><td>View FPS</td></tr>
 </table>
 
 ## How To Play
-
-Watch your blue and red selectors. They show where you will build or break blocks, respectively.
 
 Crafting is very similar to Minecraft: put items into the crafting table to craft them.
 Right-click on the crafting table to open it and your inventory.
@@ -102,26 +105,17 @@ Axes break wood tiles faster, and shovels break dirt, sand, and leaves very quic
 
 ## Change Log
 
- * Version 1.0 (7/7/2010)
+ * Version a1.0 (x/x/202x)
     - Initial Release
- * Version 1.0.1 (7/8/2010)
-    - Exe launcher
-    - Bug fixes (shovel template and inventory Updating)
- * Version 1.0.2 (7/9/2010)
-    - Tool durability
-    - Inventory Bug fix
-    - Tools will no longer stack
 
 ## Future Plans
 
- * Version 1.1 (we hope)
-    - Day/Night ✓
-    - Life ✓
-    - Drowning ✓
+ * Todo list:
     - Furnaces
-    - Enemies
+    - Enemies/AI
     - Chests
     - Infinite Levels
+    - Fully string ID's
     - ...
 
 ## Libraries
