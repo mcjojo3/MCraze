@@ -1,0 +1,700 @@
+package mc.sayda.mcraze.world;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import mc.sayda.mcraze.entity.Entity;
+import mc.sayda.mcraze.entity.Player;
+import mc.sayda.mcraze.server.Server;
+
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+/**
+ * Modern save system with multiple world support
+ *
+ * Structure:
+ * Windows: %APPDATA%/MCraze/saves/
+ * Linux: ~/.mcraze/saves/
+ * Mac: ~/Library/Application Support/MCraze/saves/
+ *
+ * Each world:
+ *   WorldName/
+ *     level.dat     (JSON metadata)
+ *     world.dat     (binary tile data)
+ *     entities.dat  (JSON entity data)
+ */
+public class WorldSaveManager {
+	private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+	/**
+	 * Get the OS-specific save directory
+	 */
+	public static String getSavesDirectory() {
+		String os = System.getProperty("os.name").toLowerCase();
+		String userHome = System.getProperty("user.home");
+		String saveDir;
+
+		if (os.contains("win")) {
+			// Windows: %APPDATA%/MCraze/saves
+			String appdata = System.getenv("APPDATA");
+			if (appdata != null) {
+				saveDir = appdata + File.separator + "MCraze" + File.separator + "saves";
+			} else {
+				saveDir = userHome + File.separator + "MCraze" + File.separator + "saves";
+			}
+		} else if (os.contains("mac")) {
+			// Mac: ~/Library/Application Support/MCraze/saves
+			saveDir = userHome + File.separator + "Library" + File.separator +
+					"Application Support" + File.separator + "MCraze" + File.separator + "saves";
+		} else {
+			// Linux/Unix: ~/.mcraze/saves
+			saveDir = userHome + File.separator + ".mcraze" + File.separator + "saves";
+		}
+
+		return saveDir;
+	}
+
+	/**
+	 * Metadata for a saved world
+	 */
+	public static class WorldMetadata {
+		public String worldName;
+		public long seed;
+		public int worldWidth;
+		public int worldHeight;
+		public long createdTime;
+		public long lastPlayedTime;
+		public String gameVersion = "1.0";
+
+		public WorldMetadata() {}
+
+		public WorldMetadata(String worldName, long seed, int width, int height) {
+			this.worldName = worldName;
+			this.seed = seed;
+			this.worldWidth = width;
+			this.worldHeight = height;
+			this.createdTime = Instant.now().toEpochMilli();
+			this.lastPlayedTime = this.createdTime;
+		}
+	}
+
+	/**
+	 * Entity save data
+	 */
+	public static class EntityData {
+		public String type;  // Player, Item, Tool, etc.
+		public float x;
+		public float y;
+		public float dx;
+		public float dy;
+		public int hitPoints;
+
+		// Inventory data (for Player entities)
+		public String[] inventoryItemIds;
+		public int[] inventoryItemCounts;
+		public int[] inventoryToolUses;
+		public int inventoryHotbarIdx;
+
+		public EntityData() {}
+	}
+
+	/**
+	 * Get list of all available saved worlds
+	 */
+	public static List<WorldMetadata> getAvailableWorlds() {
+		List<WorldMetadata> worlds = new ArrayList<>();
+		File savesDir = new File(getSavesDirectory());
+
+		if (!savesDir.exists()) {
+			return worlds;
+		}
+
+		File[] worldDirs = savesDir.listFiles(File::isDirectory);
+		if (worldDirs == null) return worlds;
+
+		for (File worldDir : worldDirs) {
+			File levelFile = new File(worldDir, "level.dat");
+			if (levelFile.exists()) {
+				try {
+					String json = new String(Files.readAllBytes(levelFile.toPath()));
+					WorldMetadata metadata = gson.fromJson(json, WorldMetadata.class);
+					worlds.add(metadata);
+				} catch (IOException e) {
+					System.err.println("Failed to read world metadata: " + worldDir.getName());
+				}
+			}
+		}
+
+		return worlds;
+	}
+
+	/**
+	 * Save a world atomically to prevent corruption
+	 * ISSUE #6 fix: Atomic saves with backup system
+	 */
+	public static boolean saveWorld(String worldName, Server server) {
+		if (server.world == null) {
+			System.err.println("Cannot save: world is null");
+			return false;
+		}
+
+		try {
+			// Create world directory
+			Path worldPath = Paths.get(getSavesDirectory(), sanitizeWorldName(worldName));
+			Files.createDirectories(worldPath);
+
+			// --- ATOMIC SAVE: Write to temp files first ---
+			Path levelTemp = worldPath.resolve("level.dat.tmp");
+			Path worldTemp = worldPath.resolve("world.dat.tmp");
+			Path entitiesTemp = worldPath.resolve("entities.dat.tmp");
+
+			// Save metadata to temp file
+			WorldMetadata metadata = new WorldMetadata(
+				worldName,
+				0,  // TODO: Store seed in World class
+				server.world.width,
+				server.world.height
+			);
+			metadata.lastPlayedTime = Instant.now().toEpochMilli();
+
+			try (FileWriter writer = new FileWriter(levelTemp.toFile())) {
+				gson.toJson(metadata, writer);
+			}
+
+			// Save world data to temp file (binary format)
+			saveWorldData(worldTemp.toFile(), server.world);
+
+			// Save entities to temp file (JSON format)
+			saveEntities(entitiesTemp.toFile(), server.entities);
+
+			// --- ATOMIC COMMIT: Backup old files, then rename new ones ---
+			Path levelFinal = worldPath.resolve("level.dat");
+			Path worldFinal = worldPath.resolve("world.dat");
+			Path entitiesFinal = worldPath.resolve("entities.dat");
+
+			// Backup existing files (keep one backup)
+			if (Files.exists(levelFinal)) {
+				Files.move(levelFinal, worldPath.resolve("level.dat.bak"),
+					java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			}
+			if (Files.exists(worldFinal)) {
+				Files.move(worldFinal, worldPath.resolve("world.dat.bak"),
+					java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			}
+			if (Files.exists(entitiesFinal)) {
+				Files.move(entitiesFinal, worldPath.resolve("entities.dat.bak"),
+					java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			}
+
+			// Atomic rename: temp -> final
+			Files.move(levelTemp, levelFinal, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+			Files.move(worldTemp, worldFinal, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+			Files.move(entitiesTemp, entitiesFinal, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+
+			System.out.println("World '" + worldName + "' saved atomically with backup");
+			return true;
+
+		} catch (IOException e) {
+			System.err.println("Failed to save world: " + e.getMessage());
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	/**
+	 * Load a world with automatic backup recovery
+	 * ISSUE #6 fix: Try backup if main files corrupted
+	 */
+	/**
+	 * Load just the World object (for SharedWorld architecture)
+	 * Returns null if world doesn't exist or fails to load
+	 */
+	public static World loadWorldOnly(String worldName) {
+		Path worldPath = Paths.get(getSavesDirectory(), sanitizeWorldName(worldName));
+
+		if (!Files.exists(worldPath)) {
+			System.err.println("World '" + worldName + "' does not exist");
+			return null;
+		}
+
+		// Try loading from main files first
+		try {
+			return loadWorldDataFromPath(worldPath, false);
+		} catch (Exception e) {
+			System.err.println("Failed to load world from main files: " + e.getMessage());
+
+			// Try backup files
+			System.out.println("Attempting to restore from backup...");
+			try {
+				World world = loadWorldDataFromPath(worldPath, true);
+				if (world != null) {
+					System.out.println("Successfully restored world from backup!");
+				}
+				return world;
+			} catch (Exception backupError) {
+				System.err.println("Backup restoration also failed: " + backupError.getMessage());
+				backupError.printStackTrace();
+				return null;
+			}
+		}
+	}
+
+	/**
+	 * Helper method to load World data from path
+	 */
+	private static World loadWorldDataFromPath(Path worldPath, boolean useBackup) throws IOException {
+		String levelName = useBackup ? "level.dat.bak" : "level.dat";
+		String worldDataName = useBackup ? "world.dat.bak" : "world.dat";
+
+		// Load metadata
+		File levelFile = worldPath.resolve(levelName).toFile();
+		String json = new String(Files.readAllBytes(levelFile.toPath()));
+		WorldMetadata metadata = gson.fromJson(json, WorldMetadata.class);
+
+		// Load world data
+		return loadWorldData(worldPath.resolve(worldDataName).toFile(),
+			metadata.worldWidth, metadata.worldHeight);
+	}
+
+	public static boolean loadWorld(String worldName, Server server) {
+		Path worldPath = Paths.get(getSavesDirectory(), sanitizeWorldName(worldName));
+
+		if (!Files.exists(worldPath)) {
+			System.err.println("World '" + worldName + "' does not exist");
+			return false;
+		}
+
+		// Try loading from main files first
+		try {
+			return loadWorldFromPath(worldName, server, worldPath, false);
+		} catch (Exception e) {
+			System.err.println("Failed to load world from main files: " + e.getMessage());
+
+			// Try backup files
+			System.out.println("Attempting to restore from backup...");
+			try {
+				boolean success = loadWorldFromPath(worldName, server, worldPath, true);
+				if (success) {
+					System.out.println("Successfully restored world from backup!");
+				}
+				return success;
+			} catch (Exception backupError) {
+				System.err.println("Backup restoration also failed: " + backupError.getMessage());
+				backupError.printStackTrace();
+				return false;
+			}
+		}
+	}
+
+	/**
+	 * Helper to load world from specific file set (main or backup)
+	 */
+	private static boolean loadWorldFromPath(String worldName, Server server,
+			Path worldPath, boolean useBackup) throws IOException {
+		// Determine file names
+		String levelName = useBackup ? "level.dat.bak" : "level.dat";
+		String worldDataName = useBackup ? "world.dat.bak" : "world.dat";
+		String entitiesName = useBackup ? "entities.dat.bak" : "entities.dat";
+
+		// Load metadata
+		File levelFile = worldPath.resolve(levelName).toFile();
+		String json = new String(Files.readAllBytes(levelFile.toPath()));
+		WorldMetadata metadata = gson.fromJson(json, WorldMetadata.class);
+
+		// Load world data
+		server.world = loadWorldData(worldPath.resolve(worldDataName).toFile(),
+			metadata.worldWidth, metadata.worldHeight);
+
+		// Set spawn location from loaded world
+		if (server.world != null && server.world.spawnLocation != null) {
+			server.setSpawnLocation(server.world.spawnLocation.x, server.world.spawnLocation.y);
+		}
+
+		// Load entities
+		server.entities = loadEntities(worldPath.resolve(entitiesName).toFile());
+
+		// Find player
+		server.player = null;
+		for (Entity entity : server.entities) {
+			if (entity instanceof Player) {
+				server.player = (Player) entity;
+				break;
+			}
+		}
+
+		String source = useBackup ? " from backup" : "";
+		System.out.println("World '" + worldName + "' loaded successfully" + source);
+		return true;
+	}
+
+	/**
+	 * Delete a world
+	 */
+	public static boolean deleteWorld(String worldName) {
+		try {
+			Path worldPath = Paths.get(getSavesDirectory(), sanitizeWorldName(worldName));
+			deleteDirectory(worldPath.toFile());
+			System.out.println("World '" + worldName + "' deleted");
+			return true;
+		} catch (IOException e) {
+			System.err.println("Failed to delete world: " + e.getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * Save world tile data in binary format
+	 */
+	private static void saveWorldData(File file, World world) throws IOException {
+		try (DataOutputStream out = new DataOutputStream(
+				new BufferedOutputStream(new FileOutputStream(file)))) {
+
+			// Write dimensions
+			out.writeInt(world.width);
+			out.writeInt(world.height);
+
+			// Write tile data
+			for (int x = 0; x < world.width; x++) {
+				for (int y = 0; y < world.height; y++) {
+					if (world.tiles[x][y] != null && world.tiles[x][y].type != null) {
+						out.writeChar((char) world.tiles[x][y].type.name.ordinal());
+					} else {
+						out.writeChar(0);  // Air
+					}
+				}
+			}
+
+			// Write world time
+			out.writeLong(world.getTicksAlive());
+		}
+	}
+
+	/**
+	 * Load world tile data from binary format
+	 */
+	private static World loadWorldData(File file, int width, int height) throws IOException {
+		try (DataInputStream in = new DataInputStream(
+				new BufferedInputStream(new FileInputStream(file)))) {
+
+			// Read dimensions
+			int savedWidth = in.readInt();
+			int savedHeight = in.readInt();
+
+			// Create world with proper dimensions
+			// Note: We'll need to modify World constructor to support loading
+			mc.sayda.mcraze.Constants.TileID[][] tileData = new mc.sayda.mcraze.Constants.TileID[savedWidth][savedHeight];
+
+			// Read tile data
+			int dirtCount = 0;
+			int airCount = 0;
+			int otherCount = 0;
+			for (int x = 0; x < savedWidth; x++) {
+				for (int y = 0; y < savedHeight; y++) {
+					char tileOrdinal = in.readChar();
+					if (tileOrdinal >= 0 && tileOrdinal < mc.sayda.mcraze.Constants.TileID.values().length) {
+						tileData[x][y] = mc.sayda.mcraze.Constants.TileID.values()[tileOrdinal];
+						// Count tile types
+						if (tileData[x][y] == mc.sayda.mcraze.Constants.TileID.DIRT) dirtCount++;
+						else if (tileData[x][y] == mc.sayda.mcraze.Constants.TileID.AIR) airCount++;
+						else otherCount++;
+					} else {
+						tileData[x][y] = mc.sayda.mcraze.Constants.TileID.AIR;
+						airCount++;
+					}
+				}
+			}
+			System.out.println("WorldSaveManager.loadWorldData: Loaded " + dirtCount + " DIRT, " + airCount + " AIR, " + otherCount + " other tiles");
+
+			// Read world time
+			long ticksAlive = in.readLong();
+
+			// Create world from loaded data
+			World world = new World(tileData, new java.util.Random());
+			world.setTicksAlive(ticksAlive);
+			world.refreshLighting();  // Force lighting recalculation for torches
+
+			return world;
+		}
+	}
+
+	/**
+	 * Save entities to JSON
+	 */
+	private static void saveEntities(File file, ArrayList<Entity> entities) throws IOException {
+		List<EntityData> entityDataList = new ArrayList<>();
+
+		for (Entity entity : entities) {
+			EntityData data = new EntityData();
+			data.type = entity.getClass().getSimpleName();
+			data.x = entity.x;
+			data.y = entity.y;
+			data.dx = entity.dx;
+			data.dy = entity.dy;
+
+			if (entity instanceof mc.sayda.mcraze.entity.LivingEntity) {
+				data.hitPoints = ((mc.sayda.mcraze.entity.LivingEntity) entity).hitPoints;
+			}
+
+			// Save player inventory
+			if (entity instanceof mc.sayda.mcraze.entity.Player) {
+				mc.sayda.mcraze.entity.Player player = (mc.sayda.mcraze.entity.Player) entity;
+				mc.sayda.mcraze.ui.Inventory inv = player.inventory;
+
+				if (inv != null && inv.inventoryItems != null) {
+					int width = inv.inventoryItems.length;
+					int height = inv.inventoryItems[0].length;
+					int totalSlots = width * height;
+
+					data.inventoryItemIds = new String[totalSlots];
+					data.inventoryItemCounts = new int[totalSlots];
+					data.inventoryToolUses = new int[totalSlots];
+					data.inventoryHotbarIdx = inv.hotbarIdx;
+
+					// Flatten 2D inventory array
+					int index = 0;
+					for (int y = 0; y < height; y++) {
+						for (int x = 0; x < width; x++) {
+							mc.sayda.mcraze.item.InventoryItem slot = inv.inventoryItems[x][y];
+							if (slot != null && slot.item != null && slot.count > 0) {
+								data.inventoryItemIds[index] = slot.item.itemId;
+								data.inventoryItemCounts[index] = slot.count;
+
+								if (slot.item instanceof mc.sayda.mcraze.item.Tool) {
+									mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) slot.item;
+									data.inventoryToolUses[index] = tool.uses;
+								} else {
+									data.inventoryToolUses[index] = 0;
+								}
+							} else {
+								data.inventoryItemIds[index] = null;
+								data.inventoryItemCounts[index] = 0;
+								data.inventoryToolUses[index] = 0;
+							}
+							index++;
+						}
+					}
+				}
+			}
+
+			entityDataList.add(data);
+		}
+
+		try (FileWriter writer = new FileWriter(file)) {
+			gson.toJson(entityDataList, writer);
+		}
+	}
+
+	/**
+	 * Load entities from JSON
+	 */
+	private static ArrayList<Entity> loadEntities(File file) throws IOException {
+		ArrayList<Entity> entities = new ArrayList<>();
+
+		String json = new String(Files.readAllBytes(file.toPath()));
+		EntityData[] entityDataArray = gson.fromJson(json, EntityData[].class);
+
+		for (EntityData data : entityDataArray) {
+			// Reconstruct entities based on type
+			if ("Player".equals(data.type)) {
+				Player player = new Player(true, data.x, data.y, 7 * 4, 14 * 4);
+				player.hitPoints = data.hitPoints;
+
+				// Restore player inventory
+				if (data.inventoryItemIds != null && player.inventory != null) {
+					mc.sayda.mcraze.ui.Inventory inv = player.inventory;
+					int width = inv.inventoryItems.length;
+					int height = inv.inventoryItems[0].length;
+					int totalSlots = width * height;
+
+					if (data.inventoryItemIds.length == totalSlots) {
+						inv.hotbarIdx = data.inventoryHotbarIdx;
+
+						// Unflatten inventory array
+						int index = 0;
+						for (int y = 0; y < height; y++) {
+							for (int x = 0; x < width; x++) {
+								String itemId = data.inventoryItemIds[index];
+								int count = data.inventoryItemCounts[index];
+								int uses = data.inventoryToolUses[index];
+
+								mc.sayda.mcraze.item.InventoryItem slot = inv.inventoryItems[x][y];
+
+								if (itemId == null || count == 0) {
+									// Empty slot
+									slot.setEmpty();
+								} else {
+									// Get item from registry
+									mc.sayda.mcraze.item.Item item = mc.sayda.mcraze.Constants.itemTypes.get(itemId);
+									if (item != null) {
+										// Clone item and set count
+										mc.sayda.mcraze.item.Item clonedItem = item.clone();
+										slot.setItem(clonedItem);
+										slot.setCount(count);
+
+										// Restore tool durability
+										if (clonedItem instanceof mc.sayda.mcraze.item.Tool) {
+											mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) clonedItem;
+											tool.uses = uses;
+										}
+									} else {
+										// Item not found in registry
+										slot.setEmpty();
+										System.err.println("WorldSaveManager.loadEntities: Unknown item ID: " + itemId);
+									}
+								}
+
+								index++;
+							}
+						}
+					}
+				}
+
+				entities.add(player);
+			}
+			// TODO: Add other entity types (Item, Tool, etc.)
+		}
+
+		return entities;
+	}
+
+	/**
+	 * Save world to a specific directory (for dedicated server)
+	 * @param directory The directory to save to (e.g., "./world")
+	 * @param server The server instance to save
+	 * @return true if save succeeded
+	 */
+	public static boolean saveWorldToDirectory(Path directory, Server server) {
+		if (server.world == null) {
+			System.err.println("Cannot save: world is null");
+			return false;
+		}
+
+		try {
+			// Create directory if it doesn't exist
+			Files.createDirectories(directory);
+
+			// Save metadata (seed is not stored in World, use 0)
+			WorldMetadata metadata = new WorldMetadata(
+				"world",
+				0L,  // World doesn't store seed after generation
+				server.world.width,
+				server.world.height
+			);
+			metadata.createdTime = Instant.now().toEpochMilli();
+			metadata.lastPlayedTime = Instant.now().toEpochMilli();
+
+			// Write to temp files first (atomic save)
+			Path levelTemp = directory.resolve("level.dat.tmp");
+			Path worldTemp = directory.resolve("world.dat.tmp");
+			Path entitiesTemp = directory.resolve("entities.dat.tmp");
+
+			// Save metadata
+			try (FileWriter writer = new FileWriter(levelTemp.toFile())) {
+				gson.toJson(metadata, writer);
+			}
+
+			// Save world data
+			saveWorldData(worldTemp.toFile(), server.world);
+
+			// Save entities
+			saveEntities(entitiesTemp.toFile(), server.entities);
+
+			// Atomic commit: backup old files, then rename new ones
+			Path levelFinal = directory.resolve("level.dat");
+			Path worldFinal = directory.resolve("world.dat");
+			Path entitiesFinal = directory.resolve("entities.dat");
+
+			if (Files.exists(levelFinal)) {
+				Files.move(levelFinal, directory.resolve("level.dat.bak"),
+					java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			}
+			if (Files.exists(worldFinal)) {
+				Files.move(worldFinal, directory.resolve("world.dat.bak"),
+					java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			}
+			if (Files.exists(entitiesFinal)) {
+				Files.move(entitiesFinal, directory.resolve("entities.dat.bak"),
+					java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			}
+
+			// Atomic rename: temp -> final
+			Files.move(levelTemp, levelFinal, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+			Files.move(worldTemp, worldFinal, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+			Files.move(entitiesTemp, entitiesFinal, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+
+			System.out.println("World saved to " + directory.toAbsolutePath());
+			return true;
+
+		} catch (IOException e) {
+			System.err.println("Failed to save world: " + e.getMessage());
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	/**
+	 * Load world from a specific directory (for dedicated server)
+	 * @param directory The directory to load from (e.g., "./world")
+	 * @param server The server instance to load into
+	 * @return true if load succeeded
+	 */
+	public static boolean loadWorldFromDirectory(Path directory, Server server) {
+		if (!Files.exists(directory)) {
+			System.err.println("World directory does not exist: " + directory.toAbsolutePath());
+			return false;
+		}
+
+		// Try loading from main files first
+		try {
+			return loadWorldFromPath("world", server, directory, false);
+		} catch (Exception e) {
+			System.err.println("Failed to load world from main files: " + e.getMessage());
+
+			// Try backup files
+			System.out.println("Attempting to restore from backup...");
+			try {
+				boolean success = loadWorldFromPath("world", server, directory, true);
+				if (success) {
+					System.out.println("Successfully restored world from backup!");
+				}
+				return success;
+			} catch (Exception backupError) {
+				System.err.println("Backup restoration also failed: " + backupError.getMessage());
+				backupError.printStackTrace();
+				return false;
+			}
+		}
+	}
+
+	/**
+	 * Sanitize world name for use as directory name
+	 */
+	private static String sanitizeWorldName(String worldName) {
+		return worldName.replaceAll("[^a-zA-Z0-9_-]", "_");
+	}
+
+	/**
+	 * Delete directory recursively
+	 */
+	private static void deleteDirectory(File directory) throws IOException {
+		if (directory.exists()) {
+			File[] files = directory.listFiles();
+			if (files != null) {
+				for (File file : files) {
+					if (file.isDirectory()) {
+						deleteDirectory(file);
+					} else {
+						file.delete();
+					}
+				}
+			}
+			directory.delete();
+		}
+	}
+}
