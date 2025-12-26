@@ -42,6 +42,7 @@ This was neccessary so that you can get around the world in 2D.
 <tr><td>m</td><td>Mute/Unmute Sound</td></tr>
 <tr><td>r</td><td>Respawn</td></tr>
 <tr><td>esc</td><td>Save and Quit</td></tr>
+<tr><td>f3</td><td>Debug Menu</td></tr>
 <tr><td>q</td><td>Toss Selected Item</td></tr>
 <tr><td>f</td><td>View FPS</td></tr>
 </table>
