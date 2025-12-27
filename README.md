@@ -7,7 +7,7 @@ MCraze is based on "Minicraft v1.0.2"
 <tr><td>Art</td><td>mc_jojo3</td></tr>
 <tr><td>Art</td><td>John McDowell</td></tr>
 <tr><td>Music</td><td>HeatleyBros</td></tr>
-<tr><td>Music</td><td>Stamsite</td></tr>
+<tr><td>Music</td><td>Marcus Nyman "Stamsite"</td></tr>
 <tr><td>Inspiration</td><td>Markus Persson "Notch"</td></tr>
 </table>
 
