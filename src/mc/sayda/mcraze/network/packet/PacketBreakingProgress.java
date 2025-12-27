@@ -12,16 +12,17 @@
 
 package mc.sayda.mcraze.network.packet;
 
-import mc.sayda.mcraze.network.Packet;
-import mc.sayda.mcraze.network.PacketHandler;
+import mc.sayda.mcraze.network.ClientPacketHandler;
+import mc.sayda.mcraze.network.PacketRegistry;
+
+import java.nio.ByteBuffer;
 
 /**
- * Server -> Client: Sync block breaking progress for accurate client animation
+ * Server → Client: Sync block breaking progress for accurate client animation
  * ISSUE #3 fix: Server-authoritative breaking state
+ * Binary protocol: 4 ints = 16 bytes
  */
-public class PacketBreakingProgress extends Packet {
-	private static final long serialVersionUID = 1L;
-
+public class PacketBreakingProgress extends ServerPacket {
 	public int x;  // Block X position
 	public int y;  // Block Y position
 	public int progress;  // Breaking progress (0 = not breaking, 1-9 = breaking stages)
@@ -38,11 +39,29 @@ public class PacketBreakingProgress extends Packet {
 
 	@Override
 	public int getPacketId() {
-		return 12;
+		return PacketRegistry.getId(PacketBreakingProgress.class);
 	}
 
 	@Override
-	public void handle(PacketHandler handler) {
+	public void handle(ClientPacketHandler handler) {
 		handler.handleBreakingProgress(this);
+	}
+
+	@Override
+	public byte[] encode() {
+		ByteBuffer buf = ByteBuffer.allocate(16);
+		buf.putInt(x);
+		buf.putInt(y);
+		buf.putInt(progress);
+		buf.putInt(ticksNeeded);
+		return buf.array();
+	}
+
+	public static PacketBreakingProgress decode(ByteBuffer buf) {
+		int x = buf.getInt();
+		int y = buf.getInt();
+		int progress = buf.getInt();
+		int ticksNeeded = buf.getInt();
+		return new PacketBreakingProgress(x, y, progress, ticksNeeded);
 	}
 }

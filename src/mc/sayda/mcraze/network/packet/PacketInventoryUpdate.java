@@ -12,16 +12,18 @@
 
 package mc.sayda.mcraze.network.packet;
 
-import mc.sayda.mcraze.network.Packet;
-import mc.sayda.mcraze.network.PacketHandler;
+import mc.sayda.mcraze.network.ClientPacketHandler;
+import mc.sayda.mcraze.network.PacketRegistry;
+
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 /**
- * Server -> Client: Inventory state synchronization
+ * Server → Client: Inventory state synchronization
  * Sends inventory data (item IDs, counts, hotbar index) and UI state for the player
+ * Binary protocol: UUID string + count + item arrays + metadata
  */
-public class PacketInventoryUpdate extends Packet {
-	private static final long serialVersionUID = 1L;
-
+public class PacketInventoryUpdate extends ServerPacket {
 	// Player identification
 	public String playerUUID;  // UUID of the player this inventory belongs to
 
@@ -35,15 +37,118 @@ public class PacketInventoryUpdate extends Packet {
 	public boolean visible;           // Whether inventory is open
 	public int tableSizeAvailable;    // 0 = no crafting, 2 = 2x2, 3 = 3x3
 
+	// Crafting preview (craftable item)
+	public String craftableItemId;    // Item ID of craftable result (null if none)
+	public int craftableCount;        // Stack count of craftable result
+	public int craftableToolUse;      // Tool durability of craftable result
+
 	public PacketInventoryUpdate() {}
 
 	@Override
 	public int getPacketId() {
-		return 10;  // New packet ID
+		return PacketRegistry.getId(PacketInventoryUpdate.class);
 	}
 
 	@Override
-	public void handle(PacketHandler handler) {
+	public void handle(ClientPacketHandler handler) {
 		handler.handleInventoryUpdate(this);
+	}
+
+	@Override
+	public byte[] encode() {
+		byte[] uuidBytes = playerUUID.getBytes(StandardCharsets.UTF_8);
+		int count = (itemIds != null) ? itemIds.length : 0;
+
+		// Calculate total size
+		int totalSize = 2 + uuidBytes.length + 4;  // UUID + count
+		for (int i = 0; i < count; i++) {
+			String itemId = (itemIds[i] != null) ? itemIds[i] : "";
+			totalSize += 2 + itemId.getBytes(StandardCharsets.UTF_8).length;  // Each item ID
+			totalSize += 4;  // itemCount
+			totalSize += 4;  // toolUse
+		}
+		totalSize += 4 + 1 + 4;  // hotbarIndex + visible + tableSizeAvailable
+
+		// Add craftable item size
+		String craftableId = (craftableItemId != null) ? craftableItemId : "";
+		totalSize += 2 + craftableId.getBytes(StandardCharsets.UTF_8).length;  // craftableItemId
+		totalSize += 4;  // craftableCount
+		totalSize += 4;  // craftableToolUse
+
+		ByteBuffer buf = ByteBuffer.allocate(totalSize);
+
+		// Write UUID
+		buf.putShort((short) uuidBytes.length);
+		buf.put(uuidBytes);
+
+		// Write inventory array count
+		buf.putInt(count);
+
+		// Write each inventory slot
+		for (int i = 0; i < count; i++) {
+			String itemId = (itemIds[i] != null) ? itemIds[i] : "";
+			byte[] itemIdBytes = itemId.getBytes(StandardCharsets.UTF_8);
+			buf.putShort((short) itemIdBytes.length);
+			buf.put(itemIdBytes);
+			buf.putInt(itemCounts[i]);
+			buf.putInt(toolUses[i]);
+		}
+
+		// Write metadata
+		buf.putInt(hotbarIndex);
+		buf.put((byte) (visible ? 1 : 0));
+		buf.putInt(tableSizeAvailable);
+
+		// Write craftable item
+		byte[] craftableIdBytes = craftableId.getBytes(StandardCharsets.UTF_8);
+		buf.putShort((short) craftableIdBytes.length);
+		buf.put(craftableIdBytes);
+		buf.putInt(craftableCount);
+		buf.putInt(craftableToolUse);
+
+		return buf.array();
+	}
+
+	public static PacketInventoryUpdate decode(ByteBuffer buf) {
+		PacketInventoryUpdate packet = new PacketInventoryUpdate();
+
+		// Read UUID
+		short uuidLen = buf.getShort();
+		byte[] uuidBytes = new byte[uuidLen];
+		buf.get(uuidBytes);
+		packet.playerUUID = new String(uuidBytes, StandardCharsets.UTF_8);
+
+		// Read inventory array count
+		int count = buf.getInt();
+		packet.itemIds = new String[count];
+		packet.itemCounts = new int[count];
+		packet.toolUses = new int[count];
+
+		// Read each inventory slot
+		for (int i = 0; i < count; i++) {
+			short itemIdLen = buf.getShort();
+			byte[] itemIdBytes = new byte[itemIdLen];
+			buf.get(itemIdBytes);
+			String itemId = new String(itemIdBytes, StandardCharsets.UTF_8);
+			packet.itemIds[i] = itemId.isEmpty() ? null : itemId;
+			packet.itemCounts[i] = buf.getInt();
+			packet.toolUses[i] = buf.getInt();
+		}
+
+		// Read metadata
+		packet.hotbarIndex = buf.getInt();
+		packet.visible = buf.get() == 1;
+		packet.tableSizeAvailable = buf.getInt();
+
+		// Read craftable item
+		short craftableIdLen = buf.getShort();
+		byte[] craftableIdBytes = new byte[craftableIdLen];
+		buf.get(craftableIdBytes);
+		String craftableId = new String(craftableIdBytes, StandardCharsets.UTF_8);
+		packet.craftableItemId = craftableId.isEmpty() ? null : craftableId;
+		packet.craftableCount = buf.getInt();
+		packet.craftableToolUse = buf.getInt();
+
+		return packet;
 	}
 }

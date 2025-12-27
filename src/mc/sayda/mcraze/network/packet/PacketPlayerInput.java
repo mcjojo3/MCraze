@@ -12,18 +12,20 @@
 
 package mc.sayda.mcraze.network.packet;
 
-import mc.sayda.mcraze.network.Packet;
-import mc.sayda.mcraze.network.PacketHandler;
+import mc.sayda.mcraze.network.PacketRegistry;
+import mc.sayda.mcraze.network.ServerPacketHandler;
+
+import java.nio.ByteBuffer;
 
 /**
- * Client -> Server: Player input (movement, mouse position)
+ * Client → Server: Player input (movement, mouse position)
+ * Binary protocol: 6 booleans + 2 floats + 1 int = 18 bytes (was ~200 bytes!)
  */
-public class PacketPlayerInput extends Packet {
-	private static final long serialVersionUID = 1L;
-
+public class PacketPlayerInput extends ClientPacket {
 	public boolean moveLeft;
 	public boolean moveRight;
 	public boolean climb;
+	public boolean sneak;
 	public boolean leftClick;
 	public boolean rightClick;
 	public float mouseX;
@@ -32,12 +34,13 @@ public class PacketPlayerInput extends Packet {
 
 	public PacketPlayerInput() {}
 
-	public PacketPlayerInput(boolean moveLeft, boolean moveRight, boolean climb,
+	public PacketPlayerInput(boolean moveLeft, boolean moveRight, boolean climb, boolean sneak,
 							 boolean leftClick, boolean rightClick,
 							 float mouseX, float mouseY, int hotbarSlot) {
 		this.moveLeft = moveLeft;
 		this.moveRight = moveRight;
 		this.climb = climb;
+		this.sneak = sneak;
 		this.leftClick = leftClick;
 		this.rightClick = rightClick;
 		this.mouseX = mouseX;
@@ -47,11 +50,39 @@ public class PacketPlayerInput extends Packet {
 
 	@Override
 	public int getPacketId() {
-		return 1;
+		return PacketRegistry.getId(PacketPlayerInput.class);
 	}
 
 	@Override
-	public void handle(PacketHandler handler) {
+	public void handle(ServerPacketHandler handler) {
 		handler.handlePlayerInput(this);
+	}
+
+	@Override
+	public byte[] encode() {
+		ByteBuffer buf = ByteBuffer.allocate(18);
+		buf.put((byte) (moveLeft ? 1 : 0));
+		buf.put((byte) (moveRight ? 1 : 0));
+		buf.put((byte) (climb ? 1 : 0));
+		buf.put((byte) (sneak ? 1 : 0));
+		buf.put((byte) (leftClick ? 1 : 0));
+		buf.put((byte) (rightClick ? 1 : 0));
+		buf.putFloat(mouseX);
+		buf.putFloat(mouseY);
+		buf.putInt(hotbarSlot);
+		return buf.array();
+	}
+
+	public static PacketPlayerInput decode(ByteBuffer buf) {
+		boolean moveLeft = buf.get() == 1;
+		boolean moveRight = buf.get() == 1;
+		boolean climb = buf.get() == 1;
+		boolean sneak = buf.get() == 1;
+		boolean leftClick = buf.get() == 1;
+		boolean rightClick = buf.get() == 1;
+		float mouseX = buf.getFloat();
+		float mouseY = buf.getFloat();
+		int hotbarSlot = buf.getInt();
+		return new PacketPlayerInput(moveLeft, moveRight, climb, sneak, leftClick, rightClick, mouseX, mouseY, hotbarSlot);
 	}
 }

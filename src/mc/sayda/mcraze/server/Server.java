@@ -55,8 +55,7 @@ public class Server implements PacketHandler {
 	// Game settings
 	private int worldWidth = 512;
 	private int worldHeight = 256;
-	public boolean keepInventory = false;
-	public boolean daylightCycle = true;
+	// Gamerules moved to World class (world.keepInventory, world.daylightCycle, world.spelunking)
 	private float spawnX = 0;
 	private float spawnY = 0;
 
@@ -103,7 +102,7 @@ public class Server implements PacketHandler {
 	 */
 	public void setChat(mc.sayda.mcraze.ui.Chat chat) {
 		this.chat = chat;
-		this.commandHandler = new mc.sayda.mcraze.ui.CommandHandler(this, chat);
+		this.commandHandler = new mc.sayda.mcraze.ui.CommandHandler(this, null, chat);
 		chat.setCommandHandler(commandHandler);
 	}
 
@@ -138,6 +137,7 @@ public class Server implements PacketHandler {
 		// Set command handler for integrated server commands
 		if (commandHandler != null) {
 			sharedWorld.setCommandHandler(commandHandler);
+			commandHandler.setSharedWorld(sharedWorld);  // Give CommandHandler reference to SharedWorld
 		}
 
 		// Create LocalConnection pair for host player
@@ -265,8 +265,19 @@ public class Server implements PacketHandler {
 
 	/**
 	 * Respawn the player (REFACTORED to use hostUsername)
+	 *
+	 * @deprecated This method should NOT be used. All respawns must go through
+	 * the packet system (PacketRespawn → SharedWorld.respawnPlayer) to ensure
+	 * consistent behavior whether LAN is enabled or not. This maintains the
+	 * architecture principle that there is no "singleplayer" - only integrated
+	 * servers with LAN disabled. ALL player actions must use packets.
 	 */
+	@Deprecated
 	public void respawnPlayer() {
+		// WARNING: This method is deprecated and should not be called
+		System.err.println("WARNING: Server.respawnPlayer() called directly! This is deprecated.");
+		System.err.println("         All respawns should use PacketRespawn → SharedWorld.respawnPlayer()");
+
 		if (player != null && hostUsername != null && currentWorldName != null) {
 			// Reload playerdata (reset to spawn with full health)
 			try {
@@ -549,6 +560,27 @@ public class Server implements PacketHandler {
 	}
 
 	/**
+	 * Get SharedWorld instance (for accessing multiplayer systems)
+	 */
+	public SharedWorld getSharedWorld() {
+		return sharedWorld;
+	}
+
+	/**
+	 * Get thread-safe EntityManager for rendering
+	 */
+	public EntityManager getEntityManager() {
+		return sharedWorld != null ? sharedWorld.getEntityManager() : null;
+	}
+
+	/**
+	 * Get thread-safe WorldAccess for tile rendering
+	 */
+	public mc.sayda.mcraze.world.WorldAccess getWorldAccess() {
+		return sharedWorld != null ? sharedWorld.getWorldAccess() : null;
+	}
+
+	/**
 	 * REMOVED: getBreakingState() is no longer needed
 	 * Block breaking state is now managed by SharedWorld per-player
 	 */
@@ -587,17 +619,10 @@ public class Server implements PacketHandler {
 
 	@Override
 	public void handleChatSend(PacketChatSend packet) {
-		// Handle commands vs regular chat
-		if (packet.message != null && packet.message.startsWith("/")) {
-			// Process commands through command handler (singleplayer feature)
-			if (commandHandler != null) {
-				commandHandler.executeCommand(packet.message);
-			}
-		} else {
-			// Delegate regular chat to SharedWorld for broadcasting
-			if (hostPlayerConnection != null) {
-				hostPlayerConnection.handleChatSend(packet);
-			}
+		// Delegate ALL chat/commands to PlayerConnection (integrated server host's connection)
+		// This ensures consistent behavior - host is treated like any other player
+		if (hostPlayerConnection != null) {
+			hostPlayerConnection.handleChatSend(packet);
 		}
 	}
 

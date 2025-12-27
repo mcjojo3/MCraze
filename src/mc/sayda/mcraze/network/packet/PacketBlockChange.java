@@ -12,15 +12,16 @@
 
 package mc.sayda.mcraze.network.packet;
 
-import mc.sayda.mcraze.network.Packet;
-import mc.sayda.mcraze.network.PacketHandler;
+import mc.sayda.mcraze.network.PacketRegistry;
+import mc.sayda.mcraze.network.ServerPacketHandler;
+
+import java.nio.ByteBuffer;
 
 /**
- * Client -> Server: Block break/place action
+ * Client → Server: Block break/place action
+ * Binary protocol: 2 ints + 1 char + 1 boolean = 11 bytes
  */
-public class PacketBlockChange extends Packet {
-	private static final long serialVersionUID = 1L;
-
+public class PacketBlockChange extends ClientPacket {
 	public int x;
 	public int y;
 	public char newTileId;  // 0 for break, tile ID for place
@@ -37,11 +38,29 @@ public class PacketBlockChange extends Packet {
 
 	@Override
 	public int getPacketId() {
-		return 2;
+		return PacketRegistry.getId(PacketBlockChange.class);
 	}
 
 	@Override
-	public void handle(PacketHandler handler) {
+	public void handle(ServerPacketHandler handler) {
 		handler.handleBlockChange(this);
+	}
+
+	@Override
+	public byte[] encode() {
+		ByteBuffer buf = ByteBuffer.allocate(11);
+		buf.putInt(x);
+		buf.putInt(y);
+		buf.putChar(newTileId);
+		buf.put((byte) (isBreak ? 1 : 0));
+		return buf.array();
+	}
+
+	public static PacketBlockChange decode(ByteBuffer buf) {
+		int x = buf.getInt();
+		int y = buf.getInt();
+		char newTileId = buf.getChar();
+		boolean isBreak = buf.get() == 1;
+		return new PacketBlockChange(x, y, newTileId, isBreak);
 	}
 }

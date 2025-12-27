@@ -12,15 +12,17 @@
 
 package mc.sayda.mcraze.network.packet;
 
-import mc.sayda.mcraze.network.Packet;
-import mc.sayda.mcraze.network.PacketHandler;
+import mc.sayda.mcraze.network.ClientPacketHandler;
+import mc.sayda.mcraze.network.PacketRegistry;
+
+import java.nio.ByteBuffer;
 
 /**
- * Server -> Client: World state update (block changes, time, etc.)
+ * Server → Client: World state update (block changes, time, etc.)
+ * Binary protocol: 4-byte count + arrays + 8-byte long
+ * Size: 4 + (count * 10) + 8 bytes
  */
-public class PacketWorldUpdate extends Packet {
-	private static final long serialVersionUID = 1L;
-
+public class PacketWorldUpdate extends ServerPacket {
 	// Block changes
 	public int[] changedX;
 	public int[] changedY;
@@ -33,11 +35,47 @@ public class PacketWorldUpdate extends Packet {
 
 	@Override
 	public int getPacketId() {
-		return 5;
+		return PacketRegistry.getId(PacketWorldUpdate.class);
 	}
 
 	@Override
-	public void handle(PacketHandler handler) {
+	public void handle(ClientPacketHandler handler) {
 		handler.handleWorldUpdate(this);
+	}
+
+	@Override
+	public byte[] encode() {
+		int count = (changedX != null) ? changedX.length : 0;
+		// 4 bytes for count + (count * (4 + 4 + 2)) + 8 bytes for ticksAlive
+		ByteBuffer buf = ByteBuffer.allocate(4 + (count * 10) + 8);
+
+		buf.putInt(count);
+		for (int i = 0; i < count; i++) {
+			buf.putInt(changedX[i]);
+			buf.putInt(changedY[i]);
+			buf.putChar(changedTiles[i]);
+		}
+		buf.putLong(ticksAlive);
+
+		return buf.array();
+	}
+
+	public static PacketWorldUpdate decode(ByteBuffer buf) {
+		PacketWorldUpdate packet = new PacketWorldUpdate();
+
+		int count = buf.getInt();
+		packet.changedX = new int[count];
+		packet.changedY = new int[count];
+		packet.changedTiles = new char[count];
+
+		for (int i = 0; i < count; i++) {
+			packet.changedX[i] = buf.getInt();
+			packet.changedY[i] = buf.getInt();
+			packet.changedTiles[i] = buf.getChar();
+		}
+
+		packet.ticksAlive = buf.getLong();
+
+		return packet;
 	}
 }

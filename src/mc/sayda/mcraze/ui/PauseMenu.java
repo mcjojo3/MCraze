@@ -61,15 +61,28 @@ public class PauseMenu {
 		buttons.add(continueBtn);
 		buttons.add(settingsBtn);
 
-		// Open to LAN button (only in singleplayer)
-		if (game.getServer() != null) {
+		// Open to LAN button (only for integrated servers - not available on remote servers)
+		// Disabled if connected as client (no local server)
+		boolean isHost = (game.getServer() != null);
+		if (isHost) {
 			Button lanBtn = new Button(
 				"lan",
 				getLANButtonText(),
 				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * buttonIndex++,
 				BUTTON_WIDTH,
 				BUTTON_HEIGHT
-			).setOnClick(this::toggleLAN);
+			).setOnClick(this::toggleLAN)
+			 .setEnabled(true);  // Always enabled for hosts
+			buttons.add(lanBtn);
+		} else {
+			// Show disabled LAN button for clients
+			Button lanBtn = new Button(
+				"lan",
+				"Open to LAN (Host Only)",
+				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * buttonIndex++,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT
+			).setEnabled(false);  // Grayed out for clients
 			buttons.add(lanBtn);
 		}
 

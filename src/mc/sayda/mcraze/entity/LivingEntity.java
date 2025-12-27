@@ -26,6 +26,10 @@ public abstract class LivingEntity extends Entity {
 	public boolean facingRight = true;
 	public Inventory inventory;
 	public boolean dead = false;
+	public boolean flying = false;  // Flying mode (no gravity, free movement)
+	public boolean noclip = false;  // Noclip mode (ghost through blocks when flying)
+	public boolean sneaking = false;  // Sneaking mode (prevents falling off edges, lowers in fly mode)
+	public float speedMultiplier = 1.0f;  // Speed multiplier (1.0 = normal speed)
 
 	protected final float walkSpeed = .1f;
 	protected final float swimSpeed = .04f;
@@ -55,6 +59,20 @@ public abstract class LivingEntity extends Entity {
 		return Math.max(10 - (ticksUnderwater / 50), 0);
 	}
 
+	/**
+	 * Get the number of ticks this entity has been alive (for animation timing)
+	 */
+	public long getTicksAlive() {
+		return ticksAlive;
+	}
+
+	/**
+	 * Set the number of ticks this entity has been alive (used by client for animation sync)
+	 */
+	public void setTicksAlive(long ticksAlive) {
+		this.ticksAlive = ticksAlive;
+	}
+
 	public void jump(World world, int tileSize) {
 		if (dead || jumping) {
 			return;
@@ -81,21 +99,61 @@ public abstract class LivingEntity extends Entity {
 			return;
 		}
 
-		boolean isSwimClimb = this.isInWaterOrClimbable(world, tileSize);
-		if (isSwimClimb) {
-			dx = moveDirection * swimSpeed;
-		} else {
-			dx = moveDirection * walkSpeed;
-		}
-		if (climbing) {
-			if (isSwimClimb) {
-				jumping = false;
-				dy = -maxWaterDY - .000001f;// BIG HACK
+		// Flying mode: disable gravity and allow free movement
+		if (flying) {
+			dx = moveDirection * walkSpeed * speedMultiplier;
+			if (climbing) {
+				dy = -walkSpeed * speedMultiplier * 2;  // Upward movement
+			} else if (sneaking) {
+				dy = walkSpeed * speedMultiplier * 2;  // Downward movement when sneaking
 			} else {
-				jump(world, tileSize);
+				dy = 0;  // No gravity when flying
 			}
+			jumping = false;
+
+			// Temporarily disable gravity for flying
+			boolean wasGravityApplies = gravityApplies;
+			gravityApplies = false;
+			super.updatePosition(world, tileSize);
+			gravityApplies = wasGravityApplies;
+		} else {
+			// Normal movement (walking/swimming)
+			boolean isSwimClimb = this.isInWaterOrClimbable(world, tileSize);
+			if (isSwimClimb) {
+				dx = moveDirection * swimSpeed * speedMultiplier;
+			} else {
+				dx = moveDirection * walkSpeed * speedMultiplier;
+			}
+			if (climbing) {
+				if (isSwimClimb) {
+					jumping = false;
+					dy = -maxWaterDY - .000001f;// BIG HACK
+				} else {
+					jump(world, tileSize);
+				}
+			}
+
+			// Edge prevention when sneaking: prevent falling off block edges
+			if (sneaking && !jumping && dx != 0) {
+				// Check if there's a solid block below the player at the next position
+				float nextX = x + dx;
+				float nextBottom = getBottom(tileSize);
+				float nextLeft = nextX;
+				float nextRight = nextX + (float) widthPX / tileSize;
+
+				// Check one tile below the next position
+				int checkY = (int) (nextBottom + 0.1f);  // Slightly below feet
+				boolean hasGroundLeft = !world.passable((int) nextLeft, checkY);
+				boolean hasGroundRight = !world.passable((int) nextRight, checkY);
+
+				// If moving would cause player to walk off edge, prevent it
+				if (!hasGroundLeft && !hasGroundRight) {
+					dx = 0;  // Cancel horizontal movement
+				}
+			}
+
+			super.updatePosition(world, tileSize);
 		}
-		super.updatePosition(world, tileSize);
 		if (this.dy == 0) {
 			jumping = false;
 		}

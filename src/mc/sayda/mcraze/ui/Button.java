@@ -15,13 +15,14 @@ public class Button {
 	private final int width;
 	private final int height;
 	private final boolean centered;  // Whether to center horizontally
+	private int offsetX = 0;  // Horizontal offset from center position
 
 	// Sprite-based button
 	private final Sprite spriteUp;
 	private final Sprite spriteDown;
 
 	// Text-based button (9-patch style)
-	private final String text;
+	private String text;  // Removed final to allow text updates
 	private final boolean useNinePatch;
 
 	private boolean hovered;
@@ -89,11 +90,29 @@ public class Button {
 	}
 
 	/**
+	 * Update the button text (for text-based buttons only)
+	 */
+	public Button setText(String text) {
+		if (useNinePatch) {
+			this.text = text;
+		}
+		return this;
+	}
+
+	/**
+	 * Set horizontal offset from center position
+	 */
+	public Button setOffsetX(int offsetX) {
+		this.offsetX = offsetX;
+		return this;
+	}
+
+	/**
 	 * Update position based on screen width (for centered buttons)
 	 */
 	public void updatePosition(int screenWidth) {
 		if (centered) {
-			this.x = (screenWidth - width) / 2;
+			this.x = (screenWidth - width) / 2 + offsetX;
 		}
 	}
 

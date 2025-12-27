@@ -12,15 +12,17 @@
 
 package mc.sayda.mcraze.network.packet;
 
-import mc.sayda.mcraze.network.Packet;
-import mc.sayda.mcraze.network.PacketHandler;
+import mc.sayda.mcraze.network.PacketRegistry;
+import mc.sayda.mcraze.network.ServerPacketHandler;
+
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 /**
- * Client -> Server: Authentication request with username and password
+ * Client → Server: Authentication request with username and password
+ * Binary protocol: 2 strings (each with 2-byte length prefix)
  */
-public class PacketAuthRequest extends Packet {
-	private static final long serialVersionUID = 1L;
-
+public class PacketAuthRequest extends ClientPacket {
 	public String username;
 	public String password;
 
@@ -33,11 +35,37 @@ public class PacketAuthRequest extends Packet {
 
 	@Override
 	public int getPacketId() {
-		return 11;
+		return PacketRegistry.getId(PacketAuthRequest.class);
 	}
 
 	@Override
-	public void handle(PacketHandler handler) {
+	public void handle(ServerPacketHandler handler) {
 		handler.handleAuthRequest(this);
+	}
+
+	@Override
+	public byte[] encode() {
+		byte[] usernameBytes = username.getBytes(StandardCharsets.UTF_8);
+		byte[] passwordBytes = password.getBytes(StandardCharsets.UTF_8);
+		ByteBuffer buf = ByteBuffer.allocate(4 + usernameBytes.length + passwordBytes.length);
+		buf.putShort((short) usernameBytes.length);
+		buf.put(usernameBytes);
+		buf.putShort((short) passwordBytes.length);
+		buf.put(passwordBytes);
+		return buf.array();
+	}
+
+	public static PacketAuthRequest decode(ByteBuffer buf) {
+		short usernameLen = buf.getShort();
+		byte[] usernameBytes = new byte[usernameLen];
+		buf.get(usernameBytes);
+		String username = new String(usernameBytes, StandardCharsets.UTF_8);
+
+		short passwordLen = buf.getShort();
+		byte[] passwordBytes = new byte[passwordLen];
+		buf.get(passwordBytes);
+		String password = new String(passwordBytes, StandardCharsets.UTF_8);
+
+		return new PacketAuthRequest(username, password);
 	}
 }

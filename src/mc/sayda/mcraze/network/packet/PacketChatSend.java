@@ -12,15 +12,17 @@
 
 package mc.sayda.mcraze.network.packet;
 
-import mc.sayda.mcraze.network.Packet;
-import mc.sayda.mcraze.network.PacketHandler;
+import mc.sayda.mcraze.network.PacketRegistry;
+import mc.sayda.mcraze.network.ServerPacketHandler;
+
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 /**
- * Client -> Server: Chat message or command
+ * Client → Server: Chat message or command
+ * Binary protocol: 2-byte length + UTF-8 string
  */
-public class PacketChatSend extends Packet {
-	private static final long serialVersionUID = 1L;
-
+public class PacketChatSend extends ClientPacket {
 	public String message;
 
 	public PacketChatSend() {}
@@ -31,11 +33,28 @@ public class PacketChatSend extends Packet {
 
 	@Override
 	public int getPacketId() {
-		return 3;
+		return PacketRegistry.getId(PacketChatSend.class);
 	}
 
 	@Override
-	public void handle(PacketHandler handler) {
+	public void handle(ServerPacketHandler handler) {
 		handler.handleChatSend(this);
+	}
+
+	@Override
+	public byte[] encode() {
+		byte[] messageBytes = message.getBytes(StandardCharsets.UTF_8);
+		ByteBuffer buf = ByteBuffer.allocate(2 + messageBytes.length);
+		buf.putShort((short) messageBytes.length);
+		buf.put(messageBytes);
+		return buf.array();
+	}
+
+	public static PacketChatSend decode(ByteBuffer buf) {
+		short length = buf.getShort();
+		byte[] messageBytes = new byte[length];
+		buf.get(messageBytes);
+		String message = new String(messageBytes, StandardCharsets.UTF_8);
+		return new PacketChatSend(message);
 	}
 }

@@ -18,6 +18,9 @@ public class AwtEventsHandler {
 	private boolean moveLeft = false;
 	private boolean moveRight = false;
 	private boolean climb = false;
+	private boolean sneak = false;
+	private int desiredHotbarSlot = 0;  // Client's desired hotbar slot (sent to server)
+	private boolean escUsedToCloseMenu = false;  // Track if ESC just closed a menu (prevent double-trigger)
 
 	public AwtEventsHandler(Game game, Canvas canvas) {
 		this.game = game;
@@ -34,33 +37,10 @@ public class AwtEventsHandler {
 	}
 
 	/**
-	 * Check if we're in multiplayer mode (not integrated server)
+	 * NOTE: We ALWAYS use packets for ALL input, whether integrated server or dedicated server.
+	 * There is NO "singleplayer" mode - only integrated servers with LAN disabled.
+	 * The shouldUsePackets() method has been removed - packets are mandatory.
 	 */
-	private boolean isMultiplayerMode() {
-		// In multiplayer, the client's connection is a NetworkConnection, not a LocalConnection
-		return game.getClient() != null &&
-			   game.getClient().connection != null &&
-			   game.getClient().connection instanceof mc.sayda.mcraze.network.NetworkConnection;
-	}
-
-	/**
-	 * Check if we should use packet-based input (true for multiplayer clients AND LAN hosts)
-	 */
-	private boolean shouldUsePackets() {
-		// Use packets if:
-		// 1. We're a multiplayer client (NetworkConnection), OR
-		// 2. We're a LAN host (LocalConnection but LAN is enabled)
-		if (isMultiplayerMode()) {
-			return true;  // Multiplayer client
-		}
-
-		// Check if we're a LAN host
-		if (game.getServer() != null && game.getServer().isLANEnabled()) {
-			return true;  // LAN host - use packets for consistency with clients
-		}
-
-		return false;  // Pure singleplayer - can use direct manipulation
-	}
 
 	/**
 	 * Get the local player (works in both singleplayer and multiplayer)
@@ -83,18 +63,18 @@ public class AwtEventsHandler {
 	public void sendInputPacket() {
 		if (game.getClient() == null) return;
 
-		mc.sayda.mcraze.entity.Player player = getLocalPlayer();
-		int hotbarSlot = (player != null && player.inventory != null) ? player.inventory.hotbarIdx : 0;
-
+		// Use desired hotbar slot instead of reading from player
+		// Server will apply and broadcast the change
 		mc.sayda.mcraze.network.packet.PacketPlayerInput packet = new mc.sayda.mcraze.network.packet.PacketPlayerInput(
 			moveLeft,
 			moveRight,
 			climb,
+			sneak,
 			game.getClient().leftClick,
 			game.getClient().rightClick,
 			game.getClient().screenMousePos.x,
 			game.getClient().screenMousePos.y,
-			hotbarSlot
+			desiredHotbarSlot
 		);
 
 		game.getClient().connection.sendPacket(packet);
@@ -103,10 +83,20 @@ public class AwtEventsHandler {
 	private class MouseWheelInputHander implements MouseWheelListener {
 		@Override
 		public void mouseWheelMoved(MouseWheelEvent e) {
-			// Get the correct player (works in both SP and MP)
-			mc.sayda.mcraze.entity.Player player = getLocalPlayer();
-			if (player != null) {
-				player.scrollHotbar(e.getWheelRotation());
+			int scroll = e.getWheelRotation();
+
+			// If main menu is open, pass wheel event to it
+			if (game.getClient() != null && game.getClient().isInMenu() && game.getClient().getMenu() != null) {
+				game.getClient().getMenu().handleMouseWheel(
+					game.getClient().screenMousePos.x,
+					game.getClient().screenMousePos.y,
+					scroll
+				);
+			} else {
+				// Update desired hotbar slot and send immediately
+				desiredHotbarSlot = Math.max(0, Math.min(9, desiredHotbarSlot + scroll));
+				// Send packet immediately so server gets hotbar change even when player is standing still
+				sendInputPacket();
 			}
 		}
 	}
@@ -175,23 +165,64 @@ public class AwtEventsHandler {
 				return;
 			}
 
-			// Handle pause menu separately
-			if (game.getClient().isInPauseMenu()) {
-				// ESC closes pause menu
-				if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-					game.getClient().closePauseMenu();
+			// Handle ESC key for menus - check in priority order
+			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+				// Priority 1: Close settings menu if open
+				if (game.getClient().isInSettingsMenu()) {
+					game.getClient().closeSettingsMenu();
+					escUsedToCloseMenu = true;  // Mark that ESC closed a menu
 					e.consume();
+					return;
 				}
+
+				// Priority 2: Close pause menu if open
+				if (game.getClient().isInPauseMenu()) {
+					game.getClient().closePauseMenu();
+					escUsedToCloseMenu = true;  // Mark that ESC closed a menu
+					e.consume();
+					return;
+				}
+
+				// Priority 3: Close chat if open
+				if (game.getClient().chat.isOpen()) {
+					game.getClient().chat.setOpen(false);
+					escUsedToCloseMenu = true;  // Mark that ESC closed a menu
+					e.consume();
+					return;
+				}
+
+				// Priority 4: Close chest UI if open
+				if (game.getClient().isChestUIOpen()) {
+					game.getClient().closeChestUI();
+					escUsedToCloseMenu = true;  // Mark that ESC closed a menu
+					e.consume();
+					return;
+				}
+
+				// Priority 5: Close inventory if open
+				mc.sayda.mcraze.entity.Player player = getLocalPlayer();
+				if (player != null && player.inventory.isVisible()) {
+					player.inventory.setVisible(false);
+					escUsedToCloseMenu = true;  // Mark that ESC closed a menu
+					e.consume();
+					return;
+				}
+
+				// Priority 6: Open pause menu if nothing is open (handled below in keyReleased)
+				// Reset flag if no menu was closed
+				escUsedToCloseMenu = false;
+			}
+
+			// Handle pause menu input (but not ESC - already handled above)
+			if (game.getClient().isInPauseMenu()) {
+				// Pause menu is open, don't process game input
 				return;
 			}
 
-			// Don't process game input if chat is open
+			// Handle chat input
 			if (game.getClient().chat.isOpen()) {
 				if (e.getKeyCode() == KeyEvent.VK_ENTER) {
 					game.submitChat();
-				} else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-					game.getClient().chat.setOpen(false);
-					e.consume();  // Prevent ESC from also triggering pause menu
 				} else if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
 					game.getClient().chat.backspace();
 				} else if (e.getKeyCode() == KeyEvent.VK_TAB) {
@@ -207,33 +238,29 @@ public class AwtEventsHandler {
 				return;
 			}
 
-			// In pure singleplayer, check if player exists
-			if (!shouldUsePackets() && game.getServer().player == null) return;
-
+			// ALWAYS use packets for input (integrated or dedicated server)
 			switch (e.getKeyCode()) {
 			case KeyEvent.VK_W:
 			case KeyEvent.VK_SPACE:
 				climb = true;
-				if (shouldUsePackets()) {
-					sendInputPacket();
-				} else {
-					game.getServer().player.startClimb();
-				}
+				sendInputPacket();
 				break;
 			case KeyEvent.VK_A:
 				moveLeft = true;
-				if (shouldUsePackets()) {
-					sendInputPacket();
-				} else {
-					game.getServer().player.startLeft(e.isShiftDown());
-				}
+				sendInputPacket();
 				break;
 			case KeyEvent.VK_D:
 				moveRight = true;
-				if (shouldUsePackets()) {
-					sendInputPacket();
-				} else {
-					game.getServer().player.startRight(e.isShiftDown());
+				sendInputPacket();
+				break;
+			case KeyEvent.VK_SHIFT:
+				sneak = true;
+				sendInputPacket();
+				break;
+			case KeyEvent.VK_F3:
+				// Toggle debug overlay (F3)
+				if (game.getClient() != null && game.getClient().getDebugOverlay() != null) {
+					game.getClient().getDebugOverlay().toggle();
 				}
 				break;
 			}
@@ -264,47 +291,48 @@ public class AwtEventsHandler {
 				return;
 			}
 
-			// In pure singleplayer, check if player exists
-			if (!shouldUsePackets() && game.getServer().player == null) return;
-
+			// ALWAYS use packets for input (integrated or dedicated server)
 			switch (e.getKeyCode()) {
 			case KeyEvent.VK_W:
 			case KeyEvent.VK_SPACE:
 				climb = false;
-				if (shouldUsePackets()) {
-					sendInputPacket();
-				} else {
-					game.getServer().player.endClimb();
-				}
+				sendInputPacket();
 				break;
 			case KeyEvent.VK_A:
 				moveLeft = false;
-				if (shouldUsePackets()) {
-					sendInputPacket();
-				} else {
-					game.getServer().player.stopLeft();
-				}
+				sendInputPacket();
 				break;
 			case KeyEvent.VK_D:
 				moveRight = false;
-				if (shouldUsePackets()) {
-					sendInputPacket();
-				} else {
-					game.getServer().player.stopRight();
-				}
+				sendInputPacket();
+				break;
+			case KeyEvent.VK_SHIFT:
+				sneak = false;
+				sendInputPacket();
 				break;
 			case KeyEvent.VK_ESCAPE:
-				// Close inventory if open, otherwise open pause menu
-				mc.sayda.mcraze.entity.Player player = getLocalPlayer();
-				if (player != null && player.inventory.isVisible()) {
-					player.inventory.setVisible(false);
-				} else {
-					// Autosave before opening pause menu (only in singleplayer)
-					if (game.getServer() != null) {
-						game.saveGame();
+				// Skip if ESC just closed a menu (prevent double-trigger)
+				if (escUsedToCloseMenu) {
+					escUsedToCloseMenu = false;  // Reset flag
+					break;
+				}
+
+				// Open pause menu if nothing else is open
+				// (Closing inventory/settings/pause/chat/chest is handled in keyPressed and above)
+				if (!game.getClient().isInPauseMenu() &&
+				    !game.getClient().isInSettingsMenu() &&
+				    !game.getClient().chat.isOpen() &&
+				    !game.getClient().isChestUIOpen()) {
+					mc.sayda.mcraze.entity.Player player = getLocalPlayer();
+					// Only if inventory is also not visible
+					if (player == null || !player.inventory.isVisible()) {
+						// Autosave before opening pause menu (only for integrated servers)
+						if (game.getServer() != null) {
+							game.saveGame();
+						}
+						// Open pause menu
+						game.getClient().openPauseMenu();
 					}
-					// Open pause menu
-					game.getClient().openPauseMenu();
 				}
 				break;
 			}
@@ -365,16 +393,22 @@ public class AwtEventsHandler {
 			case '7':
 			case '8':
 			case '9':
-				player.setHotbarItem(c - '1');
+				// Update desired hotbar slot and send immediately
+				desiredHotbarSlot = c - '1';
+				sendInputPacket();
 				break;
 			case '0':
-				player.setHotbarItem(9);
+				// Update desired hotbar slot and send immediately
+				desiredHotbarSlot = 9;
+				sendInputPacket();
 				break;
 			case 'e':
 				player.inventory.setVisible(!player.inventory.isVisible());
 				break;
 			case '=':
-				// TODO: Implement zoom
+			case '+':
+				// Zoom in
+				game.getClient().zoomIn();
 				break;
 			case 'p':
 				// TODO: Implement pause
@@ -383,27 +417,44 @@ public class AwtEventsHandler {
                 // TODO: Input does not appear to be an Ogg bitstream.
 				game.getClient().musicPlayer.toggleSound();
 				break;
-			case 'o':
-				// TODO: Implement zoom reset
+			case 'b':
+			case 'B':
+				// Toggle backdrop placement mode - send packet to server
+				if (game.getClient() != null && game.getClient().connection != null) {
+					mc.sayda.mcraze.network.packet.PacketToggleBackdropMode packet =
+						new mc.sayda.mcraze.network.packet.PacketToggleBackdropMode();
+					game.getClient().connection.sendPacket(packet);
+				}
+				break;
+			case 'c':
+				// Reset zoom to default
+				game.getClient().resetZoom();
 				break;
 			case '-':
-				// TODO: Implement zoom out
+			case '_':
+				// Zoom out
+				game.getClient().zoomOut();
 				break;
 			case 'f':
 				game.getClient().toggleFPS();
 				break;
 			case 'q':
-				// Toss item - this needs to go through server for multiplayer sync
-				if (game.getServer() != null) {
-					game.getServer().tossItem();
+				// Toss item - send packet to server (works in singleplayer and multiplayer)
+				if (game.getClient() != null && game.getClient().connection != null) {
+					mc.sayda.mcraze.network.packet.PacketItemToss tossPacket =
+						new mc.sayda.mcraze.network.packet.PacketItemToss();
+					game.getClient().connection.sendPacket(tossPacket);
 				}
 				break;
 			case 'r':
-				// Respawn if player is dead
+				// Respawn if player is dead - send packet to server
+				// Architecture: ALL player actions use packets, even in integrated server with LAN disabled
 				mc.sayda.mcraze.entity.Player respawnPlayer = getLocalPlayer();
 				if (respawnPlayer != null && respawnPlayer.dead) {
-					if (game.getServer() != null) {
-						game.getServer().respawnPlayer();
+					if (game.getClient() != null && game.getClient().connection != null) {
+						mc.sayda.mcraze.network.packet.PacketRespawn respawnPacket =
+							new mc.sayda.mcraze.network.packet.PacketRespawn();
+						game.getClient().connection.sendPacket(respawnPacket);
 					}
 				}
 				break;

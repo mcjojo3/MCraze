@@ -12,15 +12,17 @@
 
 package mc.sayda.mcraze.network.packet;
 
-import mc.sayda.mcraze.network.Packet;
-import mc.sayda.mcraze.network.PacketHandler;
+import mc.sayda.mcraze.network.ClientPacketHandler;
+import mc.sayda.mcraze.network.PacketRegistry;
+
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 /**
- * Server -> Client: Remove entity from client's entity list (e.g., when player disconnects)
+ * Server → Client: Remove entity from client's entity list (e.g., when player disconnects)
+ * Binary protocol: 2-byte length + UTF-8 UUID string
  */
-public class PacketEntityRemove extends Packet {
-	private static final long serialVersionUID = 1L;
-
+public class PacketEntityRemove extends ServerPacket {
 	public String entityUUID;  // UUID of entity to remove
 
 	public PacketEntityRemove() {}
@@ -31,11 +33,28 @@ public class PacketEntityRemove extends Packet {
 
 	@Override
 	public int getPacketId() {
-		return 13;  // New packet ID
+		return PacketRegistry.getId(PacketEntityRemove.class);
 	}
 
 	@Override
-	public void handle(PacketHandler handler) {
+	public void handle(ClientPacketHandler handler) {
 		handler.handleEntityRemove(this);
+	}
+
+	@Override
+	public byte[] encode() {
+		byte[] uuidBytes = entityUUID.getBytes(StandardCharsets.UTF_8);
+		ByteBuffer buf = ByteBuffer.allocate(2 + uuidBytes.length);
+		buf.putShort((short) uuidBytes.length);
+		buf.put(uuidBytes);
+		return buf.array();
+	}
+
+	public static PacketEntityRemove decode(ByteBuffer buf) {
+		short uuidLen = buf.getShort();
+		byte[] uuidBytes = new byte[uuidLen];
+		buf.get(uuidBytes);
+		String entityUUID = new String(uuidBytes, StandardCharsets.UTF_8);
+		return new PacketEntityRemove(entityUUID);
 	}
 }

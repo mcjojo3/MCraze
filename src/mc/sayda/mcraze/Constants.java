@@ -25,12 +25,23 @@ public class Constants {
 		GOLD_ORE("gold_ore"),
 		COAL_ORE("coal_ore"),
 		DIAMOND_ORE("diamond_ore"),
+		LAPIS_ORE("lapis_ore"),
+		EMERALD_ORE("emerald_ore"),
 		COBBLE("cobble"),
-		CRAFTING_BENCH("craft"),
+		WORKBENCH("workbench"),
 		BEDROCK(null),
 		SAPLING("sapling"),
 		LADDER("ladder"),
-		TORCH("torch");
+		TORCH("torch"),
+		ROSE("rose"),
+		DANDELION("dandelion"),
+		TALL_GRASS("wheat_seeds"),
+        CACTUS("cactus"),
+		MOSSY_COBBLE("mossy_cobble"),
+		CHEST(null),           // Dungeon chest (no drop yet)
+		SPAWNER(null),         // Monster spawner (no drop yet)
+		FARMLAND(null),        // Tilled soil for planting crops
+		WHEAT_CROP("wheats");  // Growing wheat (drops wheat item when harvested)
 
 		// The string ID of the item this tile drops when broken (null = no drop)
 		public final String itemDropId;
@@ -65,7 +76,7 @@ public class Constants {
 			}
 
 			// Special cases where item names don't match tile names
-			if (itemId.equals("craft")) return CRAFTING_BENCH;
+			if (itemId.equals("workbench")) return WORKBENCH;
 
 			return null;
 		}
@@ -96,18 +107,42 @@ public class Constants {
 				TileID.COAL_ORE)));
 		tileTypes.put(TileID.DIAMOND_ORE, new Tile(new TileType("sprites/tiles/diamond_ore.png",
 				TileID.DIAMOND_ORE)));
+		tileTypes.put(TileID.GOLD_ORE, new Tile(new TileType("sprites/tiles/gold_ore.png",
+				TileID.GOLD_ORE)));
+		tileTypes.put(TileID.LAPIS_ORE, new Tile(new TileType("sprites/tiles/lapis_ore.png",
+				TileID.LAPIS_ORE)));
+		tileTypes.put(TileID.EMERALD_ORE, new Tile(new TileType("sprites/tiles/emerald_ore.png",
+				TileID.EMERALD_ORE)));
 		tileTypes.put(TileID.COBBLE, new Tile(new TileType("sprites/tiles/cobble.png",
 				TileID.COBBLE)));
-		tileTypes.put(TileID.CRAFTING_BENCH, new Tile(new TileType("sprites/tiles/craft.png",
-				TileID.CRAFTING_BENCH)));
+		tileTypes.put(TileID.WORKBENCH, new Tile(new TileType("sprites/tiles/workbench.png",
+				TileID.WORKBENCH)));
 		tileTypes.put(TileID.BEDROCK, new Tile(new TileType("sprites/tiles/bedrock.png",
 				TileID.BEDROCK)));
 		tileTypes.put(TileID.SAPLING, new Tile(new TileType("sprites/tiles/sapling.png",
-				TileID.SAPLING, true, false, 0)));
+				TileID.SAPLING, true, false, 0, 0, false)));  // unstable - needs ground
 		tileTypes.put(TileID.LADDER, new Tile(new TileType("sprites/tiles/ladder.png",
 				TileID.LADDER, true, false, 0)));
 		tileTypes.put(TileID.TORCH, new Tile(new TileType("sprites/tiles/torch.png", TileID.TORCH,
-				true, false, 0, Constants.LIGHT_VALUE_TORCH)));
+				true, false, 0, Constants.LIGHT_VALUE_TORCH, false)));  // unstable - needs ground
+		tileTypes.put(TileID.ROSE, new Tile(new TileType("sprites/tiles/rose.png",
+				TileID.ROSE, true, false, 0, 0, false)));  // unstable - needs ground
+		tileTypes.put(TileID.DANDELION, new Tile(new TileType("sprites/tiles/dandelion.png",
+				TileID.DANDELION, true, false, 0, 0, false)));  // unstable - needs ground
+		tileTypes.put(TileID.TALL_GRASS, new Tile(new TileType("sprites/tiles/tall_grass.png",
+				TileID.TALL_GRASS, true, false, 0, 0, false)));  // unstable - needs ground
+        tileTypes.put(TileID.CACTUS, new Tile(new TileType("sprites/tiles/cactus.png",
+                TileID.CACTUS, true, false, 0, 0, false)));  // unstable - needs ground
+		tileTypes.put(TileID.MOSSY_COBBLE, new Tile(new TileType("sprites/tiles/mossy_cobble.png",
+				TileID.MOSSY_COBBLE)));
+		tileTypes.put(TileID.CHEST, new Tile(new TileType("sprites/tiles/chest.png",
+				TileID.CHEST)));
+		tileTypes.put(TileID.SPAWNER, new Tile(new TileType("sprites/tiles/spawner.png",
+				TileID.SPAWNER)));
+		tileTypes.put(TileID.FARMLAND, new Tile(new TileType("sprites/tiles/farmland.png",
+				TileID.FARMLAND, true, false, 0)));  // Passable
+		tileTypes.put(TileID.WHEAT_CROP, new Tile(new TileType("sprites/tiles/wheat.png",
+				TileID.WHEAT_CROP, true, false, 0, 0, false)));  // Passable, unstable - needs farmland
 	}
 
 	public static Map<String, Item> itemTypes;

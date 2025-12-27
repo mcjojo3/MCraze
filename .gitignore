@@ -4,12 +4,10 @@ Mcraze.jar
 bin/
 classes/
 .claude/
-/.continue
-MULTIPLAYER_IMPLEMENTATION_GUIDE.md
-REFACTORING_PROGRESS.md
 /logs
 /out
 /world
 nul
 code_audit.md
 code_audit_archived_2025-12-17.md
+/build

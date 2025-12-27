@@ -12,81 +12,418 @@
 
 package mc.sayda.mcraze;
 
-import java.io.IOException;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
-import org.newdawn.easyogg.OggClip;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.FloatControl;
+import javax.sound.sampled.LineEvent;
+import javax.sound.sampled.LineListener;
+import javax.sound.sampled.Mixer;
 
 public class MusicPlayer {
-	// No one wants a music player crashing their game... ;)
-	OggClip ogg;
-	private float volume = 0.5f;  // Default volume (0.0 to 1.0)
+	private Clip currentClip;
+	private float volume = 0.5f;  // Volume level (0.0 to 1.0)
+	private boolean muted = false;  // Muted state
+
+	// Playlist support - separate playlists for different contexts
+	private List<String> menuPlaylist;
+	private List<String> gamePlaylist;
+	private List<String> currentPlaylist;  // Active playlist
+	private int currentTrackIndex = -1;
+	private Random random;
+	private String currentContext = "menu";  // Current music context (menu/game)
+
+	// Selected mixer for audio playback (avoids PortMixer)
+	private Mixer.Info selectedMixerInfo = null;
 
 	public MusicPlayer(String filename) {
-		try {
-			ogg = new OggClip(filename);
-			// Note: OggClip doesn't support volume control via setGain()
-			// Volume must be controlled through OS/system mixer
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+		this.random = new Random();
 
-	boolean flipMute = true;
+		// Load separate playlists for menu and game music
+		this.menuPlaylist = loadPlaylistFromFolder("sounds/menu");
+		this.gamePlaylist = loadPlaylistFromFolder("sounds/game");
 
-	public void toggleSound() {
+		// Start with menu playlist
+		this.currentPlaylist = menuPlaylist;
+		this.currentContext = "menu";
+
 		try {
-			if (flipMute) {
-				ogg.stop();
+			// Find compatible mixer (avoids PortMixer which causes errors)
+			selectedMixerInfo = findCompatibleMixer();
+
+			if (selectedMixerInfo != null) {
+				System.out.println("Music system using mixer: " + selectedMixerInfo.getName());
+
+				// Load first track from menu playlist
+				if (!currentPlaylist.isEmpty()) {
+					currentTrackIndex = random.nextInt(currentPlaylist.size());
+					loadTrack(currentPlaylist.get(currentTrackIndex));
+					play();  // Auto-play first track
+				}
 			} else {
-				ogg.loop();
+				System.err.println("No compatible audio mixer found - music disabled");
 			}
-			flipMute = !flipMute;
 		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	public void play() {
-		try {
-			ogg.loop();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	public void pause() {
-		try {
-			ogg.stop();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	public void close() {
-		try {
-			ogg.stop();
-			ogg.close();
-		} catch (Exception e) {
+			System.err.println("Failed to initialize music system: " + e.getMessage());
 			e.printStackTrace();
 		}
 	}
 
 	/**
-	 * Set music volume
-	 * @param volume Volume level from 0.0 (silent) to 1.0 (max)
-	 * Note: OggClip doesn't support runtime volume control, this just stores the preference
+	 * Find a compatible audio mixer (avoids Port mixers)
+	 * Port mixers are for MIDI/volume controls, not audio playback
+	 */
+	private Mixer.Info findCompatibleMixer() {
+		Mixer.Info[] mixerInfos = AudioSystem.getMixerInfo();
+		DataLine.Info clipInfo = new DataLine.Info(Clip.class, null);
+
+		System.out.println("Searching for compatible audio mixer...");
+		System.out.println("Available mixers: " + mixerInfos.length);
+
+		for (Mixer.Info mixerInfo : mixerInfos) {
+			String name = mixerInfo.getName().toLowerCase();
+
+			// Skip Port mixers (they don't support audio playback)
+			if (name.contains("port")) {
+				System.out.println("  Skipping PortMixer: " + mixerInfo.getName());
+				continue;
+			}
+
+			try {
+				Mixer mixer = AudioSystem.getMixer(mixerInfo);
+
+				// Check if this mixer supports Clips
+				if (mixer.isLineSupported(clipInfo)) {
+					System.out.println("  Found compatible mixer: " + mixerInfo.getName());
+					System.out.println("    Description: " + mixerInfo.getDescription());
+					return mixerInfo;
+				} else {
+					System.out.println("  Incompatible mixer (no Clip support): " + mixerInfo.getName());
+				}
+			} catch (Exception e) {
+				System.out.println("  Failed to test mixer: " + mixerInfo.getName());
+			}
+		}
+
+		System.err.println("WARNING: No compatible audio mixer found!");
+		return null;
+	}
+
+	/**
+	 * Load playlist from a specific folder
+	 * @param folderPath Path relative to src/ (e.g., "sounds/menu" or "sounds/game")
+	 */
+	private List<String> loadPlaylistFromFolder(String folderPath) {
+		List<String> tracks = new ArrayList<>();
+
+		try {
+			// Try src/ prefix first (development)
+			File soundsDir = new File("src/" + folderPath);
+			if (!soundsDir.exists()) {
+				// Try without src/ prefix (production/JAR)
+				soundsDir = new File(folderPath);
+			}
+
+			if (soundsDir.exists() && soundsDir.isDirectory()) {
+				File[] files = soundsDir.listFiles((dir, name) ->
+					name.toLowerCase().endsWith(".wav")
+				);
+
+				if (files != null) {
+					for (File file : files) {
+						tracks.add(folderPath + "/" + file.getName());
+					}
+				}
+			} else {
+				System.err.println("Music folder not found: " + folderPath);
+			}
+		} catch (Exception e) {
+			System.err.println("Error scanning music folder " + folderPath + ": " + e.getMessage());
+		}
+
+		System.out.println("Music playlist loaded from " + folderPath + ": " + tracks.size() + " tracks");
+		return tracks;
+	}
+
+	/**
+	 * Load a specific track
+	 */
+	private void loadTrack(String filename) {
+		if (selectedMixerInfo == null) {
+			System.err.println("No audio mixer selected - cannot load track");
+			return;
+		}
+
+		try {
+			// Stop and close current clip if playing
+			if (currentClip != null) {
+				currentClip.stop();
+				currentClip.close();
+			}
+
+			// Load audio file
+			java.net.URL trackURL = null;
+
+			// First try classpath resource
+			trackURL = getClass().getClassLoader().getResource(filename);
+
+			if (trackURL == null) {
+				// Try loading from file system
+				File trackFile = new File(filename);
+				if (!trackFile.exists()) {
+					// Try src/ prefix for development environment
+					trackFile = new File("src/" + filename);
+				}
+				if (trackFile.exists()) {
+					trackURL = trackFile.toURI().toURL();
+				} else {
+					throw new java.io.FileNotFoundException("Track not found: " + filename);
+				}
+			}
+
+			// Open audio stream
+			AudioInputStream audioStream = AudioSystem.getAudioInputStream(
+				new BufferedInputStream(trackURL.openStream())
+			);
+
+			// Get Clip from our selected mixer (NOT default mixer)
+			currentClip = AudioSystem.getClip(selectedMixerInfo);
+
+			// Open and prepare clip
+			currentClip.open(audioStream);
+
+			// Loop continuously (no need to set loop points explicitly)
+			currentClip.loop(Clip.LOOP_CONTINUOUSLY);
+
+			// Add listener for track end (in case loop fails)
+			currentClip.addLineListener(new LineListener() {
+				@Override
+				public void update(LineEvent event) {
+					if (event.getType() == LineEvent.Type.STOP) {
+						// Track stopped - play next
+						nextTrack();
+					}
+				}
+			});
+
+			// Apply current volume and muted state
+			updateVolume();
+
+			System.out.println("Loaded track: " + trackURL);
+
+		} catch (Exception e) {
+			System.err.println("Failed to load track: " + filename);
+			System.err.println("Reason: " + e.getMessage());
+
+			// Only print stack trace in debug mode
+			if (Boolean.getBoolean("debug.music")) {
+				e.printStackTrace();
+			}
+
+			// Try to recover by loading next track
+			if (!currentPlaylist.isEmpty() && currentTrackIndex >= 0 && currentTrackIndex < currentPlaylist.size()) {
+				System.out.println("Removing failed track from playlist: " + filename);
+				currentPlaylist.remove(currentTrackIndex);
+
+				if (!currentPlaylist.isEmpty()) {
+					// Adjust index if needed
+					if (currentTrackIndex >= currentPlaylist.size()) {
+						currentTrackIndex = 0;
+					}
+
+					String nextTrack = currentPlaylist.get(currentTrackIndex);
+					System.out.println("Loading next available track: " + nextTrack);
+
+					// Recursive call to load next track
+					loadTrack(nextTrack);
+				} else {
+					System.err.println("No more valid music tracks available in " + currentContext + " playlist");
+				}
+			}
+		}
+	}
+
+	/**
+	 * Update volume on current clip
+	 */
+	private void updateVolume() {
+		if (currentClip == null || !currentClip.isOpen()) {
+			return;
+		}
+
+		try {
+			// Get master gain control
+			if (currentClip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+				FloatControl gainControl = (FloatControl) currentClip.getControl(FloatControl.Type.MASTER_GAIN);
+
+				if (muted) {
+					// Mute by setting to minimum
+					gainControl.setValue(gainControl.getMinimum());
+				} else {
+					// Convert 0.0-1.0 to decibels
+					// Most systems: min=-80dB, max=6dB
+					float min = gainControl.getMinimum();
+					float max = gainControl.getMaximum();
+
+					// Use logarithmic scale for natural volume perception
+					// volume=0.5 should be ~halfway in perceived loudness
+					float gain;
+					if (volume <= 0.0f) {
+						gain = min;
+					} else {
+						// Logarithmic scaling: 20 * log10(volume)
+						gain = (float) (20.0 * Math.log10(volume));
+
+						// Clamp to valid range
+						gain = Math.max(min, Math.min(max, gain));
+					}
+
+					gainControl.setValue(gain);
+				}
+			}
+		} catch (Exception e) {
+			System.err.println("Failed to set volume: " + e.getMessage());
+		}
+	}
+
+	/**
+	 * Play (or resume) music
+	 */
+	public void play() {
+		if (currentClip != null && currentClip.isOpen()) {
+			currentClip.start();
+		}
+	}
+
+	/**
+	 * Pause music
+	 */
+	public void pause() {
+		if (currentClip != null && currentClip.isRunning()) {
+			currentClip.stop();
+		}
+	}
+
+	/**
+	 * Toggle mute state
+	 */
+	public void toggleSound() {
+		muted = !muted;
+		updateVolume();
+		System.out.println(muted ? "Music muted" : "Music unmuted");
+	}
+
+	/**
+	 * Set volume (0.0 = silent, 1.0 = max)
 	 */
 	public void setVolume(float volume) {
 		this.volume = Math.max(0.0f, Math.min(1.0f, volume));  // Clamp between 0 and 1
-		// OggClip doesn't have volume control API
-		// Users must adjust volume via system mixer
+		updateVolume();
 	}
 
 	/**
-	 * Get current music volume
-	 * @return Volume level from 0.0 to 1.0
+	 * Get current volume level
 	 */
 	public float getVolume() {
 		return volume;
+	}
+
+	/**
+	 * Set muted state
+	 */
+	public void setMuted(boolean muted) {
+		this.muted = muted;
+		updateVolume();
+	}
+
+	/**
+	 * Get muted state
+	 */
+	public boolean isMuted() {
+		return muted;
+	}
+
+	/**
+	 * Skip to next random track
+	 */
+	public void nextTrack() {
+		if (currentPlaylist.isEmpty()) {
+			System.out.println("Music playlist is empty - no tracks to play");
+			return;
+		}
+
+		// Pick a different random track
+		int newIndex = random.nextInt(currentPlaylist.size());
+
+		// Ensure we don't pick the same track twice in a row (if possible)
+		if (currentPlaylist.size() > 1 && currentTrackIndex >= 0) {
+			int attempts = 0;
+			while (newIndex == currentTrackIndex && attempts < 10) {
+				newIndex = random.nextInt(currentPlaylist.size());
+				attempts++;
+			}
+		}
+
+		currentTrackIndex = newIndex;
+		loadTrack(currentPlaylist.get(currentTrackIndex));
+
+		// Play the new track
+		play();
+	}
+
+	/**
+	 * Switch music context (menu/game)
+	 * This will change the active playlist and start playing from the new playlist
+	 * @param context "menu" for main menu music, "game" for in-game music
+	 */
+	public void switchContext(String context) {
+		if (context.equals(currentContext)) {
+			return;  // Already in this context
+		}
+
+		System.out.println("Switching music context: " + currentContext + " -> " + context);
+
+		currentContext = context;
+
+		// Switch to appropriate playlist
+		if (context.equals("menu")) {
+			currentPlaylist = menuPlaylist;
+		} else if (context.equals("game")) {
+			currentPlaylist = gamePlaylist;
+		} else {
+			System.err.println("Unknown music context: " + context);
+			return;
+		}
+
+		// Start playing from new playlist
+		if (!currentPlaylist.isEmpty()) {
+			currentTrackIndex = random.nextInt(currentPlaylist.size());
+			loadTrack(currentPlaylist.get(currentTrackIndex));
+			play();
+		} else {
+			System.err.println("No tracks in " + context + " playlist");
+		}
+	}
+
+	/**
+	 * Close and cleanup resources
+	 */
+	public void close() {
+		try {
+			if (currentClip != null) {
+				currentClip.stop();
+				currentClip.close();
+			}
+		} catch (Exception e) {
+			System.err.println("Error closing music player: " + e.getMessage());
+			e.printStackTrace();
+		}
 	}
 }

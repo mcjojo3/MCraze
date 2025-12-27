@@ -37,10 +37,20 @@ public class World implements java.io.Serializable {
 	private int chunkWidth = 16;
 	private volatile boolean chunkFillRight = true;
 	private Random random;
+	private long seed;  // World generation seed
+	private Biome[] biomeMap;  // One biome per X column
 	private long ticksAlive = 0;
 	private final int dayLength = 20000;
 	private LightingEngine lightingEngineSun;
 	private LightingEngine lightingEngineSourceBlocks;
+
+	// Gamerules (synced to clients)
+	public boolean spelunking = false;  // Disable darkness
+	public boolean keepInventory = false;  // Keep items on death
+	public boolean daylightCycle = true;  // Enable day/night cycle
+
+	// Chest storage (position -> chest data)
+	private java.util.Map<String, ChestData> chests = new java.util.HashMap<>();
 
 	public long getTicksAlive() {
 		return ticksAlive;
@@ -49,12 +59,56 @@ public class World implements java.io.Serializable {
 	public void setTicksAlive(long ticksAlive) {
 		this.ticksAlive = ticksAlive;
 	}
-	
-	// private int[] columnHeights;
-	
-	public World(int width, int height, Random random) {
 
-		TileID[][] generated = WorldGenerator.generate(width, height, random);
+	public long getSeed() {
+		return seed;
+	}
+
+	/**
+	 * Get biome at a specific location
+	 */
+	public String getBiomeAt(int x, int y) {
+		if (biomeMap == null || x < 0 || x >= width) {
+			return "Unknown";
+		}
+		return biomeMap[x].getDisplayName();
+	}
+
+	/**
+	 * Get biome at a specific X coordinate
+	 */
+	public Biome getBiome(int x) {
+		if (biomeMap == null || x < 0 || x >= width) {
+			return Biome.PLAINS;
+		}
+		return biomeMap[x];
+	}
+
+	/**
+	 * Get the entire biome map
+	 */
+	public Biome[] getBiomeMap() {
+		return biomeMap;
+	}
+
+	/**
+	 * Set the biome map (used by clients receiving biome data from server)
+	 */
+	public void setBiomeMap(Biome[] biomeMap) {
+		this.biomeMap = biomeMap;
+	}
+
+	// private int[] columnHeights;
+
+	public World(int width, int height, Random random) {
+		// Store seed for display in debug menu
+		this.seed = random.nextLong();
+		random.setSeed(this.seed);  // Use the stored seed
+
+		// Generate biome map before terrain generation
+		this.biomeMap = WorldGenerator.generateBiomes(width, random);
+
+		TileID[][] generated = WorldGenerator.generate(width, height, random, this.biomeMap);
 		WorldGenerator.visibility = null;
 		// Store suggested spawn from WorldGenerator
 		Int2 suggestedSpawn = WorldGenerator.playerLocation;
@@ -64,11 +118,21 @@ public class World implements java.io.Serializable {
 			for (int j = 0; j < height; j++) {
 				Tile tile = Constants.tileTypes.get(generated[i][j]);
 				if (tile == null) {
-					tiles[i][j] = Constants.tileTypes.get(TileID.AIR);
+					// Create NEW tile instance (not shared reference)
+					TileType airType = Constants.tileTypes.get(TileID.AIR).type;
+					tiles[i][j] = new Tile(airType);
 				} else {
-					tiles[i][j] = Constants.tileTypes.get(generated[i][j]);
+					// Create NEW tile instance (not shared reference)
+					tiles[i][j] = new Tile(tile.type);
 				}
 
+				// Apply backdrop from WorldGenerator (set during cave carving)
+				if (WorldGenerator.backdrops != null && WorldGenerator.backdrops[i][j] != null) {
+					Tile backdropTile = Constants.tileTypes.get(WorldGenerator.backdrops[i][j]);
+					if (backdropTile != null) {
+						tiles[i][j].backdropType = backdropTile.type;
+					}
+				}
 			}
 		}
 		this.width = width;
@@ -99,10 +163,11 @@ public class World implements java.io.Serializable {
 		world.random = random;
 
 		System.out.println("World.createEmpty: Filling with AIR tiles...");
-		// Fill with AIR tiles
+		// Fill with AIR tiles (each position gets unique Tile instance)
+		TileType airType = Constants.tileTypes.get(TileID.AIR).type;
 		for (int i = 0; i < width; i++) {
 			for (int j = 0; j < height; j++) {
-				world.tiles[i][j] = Constants.tileTypes.get(TileID.AIR);
+				world.tiles[i][j] = new Tile(airType);
 			}
 		}
 
@@ -139,14 +204,15 @@ public class World implements java.io.Serializable {
 		this.random = random;
 
 		// Convert TileID array to Tile array
+		// IMPORTANT: Create NEW Tile instances, don't reuse templates!
 		for (int i = 0; i < width; i++) {
 			for (int j = 0; j < height; j++) {
-				Tile tile = Constants.tileTypes.get(tileData[i][j]);
-				if (tile == null) {
-					tiles[i][j] = Constants.tileTypes.get(TileID.AIR);
-				} else {
-					tiles[i][j] = tile;
+				Tile templateTile = Constants.tileTypes.get(tileData[i][j]);
+				if (templateTile == null) {
+					templateTile = Constants.tileTypes.get(TileID.AIR);
 				}
+				// Create a new Tile with the template's TileType
+				tiles[i][j] = new Tile(templateTile.type);
 			}
 		}
 
@@ -193,12 +259,15 @@ public class World implements java.io.Serializable {
 					if (random.nextDouble() < .005) {
 						tiles[x][y] = Constants.tileTypes.get(TileID.GRASS);
 					}
-				} else if (tiles[x][y].type.name == TileID.GRASS
-						&& tiles[x][y - 1].type.name != TileID.AIR
-						&& tiles[x][y - 1].type.name != TileID.LEAVES
-						&& tiles[x][y - 1].type.name != TileID.WOOD) {
-					if (random.nextDouble() < .25) {
-						tiles[x][y] = Constants.tileTypes.get(TileID.DIRT);
+				} else if (tiles[x][y].type.name == TileID.GRASS) {
+					// Grass turns to dirt when covered by non-passable (solid) blocks
+					// Passable blocks (flowers, tall grass, cactus, leaves, etc.) allow grass to persist
+					Tile blockAbove = tiles[x][y - 1];
+					if (blockAbove.type.name != TileID.AIR && !blockAbove.type.passable) {
+						// Solid block above - convert grass to dirt
+						if (random.nextDouble() < .25) {
+							tiles[x][y] = Constants.tileTypes.get(TileID.DIRT);
+						}
 					}
 				} else if (tiles[x][y].type.name == TileID.SAND) {
 					if (isAir(x, y + 1) || isLiquid(x, y + 1)) {
@@ -267,7 +336,8 @@ public class World implements java.io.Serializable {
 				return false;
 			}
 		}
-		tiles[x][y] = tile;
+		// Create NEW tile instance (not shared reference) to avoid backdrop sharing bug
+		tiles[x][y] = new Tile(tile.type);
 		lightingEngineSun.addedTile(x, y);
 		lightingEngineSourceBlocks.addedTile(x, y);
 
@@ -293,8 +363,61 @@ public class World implements java.io.Serializable {
 			lightingEngineSun.removedTile(x, y);
 		}
 	}
-	
-	private TileID[] breakWood = new TileID[] { TileID.WOOD, TileID.PLANK, TileID.CRAFTING_BENCH };
+
+	// Backdrop manipulation methods
+	public boolean setBackdrop(int x, int y, TileID backdropId) {
+		if (x < 0 || x >= width || y < 0 || y >= height) return false;
+		Tile tile = Constants.tileTypes.get(backdropId);
+		if (tile == null) return false;
+		tiles[x][y].backdropType = tile.type;
+		return true;
+	}
+
+	public TileID removeBackdrop(int x, int y) {
+		if (x < 0 || x >= width || y < 0 || y >= height) return TileID.NONE;
+		TileID removed = tiles[x][y].backdropType != null ?
+			tiles[x][y].backdropType.name : TileID.NONE;
+		tiles[x][y].backdropType = null;
+		return removed;
+	}
+
+	public boolean hasBackdrop(int x, int y) {
+		if (x < 0 || x >= width || y < 0 || y >= height) return false;
+		return tiles[x][y].backdropType != null;
+	}
+
+	// Chest manipulation methods
+	public ChestData getChest(int x, int y) {
+		return chests.get(ChestData.makeKey(x, y));
+	}
+
+	public ChestData getOrCreateChest(int x, int y) {
+		String key = ChestData.makeKey(x, y);
+		ChestData chest = chests.get(key);
+		if (chest == null) {
+			chest = new ChestData(x, y);
+			chests.put(key, chest);
+		}
+		return chest;
+	}
+
+	public void removeChest(int x, int y) {
+		chests.remove(ChestData.makeKey(x, y));
+	}
+
+	public java.util.Map<String, ChestData> getAllChests() {
+		return chests;
+	}
+
+	public void setChests(java.util.Map<String, ChestData> chests) {
+		this.chests = chests;
+	}
+
+	public void setChest(int x, int y, ChestData chest) {
+		chests.put(ChestData.makeKey(x, y), chest);
+	}
+
+	private TileID[] breakWood = new TileID[] { TileID.WOOD, TileID.PLANK, TileID.WORKBENCH };
 	private TileID[] breakStone = new TileID[] { TileID.STONE, TileID.COBBLE, TileID.COAL_ORE };
 	private TileID[] breakIron = new TileID[] { TileID.IRON_ORE };
 	private TileID[] breakDiamond = new TileID[] { TileID.DIAMOND_ORE };
@@ -408,6 +531,31 @@ public class World implements java.io.Serializable {
 			}
 		}
 
+		// PASS 1: Backdrop layer (60% brightness for depth effect)
+		for (int i = 0; i < width; i++) {
+			for (int j = 0; j < height; j++) {
+				int posX = Math.round(((i - cameraX) * tileSize));
+				int posY = Math.round(((j - cameraY) * tileSize));
+
+				// Skip offscreen tiles
+				if (posX < 0 - tileSize || posX > screenWidth ||
+					posY < 0 - tileSize || posY > screenHeight) {
+					continue;
+				}
+
+				// Draw backdrop if it exists
+				if (tiles[i][j].backdropType != null) {
+					int lightIntensity = (int) (getLightValue(i, j) * 255);
+					int backdropLight = (int) (lightIntensity * 0.6);  // 60% brightness
+					Color backdropTint = new Color(16, 16, 16, 255 - backdropLight);
+
+					tiles[i][j].backdropType.sprite.draw(g, posX, posY,
+						tileSize, tileSize, backdropTint);
+				}
+			}
+		}
+
+		// PASS 2: Foreground layer (existing code)
 		for (int i = 0; i < width; i++) {
 			for (int j = 0; j < height; j++) {
 				int posX = Math.round(((i - cameraX) * tileSize));
@@ -469,7 +617,7 @@ public class World implements java.io.Serializable {
 		if (x < 0 || x >= width || y < 0 || y >= height) {
 			return false;
 		}
-		return tiles[x][y].type != null && (tiles[x][y].type.name == TileID.CRAFTING_BENCH);
+		return tiles[x][y].type != null && (tiles[x][y].type.name == TileID.WORKBENCH);
 	}
 
 	/**
@@ -479,17 +627,19 @@ public class World implements java.io.Serializable {
 	 */
 	public Int2 findSafeSpawn(int startX) {
 		// Search from top to bottom for solid ground with air above (finds surface)
-		for (int y = 2; y < height; y++) {
-			// Check if this position has solid ground and 2 blocks of air above
+		// Player is 1.75 tiles tall, so need 3 blocks of air to be safe
+		for (int y = 3; y < height; y++) {
+			// Check if this position has solid ground and 3 blocks of air above
 			if (!isBreakable(startX, y)) {
 				continue;  // Not solid ground
 			}
-			if (!isAir(startX, y - 1) || !isAir(startX, y - 2)) {
-				continue;  // Not enough air above
+			if (!isAir(startX, y - 1) || !isAir(startX, y - 2) || !isAir(startX, y - 3)) {
+				continue;  // Not enough air above (need 3 blocks for player height of 1.75 tiles)
 			}
-			// Found safe spawn: solid ground with 2 blocks of air above
-			System.out.println("World.findSafeSpawn: Found safe spawn at (" + startX + ", " + (y - 1) + ")");
-			return new Int2(startX, y - 1);  // Spawn 1 block above ground
+			// Found safe spawn: solid ground with 3 blocks of air above
+			// Spawn 2 blocks above ground to prevent clipping into ground
+			System.out.println("World.findSafeSpawn: Found safe spawn at (" + startX + ", " + (y - 2) + ")");
+			return new Int2(startX, y - 2);  // Spawn 2 blocks above ground for better clearance
 		}
 		// Fallback: return center if no safe spawn found
 		System.err.println("World.findSafeSpawn: Could not find safe spawn at x=" + startX + ", using fallback");
@@ -500,7 +650,7 @@ public class World implements java.io.Serializable {
 	 * @return a light value [0,1]
 	 **/
 	public float getLightValue(int x, int y) {
-		if (Constants.DEBUG_VISIBILITY_ON)
+		if (spelunking)  // Use world's spelunking gamerule instead of global constant
 			return 1;
 		float daylight = getDaylight();
 		float lightValueSun = ((float) lightingEngineSun.getLightValue(x, y))
@@ -555,5 +705,5 @@ public class World implements java.io.Serializable {
 			return midnightSky.interpolateTo(dawnSky, 4 * (time - 0.75f));
 		}
 	}
-	
+
 }

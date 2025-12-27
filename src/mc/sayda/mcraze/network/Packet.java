@@ -12,21 +12,18 @@
 
 package mc.sayda.mcraze.network;
 
-import java.io.Serializable;
-
 /**
- * Base class for all network packets sent between client and server
+ * Base class for all network packets sent between client and server.
+ * Uses binary protocol instead of Java serialization for efficiency.
  */
-public abstract class Packet implements Serializable {
-	private static final long serialVersionUID = 1L;
-
+public abstract class Packet {
 	/**
 	 * Get the packet type ID for deserialization
 	 */
 	public abstract int getPacketId();
 
 	/**
-	 * Handle this packet on the receiving end
+	 * Encode this packet to binary format
 	 */
-	public abstract void handle(PacketHandler handler);
+	public abstract byte[] encode();
 }

@@ -4,14 +4,14 @@ import mc.sayda.mcraze.entity.Player;
 import mc.sayda.mcraze.logging.GameLogger;
 import mc.sayda.mcraze.network.Connection;
 import mc.sayda.mcraze.network.Packet;
-import mc.sayda.mcraze.network.PacketHandler;
+import mc.sayda.mcraze.network.ServerPacketHandler;
 import mc.sayda.mcraze.network.packet.*;
 
 /**
  * Represents a single player connection to the SharedWorld.
  * Handles packet processing for one player.
  */
-public class PlayerConnection implements PacketHandler {
+public class PlayerConnection implements ServerPacketHandler {
 	private final Connection connection;
 	private final Player player;
 	private final String playerName;
@@ -57,16 +57,16 @@ public class PlayerConnection implements PacketHandler {
 			if (logger != null && packetProcessCount <= 5) {
 				logger.debug("PlayerConnection.processPackets: " + playerName + " - handling " + packet.getClass().getSimpleName());
 			}
-			packet.handle(this);
+			// All packets received by server are ClientPackets
+			if (packet instanceof ClientPacket) {
+				((ClientPacket) packet).handle(this);
+			} else {
+				if (logger != null) logger.warn("Server received non-ClientPacket: " + packet.getClass().getSimpleName());
+			}
 		}
 	}
 
 	// ===== Packet Handlers =====
-
-	@Override
-	public void handleWorldInit(PacketWorldInit packet) {
-		// Players don't send world init (only receive it)
-	}
 
 	private int inputCount = 0;
 
@@ -103,9 +103,14 @@ public class PlayerConnection implements PacketHandler {
 			player.endClimb();
 		}
 
+		// Apply sneaking state
+		player.sneaking = packet.sneak;
+
 		// Update hotbar selection
 		if (packet.hotbarSlot >= 0 && packet.hotbarSlot < 10) {
 			player.setHotbarItem(packet.hotbarSlot);
+			// Broadcast hotbar change immediately to all clients
+			sharedWorld.broadcastInventoryUpdates();
 		}
 	}
 
@@ -119,6 +124,70 @@ public class PlayerConnection implements PacketHandler {
 	public void handleInventoryAction(PacketInventoryAction packet) {
 		// Delegate to SharedWorld for processing and broadcasting
 		sharedWorld.handleInventoryAction(this, packet);
+	}
+
+	@Override
+	public void handleInteract(PacketInteract packet) {
+		// Handle block interactions (crafting table, chests, etc.)
+		// Delegate to SharedWorld for processing
+		sharedWorld.handleInteract(this, packet);
+	}
+
+	@Override
+	public void handleItemToss(mc.sayda.mcraze.network.packet.PacketItemToss packet) {
+		// Handle item tossing - delegate to SharedWorld for processing
+		sharedWorld.handleItemToss(this, packet);
+	}
+
+	@Override
+	public void handleRespawn(mc.sayda.mcraze.network.packet.PacketRespawn packet) {
+		GameLogger logger = GameLogger.get();
+		if (player == null || !player.dead) {
+			if (logger != null) {
+				logger.warn("PlayerConnection.handleRespawn: Player " + playerName +
+					" tried to respawn but is not dead (player null: " + (player == null) + ")");
+			}
+			return;  // Can't respawn if not dead
+		}
+
+		if (logger != null) {
+			logger.info("PlayerConnection.handleRespawn: Respawning player " + playerName);
+		}
+
+		// Respawn the player on the server and broadcast to all clients
+		sharedWorld.respawnPlayer(this);
+	}
+
+	@Override
+	public void handleToggleBackdropMode(mc.sayda.mcraze.network.packet.PacketToggleBackdropMode packet) {
+		if (player != null) {
+			// Toggle backdrop placement mode
+			player.backdropPlacementMode = !player.backdropPlacementMode;
+
+			// Send chat feedback to client (yellow color)
+			String message = "Backdrop Mode: " + (player.backdropPlacementMode ? "ON" : "OFF");
+			mc.sayda.mcraze.network.packet.PacketChatMessage chatPacket =
+				new mc.sayda.mcraze.network.packet.PacketChatMessage(message, new mc.sayda.mcraze.Color(255, 255, 0));
+			connection.sendPacket(chatPacket);
+
+			GameLogger logger = GameLogger.get();
+			if (logger != null) {
+				logger.info("PlayerConnection.handleToggleBackdropMode: Player " + playerName +
+					" toggled backdrop mode to " + player.backdropPlacementMode);
+			}
+		}
+	}
+
+	@Override
+	public void handleChestAction(mc.sayda.mcraze.network.packet.PacketChestAction packet) {
+		// TODO: Handle chest inventory interactions
+		// Delegate to SharedWorld for processing
+		GameLogger logger = GameLogger.get();
+		if (logger != null) {
+			logger.info("PlayerConnection.handleChestAction: Player " + playerName +
+				" interacted with chest at (" + packet.chestX + ", " + packet.chestY + ")");
+		}
+		sharedWorld.handleChestAction(this, packet);
 	}
 
 	@Override
@@ -163,50 +232,9 @@ public class PlayerConnection implements PacketHandler {
 		sharedWorld.broadcastPacket(chatPacket);
 	}
 
-	// Client-bound packet handlers (players don't send these)
-	@Override
-	public void handleWorldUpdate(PacketWorldUpdate packet) {
-		// Players don't send world updates
-	}
-
-	@Override
-	public void handleEntityUpdate(PacketEntityUpdate packet) {
-		// Players don't send entity updates
-	}
-
-	@Override
-	public void handleEntityRemove(PacketEntityRemove packet) {
-		// Players don't send entity remove packets (server controls this)
-	}
-
-	@Override
-	public void handleInventoryUpdate(PacketInventoryUpdate packet) {
-		// Players don't send inventory updates
-	}
-
-	@Override
-	public void handleChatMessage(PacketChatMessage packet) {
-		// Players don't send chat messages (they send ChatSend)
-	}
-
-	@Override
-	public void handlePlayerDeath(PacketPlayerDeath packet) {
-		// Players don't send death packets (server detects death)
-	}
-
-	@Override
-	public void handleBreakingProgress(PacketBreakingProgress packet) {
-		// Players don't send breaking progress (server tracks it)
-	}
-
 	@Override
 	public void handleAuthRequest(mc.sayda.mcraze.network.packet.PacketAuthRequest packet) {
 		// Authentication handled at connection level (in SharedWorld/DedicatedServer)
-	}
-
-	@Override
-	public void handleAuthResponse(mc.sayda.mcraze.network.packet.PacketAuthResponse packet) {
-		// Players don't receive auth responses
 	}
 
 	// Getters

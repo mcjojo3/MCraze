@@ -70,7 +70,7 @@ public class WorldSaveManager {
 		public int worldHeight;
 		public long createdTime;
 		public long lastPlayedTime;
-		public String gameVersion = "1.0";
+		public String gameVersion = "0.1.0";
 
 		public WorldMetadata() {}
 
@@ -359,19 +359,84 @@ public class WorldSaveManager {
 			out.writeInt(world.width);
 			out.writeInt(world.height);
 
-			// Write tile data
+			// Write biome map
+			mc.sayda.mcraze.world.Biome[] biomes = world.getBiomeMap();
+			if (biomes != null) {
+				out.writeInt(biomes.length);
+				for (mc.sayda.mcraze.world.Biome biome : biomes) {
+					out.writeInt(biome.ordinal());
+				}
+			} else {
+				out.writeInt(0);
+			}
+
+			// Write tile data with counting for debugging
+			int dirtCount = 0, airCount = 0, noneCount = 0, otherCount = 0, nullCount = 0;
 			for (int x = 0; x < world.width; x++) {
 				for (int y = 0; y < world.height; y++) {
 					if (world.tiles[x][y] != null && world.tiles[x][y].type != null) {
-						out.writeChar((char) world.tiles[x][y].type.name.ordinal());
+						int ordinal = world.tiles[x][y].type.name.ordinal();
+						out.writeShort(ordinal);  // Use writeShort instead of writeChar for clarity
+
+						// Count tiles for debugging
+						if (ordinal == 0) noneCount++;
+						else if (ordinal == 1) airCount++;
+						else if (world.tiles[x][y].type.name == mc.sayda.mcraze.Constants.TileID.DIRT) dirtCount++;
+						else otherCount++;
 					} else {
-						out.writeChar(0);  // Air
+						out.writeShort(0);  // NONE
+						nullCount++;
 					}
 				}
 			}
 
+			System.out.println("WorldSaveManager.saveWorldData: Saved " + noneCount + " NONE, " + airCount + " AIR, " +
+				dirtCount + " DIRT, " + otherCount + " other, " + nullCount + " null tiles");
+
+			// Write backdrop data (version 2 feature)
+			// First write a flag to indicate backdrop data presence (for backwards compatibility)
+			out.writeBoolean(true);  // Backdrop data follows
+			int backdropCount = 0;
+			for (int x = 0; x < world.width; x++) {
+				for (int y = 0; y < world.height; y++) {
+					if (world.tiles[x][y] != null && world.tiles[x][y].backdropType != null) {
+						out.writeShort(world.tiles[x][y].backdropType.name.ordinal());
+						backdropCount++;
+					} else {
+						out.writeShort(0);  // No backdrop (NONE)
+					}
+				}
+			}
+			System.out.println("WorldSaveManager.saveWorldData: Saved " + backdropCount + " backdrop tiles");
+
 			// Write world time
 			out.writeLong(world.getTicksAlive());
+
+			// Write chest data
+			java.util.Map<String, mc.sayda.mcraze.world.ChestData> chests = world.getAllChests();
+			out.writeInt(chests.size());  // Number of chests
+			int chestCount = 0;
+			for (mc.sayda.mcraze.world.ChestData chest : chests.values()) {
+				// Write chest position
+				out.writeInt(chest.x);
+				out.writeInt(chest.y);
+
+				// Write chest items (9x3 grid)
+				for (int x = 0; x < 9; x++) {
+					for (int y = 0; y < 3; y++) {
+						mc.sayda.mcraze.item.InventoryItem invItem = chest.items[x][y];
+						if (invItem != null && !invItem.isEmpty()) {
+							out.writeBoolean(true);  // Item exists
+							out.writeUTF(invItem.getItem().itemId);  // Item ID
+							out.writeInt(invItem.getCount());  // Item count
+						} else {
+							out.writeBoolean(false);  // Empty slot
+						}
+					}
+				}
+				chestCount++;
+			}
+			System.out.println("WorldSaveManager.saveWorldData: Saved " + chestCount + " chests");
 		}
 	}
 
@@ -386,37 +451,138 @@ public class WorldSaveManager {
 			int savedWidth = in.readInt();
 			int savedHeight = in.readInt();
 
+			// Read biome map
+			int biomeCount = in.readInt();
+			mc.sayda.mcraze.world.Biome[] biomeMap = null;
+			if (biomeCount > 0) {
+				biomeMap = new mc.sayda.mcraze.world.Biome[biomeCount];
+				for (int i = 0; i < biomeCount; i++) {
+					int biomeOrdinal = in.readInt();
+					if (biomeOrdinal >= 0 && biomeOrdinal < mc.sayda.mcraze.world.Biome.values().length) {
+						biomeMap[i] = mc.sayda.mcraze.world.Biome.values()[biomeOrdinal];
+					} else {
+						biomeMap[i] = mc.sayda.mcraze.world.Biome.PLAINS;
+					}
+				}
+			}
+
 			// Create world with proper dimensions
 			// Note: We'll need to modify World constructor to support loading
 			mc.sayda.mcraze.Constants.TileID[][] tileData = new mc.sayda.mcraze.Constants.TileID[savedWidth][savedHeight];
 
 			// Read tile data
-			int dirtCount = 0;
-			int airCount = 0;
-			int otherCount = 0;
+			int dirtCount = 0, airCount = 0, noneCount = 0, otherCount = 0;
 			for (int x = 0; x < savedWidth; x++) {
 				for (int y = 0; y < savedHeight; y++) {
-					char tileOrdinal = in.readChar();
+					short tileOrdinal = in.readShort();  // Use readShort to match writeShort
 					if (tileOrdinal >= 0 && tileOrdinal < mc.sayda.mcraze.Constants.TileID.values().length) {
 						tileData[x][y] = mc.sayda.mcraze.Constants.TileID.values()[tileOrdinal];
 						// Count tile types
-						if (tileData[x][y] == mc.sayda.mcraze.Constants.TileID.DIRT) dirtCount++;
-						else if (tileData[x][y] == mc.sayda.mcraze.Constants.TileID.AIR) airCount++;
+						if (tileOrdinal == 0) noneCount++;
+						else if (tileOrdinal == 1) airCount++;
+						else if (tileData[x][y] == mc.sayda.mcraze.Constants.TileID.DIRT) dirtCount++;
 						else otherCount++;
 					} else {
-						tileData[x][y] = mc.sayda.mcraze.Constants.TileID.AIR;
-						airCount++;
+						tileData[x][y] = mc.sayda.mcraze.Constants.TileID.NONE;
+						noneCount++;
 					}
 				}
 			}
-			System.out.println("WorldSaveManager.loadWorldData: Loaded " + dirtCount + " DIRT, " + airCount + " AIR, " + otherCount + " other tiles");
+			System.out.println("WorldSaveManager.loadWorldData: Loaded " + noneCount + " NONE, " + airCount + " AIR, " +
+				dirtCount + " DIRT, " + otherCount + " other tiles");
+
+			// Read backdrop data (version 2 feature, may not exist in old saves)
+			mc.sayda.mcraze.Constants.TileID[][] backdropData = null;
+			boolean hasBackdropData = false;
+			try {
+				hasBackdropData = in.readBoolean();
+				if (hasBackdropData) {
+					backdropData = new mc.sayda.mcraze.Constants.TileID[savedWidth][savedHeight];
+					int backdropCount = 0;
+					for (int x = 0; x < savedWidth; x++) {
+						for (int y = 0; y < savedHeight; y++) {
+							short backdropOrdinal = in.readShort();
+							if (backdropOrdinal > 0 && backdropOrdinal < mc.sayda.mcraze.Constants.TileID.values().length) {
+								backdropData[x][y] = mc.sayda.mcraze.Constants.TileID.values()[backdropOrdinal];
+								backdropCount++;
+							} else {
+								backdropData[x][y] = null;  // No backdrop
+							}
+						}
+					}
+					System.out.println("WorldSaveManager.loadWorldData: Loaded " + backdropCount + " backdrop tiles");
+				}
+			} catch (java.io.EOFException e) {
+				// Old save file without backdrop data - this is expected
+				System.out.println("WorldSaveManager.loadWorldData: No backdrop data (old save format)");
+			}
 
 			// Read world time
 			long ticksAlive = in.readLong();
 
+			// Read chest data (may not exist in old saves)
+			java.util.Map<String, mc.sayda.mcraze.world.ChestData> chestData = new java.util.HashMap<>();
+			try {
+				int chestCount = in.readInt();
+				for (int i = 0; i < chestCount; i++) {
+					// Read chest position
+					int chestX = in.readInt();
+					int chestY = in.readInt();
+
+					mc.sayda.mcraze.world.ChestData chest = new mc.sayda.mcraze.world.ChestData(chestX, chestY);
+
+					// Read chest items (9x3 grid)
+					for (int x = 0; x < 9; x++) {
+						for (int y = 0; y < 3; y++) {
+							boolean hasItem = in.readBoolean();
+							if (hasItem) {
+								String itemId = in.readUTF();
+								int itemCount = in.readInt();
+								mc.sayda.mcraze.item.Item item = mc.sayda.mcraze.Constants.itemTypes.get(itemId);
+								if (item != null) {
+									chest.items[x][y].setItem(item.clone());
+									chest.items[x][y].setCount(itemCount);
+								}
+							}
+						}
+					}
+
+					chestData.put(chest.getKey(), chest);
+				}
+				System.out.println("WorldSaveManager.loadWorldData: Loaded " + chestCount + " chests");
+			} catch (java.io.EOFException e) {
+				// Old save file without chest data - this is expected
+				System.out.println("WorldSaveManager.loadWorldData: No chest data (old save format)");
+			}
+
 			// Create world from loaded data
 			World world = new World(tileData, new java.util.Random());
 			world.setTicksAlive(ticksAlive);
+
+			// Apply backdrop data if it exists
+			if (backdropData != null) {
+				for (int x = 0; x < savedWidth; x++) {
+					for (int y = 0; y < savedHeight; y++) {
+						if (backdropData[x][y] != null) {
+							mc.sayda.mcraze.world.Tile backdropTile = mc.sayda.mcraze.Constants.tileTypes.get(backdropData[x][y]);
+							if (backdropTile != null && world.tiles[x][y] != null) {
+								world.tiles[x][y].backdropType = backdropTile.type;
+							}
+						}
+					}
+				}
+			}
+
+			// Apply chest data
+			for (mc.sayda.mcraze.world.ChestData chest : chestData.values()) {
+				world.setChest(chest.x, chest.y, chest);
+			}
+
+			// Set biome map
+			if (biomeMap != null) {
+				world.setBiomeMap(biomeMap);
+			}
+
 			world.refreshLighting();  // Force lighting recalculation for torches
 
 			return world;

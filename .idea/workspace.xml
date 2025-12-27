@@ -10,7 +10,66 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="36013f05-078b-438b-9291-a28f0a890249" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/artifacts/MCraze_jar.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/artifacts/MCraze_jar.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/runConfigurations/MCraze_Server.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/runConfigurations/MCraze_Server.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MCraze.iml" beforeDir="false" afterPath="$PROJECT_DIR$/MCraze.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/easyogg.jar" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/items/items.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/items/items.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/Constants.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/Constants.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/Game.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/Game.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/GraphicsHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/GraphicsHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/MusicPlayer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/MusicPlayer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/awtgraphics/AwtEventsHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/awtgraphics/AwtEventsHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/client/Client.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/client/Client.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/Entity.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/Entity.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/LivingEntity.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/LivingEntity.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/Player.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/Player.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/NetworkConnection.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/NetworkConnection.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/Packet.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/Packet.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketAuthRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketAuthRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketAuthResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketAuthResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketBlockChange.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketBlockChange.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketBreakingProgress.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketBreakingProgress.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketChatMessage.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketChatMessage.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketChatSend.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketChatSend.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketEntityRemove.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketEntityRemove.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketEntityUpdate.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketEntityUpdate.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketInventoryAction.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketInventoryAction.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketInventoryUpdate.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketInventoryUpdate.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketPlayerDeath.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketPlayerDeath.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketPlayerInput.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketPlayerInput.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketWorldInit.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketWorldInit.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketWorldUpdate.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketWorldUpdate.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/DedicatedServer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/DedicatedServer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/PlayerConnection.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/PlayerConnection.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/Server.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/Server.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/SharedWorld.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/SharedWorld.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/Button.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/Button.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/CommandHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/CommandHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/Inventory.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/Inventory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/MainMenu.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/MainMenu.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/PauseMenu.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/PauseMenu.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/SettingsMenu.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/SettingsMenu.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/UIRenderer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/ui/UIRenderer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/Tile.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/Tile.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/TileTemplate.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/TileTemplate.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/TileType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/TileType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/World.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/World.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/WorldGenerator.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/WorldGenerator.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/WorldSaveManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/WorldSaveManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sounds/music.ogg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sounds/music2.ogg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sprites/entities/left_man.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sprites/entities/man.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sprites/entities/player.gif" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sprites/entities/right_man.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sprites/other/miner.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sprites/tiles/break_sheet.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sprites/tiles/craft.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sprites/tiles/leaves.png" beforeDir="false" afterPath="$PROJECT_DIR$/src/sprites/tiles/leaves.png" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -56,10 +115,10 @@
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "G:/Github/MCraze/.idea/runConfigurations",
     "onboarding.tips.debug.path": "G:/Github/MCraze/src/Main.java",
-    "project.structure.last.edited": "Modules",
+    "project.structure.last.edited": "Libraries",
     "project.structure.proportion": "0.15",
     "project.structure.side.proportion": "0.2",
-    "settings.editor.selected.configurable": "preferences.pluginManager"
+    "settings.editor.selected.configurable": "project.propVCSSupport.DirectoryMappings"
   }
 }]]></component>
   <component name="RecentsManager">
@@ -67,7 +126,7 @@
       <recent name="G:\Github\MCraze\.idea\runConfigurations" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.MCraze2">
+  <component name="RunManager" selected="Application.MCraze">
     <configuration name="MCraze2" type="Application" factoryName="Application">
       <option name="MAIN_CLASS_NAME" value="mc.sayda.mcraze.Game" />
       <module name="MCraze" />
@@ -77,9 +136,9 @@
       </method>
     </configuration>
     <list>
+      <item itemvalue="Application.MCraze2" />
       <item itemvalue="Application.MCraze" />
       <item itemvalue="Application.MCraze Server" />
-      <item itemvalue="Application.MCraze2" />
     </list>
   </component>
   <component name="TaskManager">

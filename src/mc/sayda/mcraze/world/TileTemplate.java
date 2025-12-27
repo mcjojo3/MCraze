@@ -18,7 +18,7 @@ import mc.sayda.mcraze.Constants.TileID;
 
 public final class TileTemplate implements java.io.Serializable {
 	private static final long serialVersionUID = 1L;
-	
+
 	public final static TileTemplate tree = new TileTemplate(
 			new TileID[][] {
 					{ TileID.NONE, TileID.LEAVES, TileID.LEAVES, TileID.NONE, TileID.NONE,
@@ -30,13 +30,44 @@ public final class TileTemplate implements java.io.Serializable {
 					{ TileID.LEAVES, TileID.LEAVES, TileID.LEAVES, TileID.LEAVES, TileID.NONE,
 							TileID.NONE },
 					{ TileID.NONE, TileID.LEAVES, TileID.LEAVES, TileID.NONE, TileID.NONE,
-							TileID.NONE } }, 5, 2);
-	public TileID[][] template;
+							TileID.NONE } }, null, 5, 2);
+
+	// Dungeon template (6 tall, 7 wide) - TRANSPOSED for correct orientation
+	// BBBBBBB - Roof
+	// BbbbbbB - Walls with backdrop
+	// BbbbbbB
+	// BbbbbbB
+	// BCbMbCB - Chests, Spawner in middle
+	// BBBBBBB - Floor
+	public final static TileTemplate dungeon = new TileTemplate(
+			new TileID[][] {
+					{ TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE },  // Left wall
+					{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.CHEST, TileID.COBBLE },
+					{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.COBBLE },
+					{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.SPAWNER, TileID.COBBLE },
+					{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.COBBLE },
+					{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.CHEST, TileID.COBBLE },
+					{ TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE }   // Right wall
+			},
+			new TileID[][] {
+					{ TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE },  // Left wall backdrop
+					{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE, TileID.NONE },
+					{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE },
+					{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE, TileID.NONE },
+					{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE },
+					{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE, TileID.NONE },
+					{ TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE }   // Right wall backdrop
+			}, 0, 0);
+
+	public TileID[][] template;        // Foreground tiles
+	public TileID[][] backdropTemplate; // Backdrop tiles (can be null)
 	public int spawnX;
 	public int spawnY;
-	
-	private TileTemplate(TileID[][] tileIDs, int spawnX, int spawnY) {
+
+	// Constructor without backdrops (for compatibility)
+	private TileTemplate(TileID[][] tileIDs, TileID[][] backdropIDs, int spawnX, int spawnY) {
 		this.template = tileIDs;
+		this.backdropTemplate = backdropIDs;
 		this.spawnX = spawnX;
 		this.spawnY = spawnY;
 	}

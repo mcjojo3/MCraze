@@ -34,6 +34,8 @@ public class UIRenderer {
 
 	//private Sprite builderIcon;
 	private Sprite minerIcon;
+	private Sprite foregroundIcon;  // Indicator for normal block placement
+	private Sprite backdropIcon;    // Indicator for backdrop placement
 	private Sprite fullHeart;
 	private Sprite halfHeart;
 	private Sprite emptyHeart;
@@ -50,7 +52,9 @@ public class UIRenderer {
 	private void loadSprites() {
 		final SpriteStore ss = SpriteStore.get();
 		//builderIcon = ss.getSprite("sprites/other/builder.png");
-		minerIcon = ss.getSprite("sprites/other/miner.png");
+		//minerIcon = ss.getSprite("sprites/other/miner.png");
+		foregroundIcon = ss.getSprite("sprites/other/foreground.png");  // NEW
+		backdropIcon = ss.getSprite("sprites/other/backdrop.png");      // NEW
 		fullHeart = ss.getSprite("sprites/other/full_heart.png");
 		halfHeart = ss.getSprite("sprites/other/half_heart.png");
 		emptyHeart = ss.getSprite("sprites/other/empty_heart.png");
@@ -109,8 +113,13 @@ public class UIRenderer {
 		if (player.handTargetPos.x != -1) {
 			Int2 pos = StockMethods.computeDrawLocationInPlace(cameraX, cameraY, tileSize,
 					tileSize, tileSize, player.handTargetPos.x, player.handTargetPos.y);
-			// Show miner icon as the unified target indicator
-			minerIcon.draw(g, pos.x, pos.y, tileSize, tileSize);
+
+			// Show different icon based on placement mode
+			if (player.backdropPlacementMode) {
+				backdropIcon.draw(g, pos.x, pos.y, tileSize, tileSize);
+			} else {
+				foregroundIcon.draw(g, pos.x, pos.y, tileSize, tileSize);
+			}
 		}
 	}
 

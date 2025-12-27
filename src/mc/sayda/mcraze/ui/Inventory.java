@@ -42,13 +42,11 @@ public class Inventory implements java.io.Serializable {
 	private int maxCount = 64;
 	private int playerRow;
 	private boolean visible = false;
-	private InventoryItem holding = new InventoryItem(null);
+	public InventoryItem holding = new InventoryItem(null);
 	private int holdingX;
 	private int holdingY;
 	private Int2 clickPos = new Int2(0, 0);;
-	private int craftingHeight;
-	private String[][] tableTwo = new String[2][2];
-	private String[][] tableThree = new String[3][3];
+	public int craftingHeight;
 	private InventoryItem craftable = new InventoryItem(null);
 	
 	public Inventory(int width, int height, int craftingHeight) {
@@ -134,72 +132,20 @@ public class Inventory implements java.io.Serializable {
 		
 		Int2 position = mouseToCoor(mousePos.x - x, mousePos.y - y, seperation, tileSize);
 		if (position != null) {
-			// Send packet to server for inventory action (works in singleplayer and multiplayer)
-			if (connection != null) {
-				mc.sayda.mcraze.network.packet.PacketInventoryAction packet =
-					new mc.sayda.mcraze.network.packet.PacketInventoryAction(
-						position.x, position.y, leftClick, false);
-				connection.sendPacket(packet);
+			// Send packet to server for inventory action (ALL modes - integrated or dedicated server)
+			if (connection == null) {
+				System.err.println("ERROR: Inventory has no connection! This should NEVER happen - even integrated servers use LocalConnection.");
+				return true;
 			}
 
-			if (holding.isEmpty()) {
-				if (rightClick && inventoryItems[position.x][position.y].count > 1) {
-					holding.item = inventoryItems[position.x][position.y].item;
-					holding.count = (int) Math
-							.ceil((double) inventoryItems[position.x][position.y].count / 2);
-					inventoryItems[position.x][position.y].count = (int) Math
-							.floor((double) inventoryItems[position.x][position.y].count / 2);
-				} else {
-					holding.item = inventoryItems[position.x][position.y].item;
-					holding.count = inventoryItems[position.x][position.y].count;
-					inventoryItems[position.x][position.y].item = null;
-					inventoryItems[position.x][position.y].count = 0;
-				}
-			} else if (inventoryItems[position.x][position.y].item == null) {
-				if (rightClick) {
-					inventoryItems[position.x][position.y].item = holding.item;
-					inventoryItems[position.x][position.y].count = 1;
-					holding.count--;
-					if (holding.count <= 0) {
-						holding.item = null;
-					}
-				} else {
-					inventoryItems[position.x][position.y].item = holding.item;
-					inventoryItems[position.x][position.y].count = holding.count;
-					holding.item = null;
-					holding.count = 0;
-				}
-			} else if (holding.item.itemId.equals(inventoryItems[position.x][position.y].item.itemId)
-					&& inventoryItems[position.x][position.y].count < maxCount) {
-				if ((holding.item.getClass() == Tool.class)
-						|| (inventoryItems[position.x][position.y].item.getClass() == Tool.class)) {
-				} else if (rightClick) {
-					
-					inventoryItems[position.x][position.y].count++;
-					holding.count--;
-					if (holding.count <= 0) {
-						holding.item = null;
-					}
-					
-				} else {
-					inventoryItems[position.x][position.y].count += holding.count;
-					if (inventoryItems[position.x][position.y].count > maxCount) {
-						holding.count = maxCount - inventoryItems[position.x][position.y].count;
-						inventoryItems[position.x][position.y].count = maxCount;
-					} else {
-						holding.item = null;
-						holding.count = 0;
-					}
-					
-				}
-			} else {
-				Item item = inventoryItems[position.x][position.y].item;
-				int count = inventoryItems[position.x][position.y].count;
-				inventoryItems[position.x][position.y].item = holding.item;
-				inventoryItems[position.x][position.y].count = holding.count;
-				holding.item = item;
-				holding.count = count;
-			}
+			mc.sayda.mcraze.network.packet.PacketInventoryAction packet =
+				new mc.sayda.mcraze.network.packet.PacketInventoryAction(
+					position.x, position.y, leftClick, false);
+			connection.sendPacket(packet);
+			// Let server handle the inventory manipulation (whether integrated or dedicated)
+			// The server will broadcast the updated inventory back to us
+			// This prevents client-server desync and ensures consistent behavior
+			return true;
 		}
 		
 		x = screenWidth / 2 - panelWidth / 2;
@@ -207,93 +153,33 @@ public class Inventory implements java.io.Serializable {
 		x = x + (inventoryItems.length - tableSizeAvailable - 1) * (tileSize + seperation) - 5;
 		y = y + seperation * 2 + tileSize - 5;
 		
-		boolean craftThisUpdate = false;
+		// Check if clicking on craft output slot
 		if (mousePos.x >= x && mousePos.x <= x + tileSize + 10 && mousePos.y >= y
 				&& mousePos.y <= y + tileSize * 2 + 10) {
-			craftThisUpdate = true;
 
-			// Send craft packet to server
-			if (connection != null) {
-				mc.sayda.mcraze.network.packet.PacketInventoryAction packet =
-					new mc.sayda.mcraze.network.packet.PacketInventoryAction(
-						0, 0, leftClick, true);  // craftClick = true
-				connection.sendPacket(packet);
+			// Send craft packet to server (ALL modes - integrated or dedicated server)
+			if (connection == null) {
+				System.err.println("ERROR: Inventory has no connection! This should NEVER happen - even integrated servers use LocalConnection.");
+				return true;
 			}
-		}
-		
-		// check for a construction
-		
-		craftable.item = null;
-		craftable.count = 0;
-		
-		boolean keepChecking = true;
-		while (keepChecking) {
-			keepChecking = false;
-			// only craft one at a time for now
-			String[][] currentTable = computeCraftTable();
-			for (Item entry : Constants.itemTypes.values()) {
-				craftable.item = null;
-				craftable.count = 0;
-				if (entry.template.compare(currentTable)) {
-					craftable.item = entry;
-					craftable.count = entry.template.outCount;
-					if (craftThisUpdate) {
-						// Check if we can add the crafted item to holding
-						// Can't craft if: holding is not empty AND (it's a tool OR different item type)
-						if (!holding.isEmpty()) {
-							boolean isTool = entry.getClass() == Tool.class || holding.item.getClass() == Tool.class;
-							boolean differentItem = !entry.itemId.equals(holding.item.itemId);
-							if (isTool || differentItem) {
-								// Can't craft - holding incompatible item
-								break;
-							}
-						}
 
-						craftThisUpdate = false;
-						keepChecking = true;
-						craftable.item = null;
-						craftable.count = 0;
-						for (int i = 0; i < tableSizeAvailable; i++) {
-							for (int j = 0; j < tableSizeAvailable; j++) {
-								inventoryItems[i + inventoryItems.length - tableSizeAvailable][j].count -= 1;
-								if (inventoryItems[i + inventoryItems.length - tableSizeAvailable][j].count <= 0) {
-									inventoryItems[i + inventoryItems.length - tableSizeAvailable][j].item = null;
-									inventoryItems[i + inventoryItems.length - tableSizeAvailable][j].count = 0;
-								}
-							}
-						}
-						int count = entry.template.outCount;
-						holding.add((Item) entry.clone(), count);
-					}
-					break;
-				}
-			}
+			mc.sayda.mcraze.network.packet.PacketInventoryAction packet =
+				new mc.sayda.mcraze.network.packet.PacketInventoryAction(
+					0, 0, leftClick, true);  // craftClick = true
+			connection.sendPacket(packet);
+			// Let server handle crafting (whether integrated or dedicated)
+			// Server will broadcast the updated inventory back to us
+			// This prevents client-server desync and ensures consistent behavior
+			return true;
 		}
-		
+
+		// NOTE: Crafting preview calculation is done SERVER-SIDE for all modes
+		// The server calculates what CAN be crafted and sends it via PacketInventoryUpdate
+		// Client just displays what the server tells it
+
 		return true;
 	}
-	
-	private String[][] computeCraftTable() {
-		String[][] currentTable;
-		if (tableSizeAvailable == 2) {
-			currentTable = tableTwo;
-		} else {
-			currentTable = tableThree;
-		}
 
-		for (int i = 0; i < tableSizeAvailable; i++) {
-			for (int j = 0; j < tableSizeAvailable; j++) {
-				Item item = inventoryItems[i + inventoryItems.length - tableSizeAvailable][j].item;
-				if (item != null) {
-					currentTable[j][i] = item.itemId;
-				} else {
-					currentTable[j][i] = "0";
-				}
-			}
-		}
-		return currentTable;
-	}
-	
 	// relative x/y in px
 	private Int2 mouseToCoor(int x, int y, int seperation, int tileSize) {
 		clickPos.x = x / (seperation + tileSize);
@@ -401,5 +287,9 @@ public class Inventory implements java.io.Serializable {
 	
 	public boolean isVisible() {
 		return visible;
+	}
+
+	public InventoryItem getCraftable() {
+		return craftable;
 	}
 }

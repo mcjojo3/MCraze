@@ -17,6 +17,9 @@ import mc.sayda.mcraze.logging.CrashReport;
 import mc.sayda.mcraze.logging.GameLogger;
 import mc.sayda.mcraze.network.LocalConnection;
 import mc.sayda.mcraze.server.Server;
+import mc.sayda.mcraze.server.ServerTickThread;
+import mc.sayda.mcraze.state.GameState;
+import mc.sayda.mcraze.state.GameStateManager;
 import mc.sayda.mcraze.util.SystemTimer;
 
 /**
@@ -25,15 +28,16 @@ import mc.sayda.mcraze.util.SystemTimer;
 public class Game {
 	private Server server;
 	private Client client;
+	private ServerTickThread serverTickThread;  // Dedicated server tick thread (Phase 4)
 
-	private boolean gameRunning = true;
+	// State machine (replaces boolean flags)
+	private final GameStateManager stateManager = new GameStateManager();
 	private String currentWorldName;  // Track current world for saving
 
 	// Authentication session
 	private String loggedInUsername;
 	private String loggedInPassword;
 	private boolean isLoggedIn = false;
-	private boolean showingLoginScreen = true;
 	private mc.sayda.mcraze.ui.LoginScreen loginScreen;
 
 	/**
@@ -84,12 +88,16 @@ public class Game {
 	 */
 	public void connectMultiplayer(String host, int port) {
 		try {
+			// Transition to LOADING state
+			stateManager.transitionTo(GameState.LOADING);
+
 			// Show loading screen
 			if (client != null) {
 				client.showLoadingScreen();
 				client.setLoadingStatus("Connecting to server...");
 				client.setLoadingProgress(10);
 				client.addLoadingMessage("Connecting to " + host + ":" + port);
+				client.render();  // Force render to display loading screen
 			}
 
 			System.out.println("Connecting to multiplayer server: " + host + ":" + port);
@@ -140,6 +148,8 @@ public class Game {
 		} catch (java.io.IOException e) {
 			System.err.println("Failed to connect to server: " + e.getMessage());
 			e.printStackTrace();
+			// Transition back to MENU state
+			stateManager.transitionTo(GameState.MENU);
 			// Hide loading screen on error
 			if (client != null) {
 				client.hideLoadingScreen();
@@ -158,6 +168,9 @@ public class Game {
 	 */
 	public void startGame(String worldName, boolean load, int width, String username, String password) {
 		this.currentWorldName = worldName;
+
+		// Transition to LOADING state
+		stateManager.transitionTo(GameState.LOADING);
 
 		// Show loading screen
 		client.showLoadingScreen();
@@ -232,9 +245,47 @@ public class Game {
 		client.render();  // Update display
 		client.startGame();
 
+		// Phase 5: Add state barriers to ensure proper initialization order
+		// 1. Verify player exists (should already be true, but defensive check)
+		if (server.player == null) {
+			System.err.println("ERROR: Player is null after server.startGame()!");
+			client.addLoadingMessage("Error: Player not created");
+			client.render();
+			try {
+				Thread.sleep(2000);
+			} catch (InterruptedException e) {
+				// Ignore
+			}
+			throw new RuntimeException("Failed to create player entity");
+		}
+
+		// 2. Process initial packets from server (world init, entity updates)
+		// Give client time to receive and process initial world state
+		client.addLoadingMessage("Receiving world data...");
+		client.render();
+		for (int i = 0; i < 10; i++) {
+			client.processPackets();  // Process any pending packets
+			try {
+				Thread.sleep(50);  // Total 500ms to receive initial packets
+			} catch (InterruptedException e) {
+				break;  // Interrupted, exit loop
+			}
+		}
+
 		client.setLoadingProgress(100);
 		client.addLoadingMessage("Done!");
 		client.render();  // Update display
+
+		// 3. ONLY NOW transition to IN_GAME (all initialization complete)
+		stateManager.transitionTo(GameState.IN_GAME);
+
+		// Start dedicated server tick thread (Phase 4 - Thread Separation)
+		// CRITICAL: Start AFTER state is IN_GAME so ticking begins immediately
+		if (server != null && server.getSharedWorld() != null) {
+			serverTickThread = new ServerTickThread(server.getSharedWorld(), stateManager);
+			serverTickThread.start();
+			System.out.println("ServerTickThread started (target 60 TPS)");
+		}
 
 		// Hide loading screen after a short delay (so user can see 100%)
 		try {
@@ -267,18 +318,68 @@ public class Game {
 			startGame("DebugWorld", false, 512, "DebugPlayer", "debug");
 		}
 
-		// Main loop (server might be null for multiplayer client)
-		while (gameRunning && (server == null || server.isRunning()) && client.isRunning()) {
+		// Main loop - state-driven
+		while (stateManager.getState() != GameState.SHUTDOWN) {
 			long delta = SystemTimer.getTime() - lastLoopTime;
 			lastLoopTime = SystemTimer.getTime();
 
-			// Server tick (game logic) - only if we have an integrated server
-			if (server != null) {
-				server.tick();
+			GameState currentState = stateManager.getState();
+
+			// State-based rendering/logic
+			switch (currentState) {
+				case BOOT:
+					// Initialization complete, transition to login or menu
+					if (Constants.DEBUG || isLoggedIn) {
+						stateManager.transitionTo(GameState.MENU);
+					} else {
+						stateManager.transitionTo(GameState.LOGIN);
+					}
+					break;
+
+				case LOGIN:
+					// Render login screen
+					if (client != null && loginScreen != null) {
+						client.render();  // Client handles login screen rendering
+					}
+					break;
+
+				case MENU:
+					// Render main menu
+					if (client != null) {
+						client.render();  // Client handles menu rendering
+					}
+					break;
+
+				case LOADING:
+					// Render loading screen, process packets
+					if (client != null) {
+						client.render();  // Client shows loading progress
+					}
+					break;
+
+				case IN_GAME:
+				case PAUSED:
+					// Server tick now runs in ServerTickThread (Phase 4)
+					// Main thread ONLY renders for maximum performance
+
+					// Client render (graphics)
+					if (client != null) {
+						client.render();
+					}
+					break;
+
+				case SHUTDOWN:
+					// Exit loop
+					break;
 			}
 
-			// Client render (graphics)
-			client.render();
+			// Check if client or server stopped unexpectedly
+			if (client != null && !client.isRunning()) {
+				stateManager.transitionTo(GameState.SHUTDOWN);
+			}
+			if (server != null && !server.isRunning() && stateManager.getState().isServerActive()) {
+				stateManager.transitionTo(GameState.SHUTDOWN);
+			}
 
 			// Sleep to maintain ~60 FPS (clamp to 0 if frame took longer than 16ms)
 			long sleepTime = Math.max(0, lastLoopTime + 16 - SystemTimer.getTime());
@@ -340,20 +441,44 @@ public class Game {
 	 * Return to main menu (saves game if in singleplayer)
 	 */
 	public void goToMainMenu() {
-		// Save game if in singleplayer
+		// 1. Stop server tick thread FIRST (Phase 4 cleanup)
+		if (serverTickThread != null && serverTickThread.isRunning()) {
+			System.out.println("Stopping ServerTickThread...");
+			serverTickThread.shutdown();
+			try {
+				serverTickThread.join(2000);  // Wait up to 2 seconds for clean shutdown
+				if (serverTickThread.isAlive()) {
+					System.err.println("Warning: ServerTickThread did not stop in time");
+				} else {
+					System.out.println("ServerTickThread stopped successfully");
+				}
+			} catch (InterruptedException e) {
+				System.err.println("Interrupted while waiting for ServerTickThread shutdown");
+			}
+			serverTickThread = null;
+		}
+
+		// 2. Save game if in singleplayer
 		if (server != null) {
 			saveGame();
 		}
-		// Disconnect from multiplayer if needed
+
+		// 3. Disconnect from multiplayer if needed
 		if (client != null && server == null) {
 			client.disconnectMultiplayer();
 		}
+
+		// 4. Transition to MENU state
+		stateManager.transitionTo(GameState.MENU);
 	}
 
 	/**
 	 * Delegate methods for backward compatibility
 	 */
 	public void quit() {
+		// Transition to SHUTDOWN state
+		stateManager.transitionTo(GameState.SHUTDOWN);
+
 		if (server != null) {
 			server.stop();
 		}
@@ -368,13 +493,17 @@ public class Game {
 		System.exit(0);
 	}
 
-	// Expose server/client for event handlers
+	// Expose server/client/state for event handlers
 	public Server getServer() {
 		return server;
 	}
 
 	public Client getClient() {
 		return client;
+	}
+
+	public GameStateManager getStateManager() {
+		return stateManager;
 	}
 
 	public String getCurrentWorldName() {
@@ -400,14 +529,14 @@ public class Game {
 	 * Exit login screen and show main menu
 	 */
 	public void showMainMenu() {
-		this.showingLoginScreen = false;
+		stateManager.transitionTo(GameState.MENU);
 	}
 
 	/**
 	 * Check if login screen is showing
 	 */
 	public boolean isShowingLoginScreen() {
-		return showingLoginScreen;
+		return stateManager.getState() == GameState.LOGIN;
 	}
 
 	/**

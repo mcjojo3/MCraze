@@ -31,16 +31,22 @@ public class Player extends LivingEntity {
 	public float handStartY;
 	public float handEndX;
 	public float handEndY;
+
+	// Backdrop placement mode (server-authoritative)
+	public boolean backdropPlacementMode = false;
 	
-	private Sprite leftWalkSprite;
-	private Sprite rightWalkSprite;
-	
+	private Sprite leftFootSprite;
+	private Sprite rightFootSprite;
+	private Sprite sneakSprite;
+
 	public Player(boolean gravityApplies, float x, float y, int width, int height) {
 		super(gravityApplies, x, y, width, height);
-		
-		leftWalkSprite = SpriteStore.get().getSprite("sprites/entities/left_man.png");
-		rightWalkSprite = SpriteStore.get().getSprite("sprites/entities/right_man.png");
-		sprite = SpriteStore.get().getSprite("sprites/entities/player.gif");
+
+		// 3-frame walking animation: right foot → still → left foot → still
+		sprite = SpriteStore.get().getSprite("sprites/entities/player.png");  // Standing (both feet together)
+		rightFootSprite = SpriteStore.get().getSprite("sprites/entities/player_right.png");  // Right foot forward
+		leftFootSprite = SpriteStore.get().getSprite("sprites/entities/player_left.png");  // Left foot forward
+		sneakSprite = SpriteStore.get().getSprite("sprites/entities/player_sneak.png");  // Sneaking
 	}
 
 	public void setHotbarItem(int hotbarIdx) {
@@ -203,22 +209,43 @@ public class Player extends LivingEntity {
 		Int2 pos = StockMethods.computeDrawLocationInPlace(cameraX, cameraY, screenWidth,
 				screenHeight, tileSize, x, y);
 		if (StockMethods.onScreen) {
-			int frame = (int) x % 4;// (int) ((ticksAlive/20)%4);
-			if (facingRight) {
-				if (frame == 0 || frame == 2 || dx <= 0) {
-					sprite.draw(g, pos.x, pos.y, widthPX, heightPX);
-				} else if (frame == 1) {
-					rightWalkSprite.draw(g, pos.x, pos.y, widthPX, heightPX);
+			// Use sneak sprite if sneaking
+			if (sneaking) {
+				if (facingRight) {
+					sneakSprite.draw(g, pos.x, pos.y, widthPX, heightPX);
 				} else {
-					leftWalkSprite.draw(g, pos.x, pos.y, widthPX, heightPX);
+					sneakSprite.draw(g, pos.x + widthPX, pos.y, -widthPX, heightPX);
 				}
 			} else {
-				if (frame == 0 || frame == 2 || dx >= 0) {
-					sprite.draw(g, pos.x + widthPX, pos.y, -widthPX, heightPX);
-				} else if (frame == 1) {
-					rightWalkSprite.draw(g, pos.x + widthPX, pos.y, -widthPX, heightPX);
+				// 3-frame walking animation: right foot → still → left foot → still
+				boolean isMoving = (Math.abs(dx) > 0.001f);  // Check if actually moving
+
+				if (isMoving) {
+					// 4-step cycle: right → still → left → still (each step = 8 ticks)
+					int walkCycle = (int) (ticksAlive / 8) % 4;
+					Sprite currentSprite;
+
+					switch (walkCycle) {
+						case 0: currentSprite = rightFootSprite; break;  // Right foot forward
+						case 1: currentSprite = sprite; break;           // Standing
+						case 2: currentSprite = leftFootSprite; break;   // Left foot forward
+						case 3: currentSprite = sprite; break;           // Standing
+						default: currentSprite = sprite; break;
+					}
+
+					if (facingRight) {
+						currentSprite.draw(g, pos.x, pos.y, widthPX, heightPX);
+					} else {
+						// Flip horizontally when facing left
+						currentSprite.draw(g, pos.x + widthPX, pos.y, -widthPX, heightPX);
+					}
 				} else {
-					leftWalkSprite.draw(g, pos.x + widthPX, pos.y, -widthPX, heightPX);
+					// Standing still
+					if (facingRight) {
+						sprite.draw(g, pos.x, pos.y, widthPX, heightPX);
+					} else {
+						sprite.draw(g, pos.x + widthPX, pos.y, -widthPX, heightPX);
+					}
 				}
 			}
 		}

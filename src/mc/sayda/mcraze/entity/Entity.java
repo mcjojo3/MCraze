@@ -61,6 +61,17 @@ public abstract class Entity implements java.io.Serializable {
 	}
 
 	public void updatePosition(World world, int tileSize) {
+		// Noclip mode: ghost through blocks (no collision detection)
+		if (this instanceof mc.sayda.mcraze.entity.LivingEntity) {
+			mc.sayda.mcraze.entity.LivingEntity living = (mc.sayda.mcraze.entity.LivingEntity) this;
+			if (living.noclip) {
+				// Directly update position without collision checks
+				x += dx;
+				y += dy;
+				return;
+			}
+		}
+
 		int pixels = (int) Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) * tileSize);
 
 		boolean favorVertical = (Math.abs(dy) > Math.abs(dx));

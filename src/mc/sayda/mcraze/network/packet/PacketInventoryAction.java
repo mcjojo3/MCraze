@@ -12,16 +12,17 @@
 
 package mc.sayda.mcraze.network.packet;
 
-import mc.sayda.mcraze.network.Packet;
-import mc.sayda.mcraze.network.PacketHandler;
+import mc.sayda.mcraze.network.PacketRegistry;
+import mc.sayda.mcraze.network.ServerPacketHandler;
+
+import java.nio.ByteBuffer;
 
 /**
- * Client -> Server: Inventory click action
+ * Client → Server: Inventory click action
  * Sent when player clicks in their inventory to move/split/craft items
+ * Binary protocol: 2 ints + 2 booleans = 10 bytes
  */
-public class PacketInventoryAction extends Packet {
-	private static final long serialVersionUID = 1L;
-
+public class PacketInventoryAction extends ClientPacket {
 	public int slotX;          // Clicked slot X coordinate
 	public int slotY;          // Clicked slot Y coordinate
 	public boolean leftClick;  // true = left click, false = right click
@@ -38,11 +39,29 @@ public class PacketInventoryAction extends Packet {
 
 	@Override
 	public int getPacketId() {
-		return 11;  // New packet ID
+		return PacketRegistry.getId(PacketInventoryAction.class);
 	}
 
 	@Override
-	public void handle(PacketHandler handler) {
+	public void handle(ServerPacketHandler handler) {
 		handler.handleInventoryAction(this);
+	}
+
+	@Override
+	public byte[] encode() {
+		ByteBuffer buf = ByteBuffer.allocate(10);
+		buf.putInt(slotX);
+		buf.putInt(slotY);
+		buf.put((byte) (leftClick ? 1 : 0));
+		buf.put((byte) (craftClick ? 1 : 0));
+		return buf.array();
+	}
+
+	public static PacketInventoryAction decode(ByteBuffer buf) {
+		int slotX = buf.getInt();
+		int slotY = buf.getInt();
+		boolean leftClick = buf.get() == 1;
+		boolean craftClick = buf.get() == 1;
+		return new PacketInventoryAction(slotX, slotY, leftClick, craftClick);
 	}
 }

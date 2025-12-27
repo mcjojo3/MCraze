@@ -33,9 +33,9 @@ public class MainMenu {
 	private static final int BUTTON_SPACING = 10;
 
 	// World size constants
-	private static final int WORLD_SIZE_SMALL = 256;
 	private static final int WORLD_SIZE_MEDIUM = 512;
 	private static final int WORLD_SIZE_LARGE = 1024;
+	private static final int WORLD_SIZE_HUGE = 2048;
 
 	private Game game;
 	private UIRenderer uiRenderer;
@@ -45,6 +45,11 @@ public class MainMenu {
 	private TextInput worldNameInput;  // For world creation
 	private int selectedWorldSize = WORLD_SIZE_MEDIUM;  // Default world size
 	private long ticksRunning = 0;
+	private SharedSettings sharedSettings;  // Shared settings component
+
+	// World selection state
+	private ScrollableList<mc.sayda.mcraze.world.WorldSaveManager.WorldMetadata> worldList;
+	private List<Button> worldActionButtons;  // Load, Rename, Delete buttons
 
 	public MainMenu(Game g, UIRenderer uiRenderer) {
 		this.game = g;
@@ -52,6 +57,15 @@ public class MainMenu {
 		this.currentState = MenuState.MAIN;
 		this.currentButtons = new ArrayList<>();
 		buildMainMenu();
+	}
+
+	/**
+	 * Initialize shared settings (called after Game has a client)
+	 */
+	public void initializeSharedSettings() {
+		if (sharedSettings == null) {
+			sharedSettings = new SharedSettings(game, uiRenderer);
+		}
 	}
 
 	/**
@@ -174,21 +188,10 @@ public class MainMenu {
 		worldNameInput.setText("New World");
 
 		// World size buttons
-		Button smallBtn = new Button(
-			"small",
-			"Small (256x256)",
-			startY + BUTTON_HEIGHT + BUTTON_SPACING * 3,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(() -> {
-			selectedWorldSize = WORLD_SIZE_SMALL;
-			createNewWorld();
-		});
-
 		Button mediumBtn = new Button(
 			"medium",
-			"Medium (512x512)",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 2 + BUTTON_SPACING * 2,
+			"Medium (512x256)",
+			startY + BUTTON_HEIGHT + BUTTON_SPACING * 3,
 			BUTTON_WIDTH,
 			BUTTON_HEIGHT
 		).setOnClick(() -> {
@@ -198,12 +201,23 @@ public class MainMenu {
 
 		Button largeBtn = new Button(
 			"large",
-			"Large (1024x1024)",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3 + BUTTON_SPACING * 2,
+			"Large (1024x256)",
+			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 2 + BUTTON_SPACING * 2,
 			BUTTON_WIDTH,
 			BUTTON_HEIGHT
 		).setOnClick(() -> {
 			selectedWorldSize = WORLD_SIZE_LARGE;
+			createNewWorld();
+		});
+
+		Button hugeBtn = new Button(
+			"huge",
+			"Huge (2048x256)",
+			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3 + BUTTON_SPACING * 2,
+			BUTTON_WIDTH,
+			BUTTON_HEIGHT
+		).setOnClick(() -> {
+			selectedWorldSize = WORLD_SIZE_HUGE;
 			createNewWorld();
 		});
 
@@ -216,9 +230,9 @@ public class MainMenu {
 			BUTTON_HEIGHT
 		).setOnClick(this::showSingleplayerMenu);
 
-		currentButtons.add(smallBtn);
 		currentButtons.add(mediumBtn);
 		currentButtons.add(largeBtn);
+		currentButtons.add(hugeBtn);
 		currentButtons.add(backBtn);
 	}
 
@@ -230,50 +244,132 @@ public class MainMenu {
 		currentState = MenuState.WORLD_SELECT;
 		worldNameInput = null;
 
-		int startY = 180;
-
 		// Get available worlds
-		List<mc.sayda.mcraze.world.WorldSaveManager.WorldMetadata> worlds =
+		List<mc.sayda.mcraze.world.WorldSaveManager.WorldMetadata> availableWorlds =
 			mc.sayda.mcraze.world.WorldSaveManager.getAvailableWorlds();
 
-		if (worlds.isEmpty()) {
-			// No worlds found, show message
-			Button backBtn = new Button(
-				"back",
-				"Back",
-				startY + BUTTON_HEIGHT + BUTTON_SPACING,
-				BUTTON_WIDTH,
-				BUTTON_HEIGHT
-			).setOnClick(this::showSingleplayerMenu);
+		// Create scrollable list positioned to the left
+		int listWidth = 400;
+		int listHeight = 200;
+		int listY = 200;  // Centered vertically
+		// Position list offset to the left, centered as a group with buttons
+		worldList = new ScrollableList<>(-100, listY, listWidth, listHeight, 35);
 
-			currentButtons.add(backBtn);
-		} else {
-			// Show world buttons (max 5 visible at a time)
-			int maxVisible = Math.min(5, worlds.size());
-			for (int i = 0; i < maxVisible; i++) {
-				final mc.sayda.mcraze.world.WorldSaveManager.WorldMetadata world = worlds.get(i);
+		// Populate list
+		List<String> displayNames = new ArrayList<>();
+		for (mc.sayda.mcraze.world.WorldSaveManager.WorldMetadata world : availableWorlds) {
+			displayNames.add(world.worldName);
+		}
+		worldList.setItems(availableWorlds, displayNames);
 
-				Button worldBtn = new Button(
-					"world_" + i,
-					world.worldName,
-					startY + i * (BUTTON_HEIGHT + BUTTON_SPACING),
-					BUTTON_WIDTH,
-					BUTTON_HEIGHT
-				).setOnClick(() -> loadExistingWorld(world.worldName));
+		// Create action buttons
+		buildWorldActionButtons();
+	}
 
-				currentButtons.add(worldBtn);
+	/**
+	 * Build world action buttons (Load, Rename, Delete, Back)
+	 * Positioned to the right of the world list
+	 */
+	private void buildWorldActionButtons() {
+		worldActionButtons = new ArrayList<>();
+
+		// Position buttons to the right of the list with minimal gap
+		// List is at x=-100 (offset from center), width=400
+		// List right edge is at: -100 + 400 = 300 from center
+		// Buttons centered as a group with the list
+		int buttonOffsetX = 210;  // Positions group center at screen center
+		int startY = 200;  // Same Y as list for vertical centering
+		int buttonWidth = 180;
+
+		boolean hasSelection = (worldList != null && worldList.getSelectedIndex() >= 0);
+
+		Button loadBtn = new Button(
+			"load_world",
+			"Load World",
+			startY,
+			buttonWidth,
+			BUTTON_HEIGHT
+		).setOnClick(this::loadSelectedWorld)
+		 .setEnabled(hasSelection)
+		 .setOffsetX(buttonOffsetX);
+
+		Button renameBtn = new Button(
+			"rename_world",
+			"Rename World",
+			startY + BUTTON_HEIGHT + BUTTON_SPACING,
+			buttonWidth,
+			BUTTON_HEIGHT
+		).setOnClick(this::renameSelectedWorld)
+		 .setEnabled(hasSelection)
+		 .setOffsetX(buttonOffsetX);
+
+		Button deleteBtn = new Button(
+			"delete_world",
+			"Delete World",
+			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 2,
+			buttonWidth,
+			BUTTON_HEIGHT
+		).setOnClick(this::deleteSelectedWorld)
+		 .setEnabled(hasSelection)
+		 .setOffsetX(buttonOffsetX);
+
+		Button backBtn = new Button(
+			"back",
+			"Back",
+			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3,
+			buttonWidth,
+			BUTTON_HEIGHT
+		).setOnClick(this::showSingleplayerMenu)
+		 .setOffsetX(buttonOffsetX);
+
+		worldActionButtons.add(loadBtn);
+		worldActionButtons.add(renameBtn);
+		worldActionButtons.add(deleteBtn);
+		worldActionButtons.add(backBtn);
+	}
+
+	/**
+	 * Load the selected world
+	 */
+	private void loadSelectedWorld() {
+		if (worldList != null) {
+			mc.sayda.mcraze.world.WorldSaveManager.WorldMetadata world = worldList.getSelectedItem();
+			if (world != null) {
+				loadExistingWorld(world.worldName);
 			}
+		}
+	}
 
-			// Back button below world list
-			Button backBtn = new Button(
-				"back",
-				"Back",
-				startY + maxVisible * (BUTTON_HEIGHT + BUTTON_SPACING) + BUTTON_SPACING,
-				BUTTON_WIDTH,
-				BUTTON_HEIGHT
-			).setOnClick(this::showSingleplayerMenu);
+	/**
+	 * Rename the selected world
+	 */
+	private void renameSelectedWorld() {
+		if (worldList != null) {
+			mc.sayda.mcraze.world.WorldSaveManager.WorldMetadata world = worldList.getSelectedItem();
+			if (world != null) {
+				// TODO: Implement rename dialog
+				System.out.println("Rename world: " + world.worldName);
+			}
+		}
+	}
 
-			currentButtons.add(backBtn);
+	/**
+	 * Delete the selected world
+	 */
+	private void deleteSelectedWorld() {
+		if (worldList != null) {
+			mc.sayda.mcraze.world.WorldSaveManager.WorldMetadata world = worldList.getSelectedItem();
+			if (world != null) {
+				// Delete the world
+				boolean deleted = mc.sayda.mcraze.world.WorldSaveManager.deleteWorld(world.worldName);
+				if (deleted) {
+					System.out.println("Deleted world: " + world.worldName);
+					// Refresh world list
+					showWorldSelectionMenu();
+				} else {
+					System.err.println("Failed to delete world: " + world.worldName);
+				}
+			}
 		}
 	}
 
@@ -319,20 +415,18 @@ public class MainMenu {
 		currentButtons.clear();
 		currentState = MenuState.OPTIONS;
 		ipInput = null;  // Clear IP input when leaving multiplayer menu
+		worldNameInput = null;
 
-		int startY = 200;
+		// Initialize shared settings if not already done
+		initializeSharedSettings();
 
-		// TODO: Add actual options here (sound, graphics, controls, etc.)
-
-		// Placeholder text - options would go here
-
-		// Back button
+		// Back button (positioned below settings UI)
 		Button backBtn = new Button(
 			"back",
 			"Back",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 4,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
+			380,  // Same Y position as in-game settings
+			200,
+			40
 		).setOnClick(this::buildMainMenu);
 
 		currentButtons.add(backBtn);
@@ -470,7 +564,7 @@ public class MainMenu {
 
 		// Draw animated tag
 		float tagScale = ((float) Math.abs((ticksRunning % 100) - 50)) / 50 + 1;
-		MENU_TAG.draw(g, 450, 70, (int) (60 * tagScale), (int) (37 * tagScale));
+		MENU_TAG.draw(g, 570, 70, (int) (60 * tagScale), (int) (37 * tagScale));
 
 		// Draw menu title based on state
 		g.setColor(mc.sayda.mcraze.Color.white);
@@ -504,18 +598,31 @@ public class MainMenu {
 			g.drawString(label, labelX, worldNameInput.getY() - 20);
 		}
 
-		// Draw "No worlds found" message if in world select with no worlds
-		if (currentState == MenuState.WORLD_SELECT && currentButtons.size() <= 1) {
-			g.setColor(mc.sayda.mcraze.Color.white);
-			String text = "No saved worlds found";
-			int textX = screenWidth / 2 - (text.length() * 8) / 2;
-			g.drawString(text, textX, 200);
+		// Draw world selection list if in world select menu
+		if (currentState == MenuState.WORLD_SELECT && worldList != null) {
+			worldList.updatePosition(screenWidth);
+			worldList.draw(g);
+
+			// Draw world action buttons
+			if (worldActionButtons != null) {
+				for (Button button : worldActionButtons) {
+					button.updatePosition(screenWidth);
+					button.updateHover(mouseX, mouseY);
+					button.draw(g);
+				}
+			}
+		} else {
+			// Draw regular buttons for other menus
+			for (Button button : currentButtons) {
+				button.updatePosition(screenWidth);  // Center buttons dynamically
+				button.updateHover(mouseX, mouseY);
+				button.draw(g);
+			}
 		}
 
-		for (Button button : currentButtons) {
-			button.updatePosition(screenWidth);  // Center buttons dynamically
-			button.updateHover(mouseX, mouseY);
-			button.draw(g);
+		// Render shared settings if in OPTIONS menu
+		if (currentState == MenuState.OPTIONS && sharedSettings != null) {
+			sharedSettings.renderSettings(g, mouseX, mouseY, false);
 		}
 
 		// Handle clicks
@@ -532,20 +639,40 @@ public class MainMenu {
 				worldNameInput.handleClick(mouseX, mouseY);
 			}
 
-			// Then check button clicks
-			for (Button button : currentButtons) {
-				if (button.handleClick(mouseX, mouseY)) {
-					break;  // Only handle one click
+			// Handle settings clicks in OPTIONS menu
+			boolean settingsClicked = false;
+			if (currentState == MenuState.OPTIONS && sharedSettings != null) {
+				settingsClicked = sharedSettings.handleClick(mouseX, mouseY, screenWidth);
+			}
+
+			// Handle world list clicks in WORLD_SELECT menu
+			if (currentState == MenuState.WORLD_SELECT && worldList != null) {
+				if (worldList.handleClick(mouseX, mouseY)) {
+					// Selection changed - rebuild action buttons to update enabled state
+					buildWorldActionButtons();
+					// Don't handle other clicks
+					settingsClicked = true;
+				}
+
+				// Check world action button clicks
+				if (!settingsClicked && worldActionButtons != null) {
+					for (Button button : worldActionButtons) {
+						if (button.handleClick(mouseX, mouseY)) {
+							settingsClicked = true;
+							break;
+						}
+					}
 				}
 			}
-		}
 
-		// Draw options placeholder text
-		if (currentState == MenuState.OPTIONS) {
-			g.setColor(mc.sayda.mcraze.Color.white);
-			String text = "Options menu - Coming soon!";
-			int textX = g.getScreenWidth() / 2 - (text.length() * 8) / 2;
-			g.drawString(text, textX, 250);
+			// Then check regular button clicks (only if nothing else was clicked)
+			if (!settingsClicked) {
+				for (Button button : currentButtons) {
+					if (button.handleClick(mouseX, mouseY)) {
+						break;  // Only handle one click
+					}
+				}
+			}
 		}
 	}
 
@@ -557,6 +684,15 @@ public class MainMenu {
 			ipInput.handleKeyTyped(c);
 		} else if (currentState == MenuState.WORLD_CREATE && worldNameInput != null) {
 			worldNameInput.handleKeyTyped(c);
+		}
+	}
+
+	/**
+	 * Handle mouse wheel scroll
+	 */
+	public void handleMouseWheel(int mouseX, int mouseY, int wheelRotation) {
+		if (currentState == MenuState.WORLD_SELECT && worldList != null) {
+			worldList.handleScroll(mouseX, mouseY, wheelRotation);
 		}
 	}
 

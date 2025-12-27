@@ -20,8 +20,8 @@ import mc.sayda.mcraze.Sprite;
 import mc.sayda.mcraze.SpriteStore;
 
 public class TileType implements java.io.Serializable {
-	private static final long serialVersionUID = 1L;
-	
+	private static final long serialVersionUID = 2L;  // Incremented for stable field
+
 	/** The sprite that represents this Type */
 	protected Sprite sprite;
 	public TileID name;
@@ -29,23 +29,30 @@ public class TileType implements java.io.Serializable {
 	protected boolean liquid;
 	public int lightBlocking;
 	public int lightEmitting;
-	
+	public boolean stable;  // true = block doesn't need ground support, false = needs support (plants)
+
 	public TileType(String ref, TileID name) {
 		this(ref, name, false, false, Constants.LIGHT_VALUE_OPAQUE);
 	}
-	
+
 	public TileType(String ref, TileID name, boolean passable, boolean liquid, int lightBlocking) {
 		this(ref, name, passable, liquid, lightBlocking, 0);
 	}
-	
+
 	public TileType(String ref, TileID name, boolean passable, boolean liquid, int lightBlocking,
 			int lightEmitting) {
+		this(ref, name, passable, liquid, lightBlocking, lightEmitting, true);
+	}
+
+	public TileType(String ref, TileID name, boolean passable, boolean liquid, int lightBlocking,
+			int lightEmitting, boolean stable) {
 		this.sprite = SpriteStore.get().getSprite(ref);
 		this.name = name;
 		this.passable = passable;
 		this.liquid = liquid;
 		this.lightBlocking = lightBlocking;
 		this.lightEmitting = lightEmitting;
+		this.stable = stable;
 	}
 	
 	public void draw(GraphicsHandler g, int x, int y) {

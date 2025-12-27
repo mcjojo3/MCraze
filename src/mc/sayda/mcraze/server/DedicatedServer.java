@@ -3,6 +3,8 @@ package mc.sayda.mcraze.server;
 import mc.sayda.mcraze.logging.CrashReport;
 import mc.sayda.mcraze.logging.GameLogger;
 import mc.sayda.mcraze.network.NetworkConnection;
+import mc.sayda.mcraze.state.GameState;
+import mc.sayda.mcraze.state.GameStateManager;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -24,6 +26,13 @@ public class DedicatedServer {
 	private Thread acceptThread;
 	private List<PlayerConnection> connectedPlayers;
 	private int nextPlayerId = 1;
+
+	// Phase 4: Dedicated server tick thread
+	private ServerTickThread serverTickThread;
+	private final GameStateManager stateManager = new GameStateManager();
+
+	// Minimal Server object for CommandHandler
+	private mc.sayda.mcraze.server.Server serverForCommands;
 
 	public DedicatedServer(int port) {
 		this.port = port;
@@ -70,13 +79,32 @@ public class DedicatedServer {
 			saveWorld();
 		}
 		System.out.println("Shared world initialized");
+
+		// Set up CommandHandler for dedicated server
+		// Create minimal Server object with world reference for commands
+		serverForCommands = new mc.sayda.mcraze.server.Server(null);
+		serverForCommands.world = sharedWorld.getWorld();
+		mc.sayda.mcraze.ui.CommandHandler commandHandler =
+			new mc.sayda.mcraze.ui.CommandHandler(serverForCommands, sharedWorld, null);
+		sharedWorld.setCommandHandler(commandHandler);
+		System.out.println("Command handler initialized");
+
 		System.out.println("Server ready - accepting connections");
+
+		// Dedicated server is always IN_GAME (no menu state)
+		// Use forceState because dedicated server has no GUI lifecycle
+		stateManager.forceState(GameState.IN_GAME);
+
+		// Start dedicated server tick thread (Phase 4)
+		serverTickThread = new ServerTickThread(sharedWorld, stateManager);
+		serverTickThread.start();
+		System.out.println("ServerTickThread started (target 60 TPS)");
 
 		// Start accept thread for client connections
 		startAcceptThread();
 
-		// Run server tick loop
-		runServerLoop();
+		// Run maintenance loop (cleanup disconnected players)
+		runMaintenanceLoop();
 	}
 
 	/**
@@ -154,16 +182,12 @@ public class DedicatedServer {
 	}
 
 	/**
-	 * Main server tick loop
+	 * Maintenance loop - handles disconnected player cleanup
+	 * ServerTickThread handles actual game logic at 60 TPS
 	 */
-	private void runServerLoop() {
-		long lastTickTime = System.currentTimeMillis();
-
+	private void runMaintenanceLoop() {
 		while (running) {
-			long delta = System.currentTimeMillis() - lastTickTime;
-			lastTickTime = System.currentTimeMillis();
-
-			// Remove disconnected players
+			// Check for disconnected players (every second)
 			Iterator<PlayerConnection> it = connectedPlayers.iterator();
 			while (it.hasNext()) {
 				PlayerConnection playerConnection = it.next();
@@ -174,23 +198,29 @@ public class DedicatedServer {
 				}
 			}
 
-			// Tick shared world (updates world and all entities)
-			if (sharedWorld != null && sharedWorld.isRunning()) {
-				sharedWorld.tick();
-			}
-
-			// Sleep to maintain ~60 TPS (ticks per second)
-			long sleepTime = 16 - (System.currentTimeMillis() - lastTickTime);
-			if (sleepTime > 0) {
-				try {
-					Thread.sleep(sleepTime);
-				} catch (InterruptedException e) {
-					System.err.println("Server tick interrupted");
-				}
+			// Sleep for 1 second between checks (no need to check every tick)
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				System.err.println("Maintenance loop interrupted");
+				break;
 			}
 		}
 
 		System.out.println("Server shutting down...");
+
+		// Stop server tick thread
+		if (serverTickThread != null && serverTickThread.isRunning()) {
+			System.out.println("Stopping ServerTickThread...");
+			serverTickThread.shutdown();
+			try {
+				serverTickThread.join(2000);
+				System.out.println("ServerTickThread stopped");
+			} catch (InterruptedException e) {
+				System.err.println("Interrupted waiting for ServerTickThread");
+			}
+		}
+
 		saveWorld();
 		cleanup();
 	}

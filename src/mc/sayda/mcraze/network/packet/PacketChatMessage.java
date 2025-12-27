@@ -13,15 +13,17 @@
 package mc.sayda.mcraze.network.packet;
 
 import mc.sayda.mcraze.Color;
-import mc.sayda.mcraze.network.Packet;
-import mc.sayda.mcraze.network.PacketHandler;
+import mc.sayda.mcraze.network.ClientPacketHandler;
+import mc.sayda.mcraze.network.PacketRegistry;
+
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 /**
- * Server -> Client: Chat message to display
+ * Server → Client: Chat message to display
+ * Binary protocol: 2-byte length + UTF-8 string + 4-byte RGB color
  */
-public class PacketChatMessage extends Packet {
-	private static final long serialVersionUID = 1L;
-
+public class PacketChatMessage extends ServerPacket {
 	public String message;
 	public int colorRGB;  // Color serialized as RGB int
 
@@ -34,12 +36,35 @@ public class PacketChatMessage extends Packet {
 
 	@Override
 	public int getPacketId() {
-		return 4;
+		return PacketRegistry.getId(PacketChatMessage.class);
 	}
 
 	@Override
-	public void handle(PacketHandler handler) {
+	public void handle(ClientPacketHandler handler) {
 		handler.handleChatMessage(this);
+	}
+
+	@Override
+	public byte[] encode() {
+		byte[] messageBytes = message.getBytes(StandardCharsets.UTF_8);
+		ByteBuffer buf = ByteBuffer.allocate(6 + messageBytes.length);
+		buf.putShort((short) messageBytes.length);
+		buf.put(messageBytes);
+		buf.putInt(colorRGB);
+		return buf.array();
+	}
+
+	public static PacketChatMessage decode(ByteBuffer buf) {
+		short messageLen = buf.getShort();
+		byte[] messageBytes = new byte[messageLen];
+		buf.get(messageBytes);
+		String message = new String(messageBytes, StandardCharsets.UTF_8);
+		int colorRGB = buf.getInt();
+
+		PacketChatMessage packet = new PacketChatMessage();
+		packet.message = message;
+		packet.colorRGB = colorRGB;
+		return packet;
 	}
 
 	public Color getColor() {

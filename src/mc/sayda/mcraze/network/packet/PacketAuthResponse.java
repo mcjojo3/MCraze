@@ -12,15 +12,17 @@
 
 package mc.sayda.mcraze.network.packet;
 
-import mc.sayda.mcraze.network.Packet;
-import mc.sayda.mcraze.network.PacketHandler;
+import mc.sayda.mcraze.network.ClientPacketHandler;
+import mc.sayda.mcraze.network.PacketRegistry;
+
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 /**
- * Server -> Client: Authentication response (success or error)
+ * Server → Client: Authentication response (success or error)
+ * Binary protocol: 1 boolean + 2-byte length + UTF-8 string
  */
-public class PacketAuthResponse extends Packet {
-	private static final long serialVersionUID = 1L;
-
+public class PacketAuthResponse extends ServerPacket {
 	public boolean success;
 	public String message;  // Error message if failed, empty if success
 
@@ -33,11 +35,30 @@ public class PacketAuthResponse extends Packet {
 
 	@Override
 	public int getPacketId() {
-		return 12;
+		return PacketRegistry.getId(PacketAuthResponse.class);
 	}
 
 	@Override
-	public void handle(PacketHandler handler) {
+	public void handle(ClientPacketHandler handler) {
 		handler.handleAuthResponse(this);
+	}
+
+	@Override
+	public byte[] encode() {
+		byte[] messageBytes = (message != null ? message : "").getBytes(StandardCharsets.UTF_8);
+		ByteBuffer buf = ByteBuffer.allocate(3 + messageBytes.length);
+		buf.put((byte) (success ? 1 : 0));
+		buf.putShort((short) messageBytes.length);
+		buf.put(messageBytes);
+		return buf.array();
+	}
+
+	public static PacketAuthResponse decode(ByteBuffer buf) {
+		boolean success = buf.get() == 1;
+		short messageLen = buf.getShort();
+		byte[] messageBytes = new byte[messageLen];
+		buf.get(messageBytes);
+		String message = new String(messageBytes, StandardCharsets.UTF_8);
+		return new PacketAuthResponse(success, message);
 	}
 }

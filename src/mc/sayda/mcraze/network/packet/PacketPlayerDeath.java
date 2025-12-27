@@ -12,27 +12,39 @@
 
 package mc.sayda.mcraze.network.packet;
 
-import mc.sayda.mcraze.network.Packet;
-import mc.sayda.mcraze.network.PacketHandler;
+import mc.sayda.mcraze.network.ClientPacketHandler;
+import mc.sayda.mcraze.network.PacketRegistry;
+
+import java.nio.ByteBuffer;
 
 /**
- * Server -> Client: Notify client that their player has died
+ * Server → Client: Notify client that their player has died
  * Sent immediately on death for instant synchronization
+ * Binary protocol: 0 bytes (signal packet, no payload)
  */
-public class PacketPlayerDeath extends Packet {
-	private static final long serialVersionUID = 1L;
-
+public class PacketPlayerDeath extends ServerPacket {
 	// No data needed - death is a simple event
 
 	public PacketPlayerDeath() {}
 
 	@Override
 	public int getPacketId() {
-		return 11;
+		return PacketRegistry.getId(PacketPlayerDeath.class);
 	}
 
 	@Override
-	public void handle(PacketHandler handler) {
+	public void handle(ClientPacketHandler handler) {
 		handler.handlePlayerDeath(this);
+	}
+
+	@Override
+	public byte[] encode() {
+		// Empty packet - just a signal
+		return new byte[0];
+	}
+
+	public static PacketPlayerDeath decode(ByteBuffer buf) {
+		// No data to decode
+		return new PacketPlayerDeath();
 	}
 }
