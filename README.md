@@ -6,7 +6,8 @@ MCraze is based on "Minicraft v1.0.2"
 <tr><td>Programming</td><td>Jonathan Leahey</td></tr>
 <tr><td>Art</td><td>mc_jojo3</td></tr>
 <tr><td>Art</td><td>John McDowell</td></tr>
-<tr><td>Music</td><td>Tom Quinn (T5)</td></tr>
+<tr><td>Music</td><td>HeatleyBros</td></tr>
+<tr><td>Music</td><td>Stamsite</td></tr>
 <tr><td>Inspiration</td><td>Markus Persson "Notch"</td></tr>
 </table>
 
