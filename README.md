@@ -22,11 +22,6 @@ Without Notch we would have never created this fun game!
 We overcame the difficulties of losing a dimension in various ways and we tried to stay true to Minecraft throughout.
 Enjoy our "8-bit" 2D version of the game!
 
-## What's Different
-
-You can climb trees. Trees and planks make good ladders, almost as good as ladders themselves!
-This was neccessary so that you can get around the world in 2D.
-
 ## Controls
 
 <table>
