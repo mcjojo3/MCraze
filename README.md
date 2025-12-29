@@ -7,7 +7,7 @@ MCraze is based on "Minicraft v1.0.2"
 <tr><td>Art</td><td>mc_jojo3</td></tr>
 <tr><td>Art</td><td>John McDowell</td></tr>
 <tr><td>Music</td><td>HeatleyBros</td></tr>
-<tr><td>Music</td><td>Stamsite</td></tr>
+<tr><td>Music</td><td>Marcus Nyman "Stamsite"</td></tr>
 <tr><td>Inspiration</td><td>Markus Persson "Notch"</td></tr>
 </table>
 
@@ -21,11 +21,6 @@ Minicraft was initially conceived as a
 Without Notch we would have never created this fun game!
 We overcame the difficulties of losing a dimension in various ways and we tried to stay true to Minecraft throughout.
 Enjoy our "8-bit" 2D version of the game!
-
-## What's Different
-
-You can climb trees. Trees and planks make good ladders, almost as good as ladders themselves!
-This was neccessary so that you can get around the world in 2D.
 
 ## Controls
 
