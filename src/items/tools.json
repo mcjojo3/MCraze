@@ -1,6 +1,6 @@
 [
   {type:"Sword",  power:"Wood",    itemId:"wood_sword",      name:"wSword", spriteRef:"sprites/tools/wSword.png",  recipe:[[null,"plank",null],[null,"plank",null],[null,"stick",null]],yield:1},
-  {type:"Sword",  power:"Stone",   itemId:"stone_sword",     name:"sSword", spriteRef:"sprites/tools/sSword.png",  recipe:[["cobble","cobble","cobble"],[null,"stick",null],[null,"stick",null]],yield:1},
+  {type:"Sword",  power:"Stone",   itemId:"stone_sword",     name:"sSword", spriteRef:"sprites/tools/sSword.png",  recipe:[[null,"cobble",null],[null,"cobble",null],[null,"stick",null]],yield:1},
   {type:"Sword",  power:"Iron",    itemId:"iron_sword",      name:"iSword", spriteRef:"sprites/tools/iSword.png",  recipe:[[null,"iron_ore",null],[null,"iron_ore",null],[null,"stick",null]],yield:1},
   {type:"Sword",  power:"Diamond", itemId:"diamond_sword",   name:"dSword", spriteRef:"sprites/tools/dSword.png",  recipe:[[null,"diamond_ore",null],[null,"diamond_ore",null],[null,"stick",null]],yield:1},
   {type:"Pick",   power:"Wood",    itemId:"wood_pickaxe",    name:"wPick",  spriteRef:"sprites/tools/wPic.png",    recipe:[["plank","plank","plank"],[null,"stick",null],[null,"stick",null]],yield:1},

@@ -108,7 +108,7 @@ public class World implements java.io.Serializable {
 		// Generate biome map before terrain generation
 		this.biomeMap = WorldGenerator.generateBiomes(width, random);
 
-		TileID[][] generated = WorldGenerator.generate(width, height, random, this.biomeMap);
+		TileID[][] generated = WorldGenerator.generate(width, height, random, this.biomeMap, this);
 		WorldGenerator.visibility = null;
 		// Store suggested spawn from WorldGenerator
 		Int2 suggestedSpawn = WorldGenerator.playerLocation;
@@ -242,7 +242,9 @@ public class World implements java.io.Serializable {
 	}
 
 	public void chunkUpdate(boolean daylightCycle) {
-		ticksAlive++;
+		if (daylightCycle) {
+			ticksAlive++;
+		}
 		for (int i = 0; i < chunkWidth; i++) {
 			boolean isDirectLight = true;
 			for (int j = 0; j < height; j++) {
@@ -609,8 +611,7 @@ public class World implements java.io.Serializable {
 			return false;
 		}
 		return tiles[x][y].type != null
-				&& (tiles[x][y].type.name == TileID.WOOD || tiles[x][y].type.name == TileID.PLANK
-						|| tiles[x][y].type.name == TileID.LADDER || tiles[x][y].type.liquid);
+				&& (tiles[x][y].type.name == TileID.LADDER || tiles[x][y].type.liquid);
 	}
 	
 	public boolean isCraft(int x, int y) {

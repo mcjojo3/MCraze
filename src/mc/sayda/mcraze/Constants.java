@@ -20,6 +20,7 @@ public class Constants {
 		WOOD("wood"),
 		STONE("stone"),
 		WATER(null),
+        LAVA(null),
 		SAND("sand"),
 		IRON_ORE("iron_ore"),
 		GOLD_ORE("gold_ore"),
@@ -38,10 +39,10 @@ public class Constants {
 		TALL_GRASS("wheat_seeds"),
         CACTUS("cactus"),
 		MOSSY_COBBLE("mossy_cobble"),
-		CHEST(null),           // Dungeon chest (no drop yet)
+		CHEST("chest"),           // Dungeon chest (no drop yet)
 		SPAWNER(null),         // Monster spawner (no drop yet)
-		FARMLAND(null),        // Tilled soil for planting crops
-		WHEAT_CROP("wheats");  // Growing wheat (drops wheat item when harvested)
+		FARMLAND("dirt"),        // Tilled soil for planting crops
+		WHEAT_CROP("wheat");  // Growing wheat (drops wheat item when harvested)
 
 		// The string ID of the item this tile drops when broken (null = no drop)
 		public final String itemDropId;
@@ -89,7 +90,7 @@ public class Constants {
 		tileTypes.put(TileID.GRASS, new Tile(new TileType("sprites/tiles/grass_block.png",
 				TileID.GRASS)));
 		tileTypes.put(TileID.LEAVES, new Tile(new TileType("sprites/tiles/leaves.png",
-				TileID.LEAVES, false, false, 1)));
+				TileID.LEAVES, true, false, 1)));
 		tileTypes
 				.put(TileID.PLANK, new Tile(new TileType("sprites/tiles/plank.png", TileID.PLANK)));
 		tileTypes.put(TileID.WOOD, new Tile(new TileType("sprites/tiles/wood.png", TileID.WOOD,
@@ -99,7 +100,9 @@ public class Constants {
 		tileTypes.put(TileID.AIR, new Tile(new TileType("sprites/tiles/air.png", TileID.AIR, true,
 				false, 0)));
 		tileTypes.put(TileID.WATER, new Tile(new TileType("sprites/tiles/water.png", TileID.WATER,
-				true, true, 1)));
+				true, true, 6)));
+        tileTypes.put(TileID.LAVA, new Tile(new TileType("sprites/tiles/lava.png", TileID.LAVA,
+                true, true, Constants.LIGHT_VALUE_LAVA)));
 		tileTypes.put(TileID.SAND, new Tile(new TileType("sprites/tiles/sand.png", TileID.SAND)));
 		tileTypes.put(TileID.IRON_ORE, new Tile(new TileType("sprites/tiles/iron_ore.png",
 				TileID.IRON_ORE)));
@@ -116,7 +119,7 @@ public class Constants {
 		tileTypes.put(TileID.COBBLE, new Tile(new TileType("sprites/tiles/cobble.png",
 				TileID.COBBLE)));
 		tileTypes.put(TileID.WORKBENCH, new Tile(new TileType("sprites/tiles/workbench.png",
-				TileID.WORKBENCH)));
+				TileID.WORKBENCH, true, false, 0)));
 		tileTypes.put(TileID.BEDROCK, new Tile(new TileType("sprites/tiles/bedrock.png",
 				TileID.BEDROCK)));
 		tileTypes.put(TileID.SAPLING, new Tile(new TileType("sprites/tiles/sapling.png",
@@ -136,12 +139,12 @@ public class Constants {
 		tileTypes.put(TileID.MOSSY_COBBLE, new Tile(new TileType("sprites/tiles/mossy_cobble.png",
 				TileID.MOSSY_COBBLE)));
 		tileTypes.put(TileID.CHEST, new Tile(new TileType("sprites/tiles/chest.png",
-				TileID.CHEST)));
-		tileTypes.put(TileID.SPAWNER, new Tile(new TileType("sprites/tiles/spawner.png",
-				TileID.SPAWNER)));
-		tileTypes.put(TileID.FARMLAND, new Tile(new TileType("sprites/tiles/farmland.png",
-				TileID.FARMLAND, true, false, 0)));  // Passable
-		tileTypes.put(TileID.WHEAT_CROP, new Tile(new TileType("sprites/tiles/wheat.png",
+				TileID.CHEST, true, false, 0)));
+        tileTypes.put(TileID.SPAWNER, new Tile(new TileType("sprites/tiles/spawner.png",
+				TileID.SPAWNER, true, false, 1)));
+        tileTypes.put(TileID.FARMLAND, new Tile(new TileType("sprites/tiles/farmland.png",
+				TileID.FARMLAND, false, false, 0)));
+		tileTypes.put(TileID.WHEAT_CROP, new Tile(new TileType("sprites/tiles/wheat_crop.png",
 				TileID.WHEAT_CROP, true, false, 0, 0, false)));  // Passable, unstable - needs farmland
 	}
 
@@ -156,7 +159,8 @@ public class Constants {
 	// Player reach distance (in tiles)
 	public static final float ARM_LENGTH = 4.5f;
 
-	public static final int LIGHT_VALUE_TORCH = 13;
+	public static final int LIGHT_VALUE_TORCH = 12;
+	public static final int LIGHT_VALUE_LAVA = 8;
 	public static final int LIGHT_VALUE_SUN = 15;
 	// not final so that we can set it via command-line arg
 	public static boolean DEBUG = false;

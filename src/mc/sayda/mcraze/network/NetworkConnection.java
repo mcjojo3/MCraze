@@ -1,5 +1,7 @@
 package mc.sayda.mcraze.network;
 
+import mc.sayda.mcraze.logging.GameLogger;
+
 import java.io.*;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -14,6 +16,10 @@ public class NetworkConnection implements Connection {
 	private DataOutputStream out;
 	private DataInputStream in;
 	private List<Packet> receivedPackets = new ArrayList<>();
+	private static final int MAX_PACKET_QUEUE_SIZE = 5000;  // Increased for large world support (was 1000)
+	private long lastOverflowWarning = 0;  // Rate limit overflow warnings
+	private static final long OVERFLOW_WARNING_INTERVAL = 1000;  // 1 second between warnings
+	private int droppedPacketCount = 0;  // Track dropped packets for rate-limited warning
 	private Thread receiveThread;
 	private boolean connected = true;
 
@@ -58,13 +64,22 @@ public class NetworkConnection implements Connection {
 					ByteBuffer buffer = ByteBuffer.wrap(packetData);
 					Packet packet = PacketRegistry.decode(packetId, buffer);
 
-					// Only log non-spam packets
-					String packetType = packet.getClass().getSimpleName();
-					if (!packetType.equals("PacketEntityUpdate") && !packetType.equals("PacketWorldUpdate")) {
-						System.out.println("NetworkConnection: Received " + packetType + " (ID: " + packetId + ", " + packetLength + " bytes)");
+					// Only log in debug mode (reduces console spam from 240+/sec to near zero)
+					GameLogger logger = GameLogger.get();
+					if (logger != null && logger.isDebugEnabled()) {
+						String packetType = packet.getClass().getSimpleName();
+						logger.debug("NetworkConnection: Received " + packetType + " (ID: " + packetId + ", " + packetLength + " bytes)");
 					}
 
 					synchronized (receivedPackets) {
+						// Prevent unbounded growth - drop oldest packets if queue is full
+						if (receivedPackets.size() >= MAX_PACKET_QUEUE_SIZE) {
+							receivedPackets.remove(0);  // Drop oldest (FIFO)
+							GameLogger queueLogger = GameLogger.get();
+							if (queueLogger != null) {
+								queueLogger.warn("NetworkConnection: Packet queue overflow! Dropped oldest packet. Client may be lagging.");
+							}
+						}
 						receivedPackets.add(packet);
 					}
 				} catch (EOFException e) {
@@ -113,14 +128,11 @@ public class NetworkConnection implements Connection {
 				out.write(packetData);
 				out.flush();
 
-				// Only log non-spam packets
-				String packetType = packet.getClass().getSimpleName();
-				if (!packetType.equals("PacketEntityUpdate")
-                        && !packetType.equals("PacketWorldUpdate")
-                        && !packetType.equals("PacketInventoryUpdate")
-                        && !packetType.equals("PacketPlayerInput")
-                ) {
-					System.out.println("NetworkConnection: Sent " + packetType + " (ID: " + packetId + ", " + packetData.length + " bytes)");
+				// Only log in debug mode (reduces console spam from 240+/sec to near zero)
+				GameLogger logger = GameLogger.get();
+				if (logger != null && logger.isDebugEnabled()) {
+					String packetType = packet.getClass().getSimpleName();
+					logger.debug("NetworkConnection: Sent " + packetType + " (ID: " + packetId + ", " + packetData.length + " bytes)");
 				}
 			}
 		} catch (IOException e) {

@@ -863,4 +863,128 @@ public class WorldSaveManager {
 			directory.delete();
 		}
 	}
+
+	// ==================== CHEST PERSISTENCE ====================
+
+	/**
+	 * Save chest data to disk (JSON format)
+	 * @param worldName Name of the world
+	 * @param chestDataMap Map of chest data (key: "x,y", value: ChestData)
+	 * @return true if save succeeded
+	 */
+	public static boolean saveChests(String worldName, java.util.Map<String, ChestData> chestDataMap) {
+		if (chestDataMap == null) {
+			return false;
+		}
+
+		Path worldPath = Paths.get(getSavesDirectory(), sanitizeWorldName(worldName));
+		return saveChestsToDirectory(worldPath, chestDataMap);
+	}
+
+	/**
+	 * Save chest data to a specific directory (for dedicated servers)
+	 * @param directory The directory to save to (e.g., "./world")
+	 * @param chestDataMap Map of chest data
+	 * @return true if save succeeded
+	 */
+	public static boolean saveChestsToDirectory(Path directory, java.util.Map<String, ChestData> chestDataMap) {
+		if (chestDataMap == null) {
+			return false;
+		}
+
+		try {
+			// Create directory if needed
+			if (!Files.exists(directory)) {
+				Files.createDirectories(directory);
+			}
+
+			Path chestsFile = directory.resolve("chests.dat");
+			Path chestsBackup = directory.resolve("chests.dat.bak");
+
+			// Backup existing file
+			if (Files.exists(chestsFile)) {
+				Files.copy(chestsFile, chestsBackup, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			}
+
+			// Convert chest map to JSON
+			String json = gson.toJson(chestDataMap);
+
+			// Write atomically
+			Path tempFile = directory.resolve("chests.dat.tmp");
+			Files.write(tempFile, json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			Files.move(tempFile, chestsFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+			           java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+
+			return true;
+
+		} catch (IOException e) {
+			System.err.println("Failed to save chests: " + e.getMessage());
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	/**
+	 * Load chest data from disk (JSON format)
+	 * @param worldName Name of the world
+	 * @return Map of chest data, or empty map if file doesn't exist
+	 */
+	public static java.util.Map<String, ChestData> loadChests(String worldName) {
+		Path worldPath = Paths.get(getSavesDirectory(), sanitizeWorldName(worldName));
+		return loadChestsFromDirectory(worldPath);
+	}
+
+	/**
+	 * Load chest data from a specific directory (for dedicated servers)
+	 * @param directory The directory to load from (e.g., "./world")
+	 * @return Map of chest data, or empty map if file doesn't exist
+	 */
+	public static java.util.Map<String, ChestData> loadChestsFromDirectory(Path directory) {
+		Path chestsFile = directory.resolve("chests.dat");
+
+		// If no chest file exists, return empty map (new world or no chests placed yet)
+		if (!Files.exists(chestsFile)) {
+			return new java.util.concurrent.ConcurrentHashMap<>();
+		}
+
+		try {
+			// Try loading from main file
+			String json = new String(Files.readAllBytes(chestsFile), java.nio.charset.StandardCharsets.UTF_8);
+
+			// Deserialize JSON to Map<String, ChestData>
+			java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<java.util.Map<String, ChestData>>(){}.getType();
+			java.util.Map<String, ChestData> chestMap = gson.fromJson(json, type);
+
+			if (chestMap == null) {
+				return new java.util.concurrent.ConcurrentHashMap<>();
+			}
+
+			// Convert to ConcurrentHashMap for thread safety
+			return new java.util.concurrent.ConcurrentHashMap<>(chestMap);
+
+		} catch (Exception e) {
+			System.err.println("Failed to load chests from main file: " + e.getMessage());
+
+			// Try backup file
+			Path chestsBackup = directory.resolve("chests.dat.bak");
+			if (Files.exists(chestsBackup)) {
+				System.out.println("Attempting to restore chests from backup...");
+				try {
+					String json = new String(Files.readAllBytes(chestsBackup), java.nio.charset.StandardCharsets.UTF_8);
+					java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<java.util.Map<String, ChestData>>(){}.getType();
+					java.util.Map<String, ChestData> chestMap = gson.fromJson(json, type);
+
+					if (chestMap != null) {
+						System.out.println("Successfully restored chests from backup!");
+						return new java.util.concurrent.ConcurrentHashMap<>(chestMap);
+					}
+				} catch (Exception backupError) {
+					System.err.println("Backup restoration also failed: " + backupError.getMessage());
+				}
+			}
+
+			// Return empty map on failure
+			return new java.util.concurrent.ConcurrentHashMap<>();
+		}
+	}
 }

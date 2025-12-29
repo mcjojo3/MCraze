@@ -58,6 +58,7 @@ public class PacketRegistry {
         registerServerPacket(62, PacketBackdropChange.class, PacketBackdropChange::decode);
         registerServerPacket(63, PacketChestOpen.class, PacketChestOpen::decode);
         registerServerPacket(64, PacketGameruleUpdate.class, PacketGameruleUpdate::decode);
+        registerServerPacket(65, PacketBackdropBatch.class, PacketBackdropBatch::decode);  // NEW - Batched backdrops
     }
 
     /**

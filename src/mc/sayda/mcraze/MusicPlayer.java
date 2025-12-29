@@ -124,14 +124,15 @@ public class MusicPlayer {
 		List<String> tracks = new ArrayList<>();
 
 		try {
-			// Try src/ prefix first (development)
+			// Try src/ prefix first (development - running from IDE)
 			File soundsDir = new File("src/" + folderPath);
 			if (!soundsDir.exists()) {
-				// Try without src/ prefix (production/JAR)
+				// Try without src/ prefix (extracted JAR or production)
 				soundsDir = new File(folderPath);
 			}
 
 			if (soundsDir.exists() && soundsDir.isDirectory()) {
+				// Running from filesystem (development or extracted JAR)
 				File[] files = soundsDir.listFiles((dir, name) ->
 					name.toLowerCase().endsWith(".wav")
 				);
@@ -142,7 +143,42 @@ public class MusicPlayer {
 					}
 				}
 			} else {
-				System.err.println("Music folder not found: " + folderPath);
+				// Try loading from JAR resources (uber-JAR)
+				try {
+					java.net.URL resourceUrl = getClass().getClassLoader().getResource(folderPath);
+					if (resourceUrl != null && resourceUrl.getProtocol().equals("jar")) {
+						// Inside a JAR file - need to list resources differently
+						String jarPath = resourceUrl.getPath().substring(5, resourceUrl.getPath().indexOf("!"));
+						java.util.jar.JarFile jar = new java.util.jar.JarFile(java.net.URLDecoder.decode(jarPath, "UTF-8"));
+						java.util.Enumeration<java.util.jar.JarEntry> entries = jar.entries();
+
+						while (entries.hasMoreElements()) {
+							java.util.jar.JarEntry entry = entries.nextElement();
+							String name = entry.getName();
+							if (name.startsWith(folderPath + "/") && name.toLowerCase().endsWith(".wav")) {
+								tracks.add(name);
+							}
+						}
+						jar.close();
+					} else if (resourceUrl != null) {
+						// Resource exists but not in JAR format - try as directory
+						File resourceDir = new File(resourceUrl.toURI());
+						if (resourceDir.isDirectory()) {
+							File[] files = resourceDir.listFiles((dir, name) ->
+								name.toLowerCase().endsWith(".wav")
+							);
+							if (files != null) {
+								for (File file : files) {
+									tracks.add(folderPath + "/" + file.getName());
+								}
+							}
+						}
+					} else {
+						System.err.println("Music folder not found: " + folderPath + " (not in filesystem or JAR resources)");
+					}
+				} catch (Exception jarEx) {
+					System.err.println("Error loading music from JAR: " + jarEx.getMessage());
+				}
 			}
 		} catch (Exception e) {
 			System.err.println("Error scanning music folder " + folderPath + ": " + e.getMessage());

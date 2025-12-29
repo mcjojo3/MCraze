@@ -20,6 +20,7 @@ import mc.sayda.mcraze.server.Server;
 import mc.sayda.mcraze.server.ServerTickThread;
 import mc.sayda.mcraze.state.GameState;
 import mc.sayda.mcraze.state.GameStateManager;
+import mc.sayda.mcraze.util.CredentialManager;
 import mc.sayda.mcraze.util.SystemTimer;
 
 /**
@@ -332,7 +333,15 @@ public class Game {
 					if (Constants.DEBUG || isLoggedIn) {
 						stateManager.transitionTo(GameState.MENU);
 					} else {
-						stateManager.transitionTo(GameState.LOGIN);
+						// Check for saved credentials and auto-login
+						CredentialManager.SavedCredentials saved = CredentialManager.loadCredentials();
+						if (saved != null) {
+							System.out.println("Auto-login with saved credentials: " + saved.username);
+							setLoggedInUser(saved.username, saved.password);
+							stateManager.transitionTo(GameState.MENU);
+						} else {
+							stateManager.transitionTo(GameState.LOGIN);
+						}
 					}
 					break;
 
@@ -530,6 +539,24 @@ public class Game {
 	 */
 	public void showMainMenu() {
 		stateManager.transitionTo(GameState.MENU);
+	}
+
+	/**
+	 * Logout - clear credentials and return to login screen
+	 */
+	public void logout() {
+		// Delete saved credentials
+		CredentialManager.deleteCredentials();
+
+		// Clear login state
+		this.loggedInUsername = null;
+		this.loggedInPassword = null;
+		this.isLoggedIn = false;
+
+		// Return to login screen
+		stateManager.transitionTo(GameState.LOGIN);
+
+		System.out.println("Logged out successfully");
 	}
 
 	/**

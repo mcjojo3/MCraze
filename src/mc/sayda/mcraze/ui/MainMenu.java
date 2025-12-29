@@ -118,11 +118,20 @@ public class MainMenu {
 			BUTTON_HEIGHT
 		).setOnClick(this::showOptionsMenu);
 
+		// Logout button
+		Button logoutBtn = new Button(
+			"logout",
+			"Logout",
+			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3,
+			BUTTON_WIDTH,
+			BUTTON_HEIGHT
+		).setOnClick(() -> game.logout());
+
 		// Exit button
 		Button exitBtn = new Button(
 			"exit",
 			"Exit Game",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3,
+			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 4,
 			BUTTON_WIDTH,
 			BUTTON_HEIGHT
 		).setOnClick(() -> game.quit());
@@ -130,6 +139,7 @@ public class MainMenu {
 		currentButtons.add(singleplayerBtn);
 		currentButtons.add(multiplayerBtn);
 		currentButtons.add(optionsBtn);
+		currentButtons.add(logoutBtn);
 		currentButtons.add(exitBtn);
 	}
 
@@ -684,6 +694,17 @@ public class MainMenu {
 			ipInput.handleKeyTyped(c);
 		} else if (currentState == MenuState.WORLD_CREATE && worldNameInput != null) {
 			worldNameInput.handleKeyTyped(c);
+		}
+	}
+
+	/**
+	 * Handle key pressed (for arrow keys, delete, ctrl+c/v, etc.)
+	 */
+	public void handleKeyPressed(int keyCode, boolean shiftPressed, boolean ctrlPressed) {
+		if (currentState == MenuState.MULTIPLAYER && ipInput != null) {
+			ipInput.handleKeyPressed(keyCode, shiftPressed, ctrlPressed);
+		} else if (currentState == MenuState.WORLD_CREATE && worldNameInput != null) {
+			worldNameInput.handleKeyPressed(keyCode, shiftPressed, ctrlPressed);
 		}
 	}
 

@@ -160,8 +160,26 @@ public class AwtEventsHandler {
 		public void keyPressed(KeyEvent e) {
 			if (game.getClient() == null) return;
 
-			// Don't process input if in main menu
+			// Handle login screen key presses (highest priority)
+			if (game.isShowingLoginScreen()) {
+				mc.sayda.mcraze.ui.LoginScreen loginScreen = game.getLoginScreen();
+				if (loginScreen != null) {
+					loginScreen.handleKeyPressed(
+						e.getKeyCode(),
+						e.isShiftDown(),
+						e.isControlDown()
+					);
+				}
+				return;
+			}
+
+			// Handle main menu key presses
 			if (game.getClient().isInMenu()) {
+				game.getClient().getMenu().handleKeyPressed(
+					e.getKeyCode(),
+					e.isShiftDown(),
+					e.isControlDown()
+				);
 				return;
 			}
 
@@ -403,7 +421,10 @@ public class AwtEventsHandler {
 				sendInputPacket();
 				break;
 			case 'e':
-				player.inventory.setVisible(!player.inventory.isVisible());
+				// Don't toggle inventory if chest is open
+				if (!game.getClient().isChestUIOpen()) {
+					player.inventory.setVisible(!player.inventory.isVisible());
+				}
 				break;
 			case '=':
 			case '+':

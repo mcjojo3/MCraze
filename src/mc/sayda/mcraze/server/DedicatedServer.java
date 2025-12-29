@@ -62,6 +62,14 @@ public class DedicatedServer {
 			if (loaded && tempServer.world != null) {
 				loadedWorld = tempServer.world;
 				System.out.println("Successfully loaded existing world from ./world/");
+
+				// Load chest data from ./world/chests.dat
+				java.util.Map<String, mc.sayda.mcraze.world.ChestData> loadedChests =
+					mc.sayda.mcraze.world.WorldSaveManager.loadChestsFromDirectory(worldDir);
+				if (loadedChests != null && !loadedChests.isEmpty()) {
+					loadedWorld.setChests(loadedChests);
+					System.out.println("Loaded " + loadedChests.size() + " chests from ./world/chests.dat");
+				}
 			} else {
 				System.out.println("Failed to load world, will create new one");
 			}
@@ -146,26 +154,39 @@ public class DedicatedServer {
 
 					System.out.println("Authentication request from: " + authPacket.username);
 
-					// Try to add player with authentication
-					PlayerConnection playerConnection = sharedWorld.addPlayer(
-						connection, authPacket.username, authPacket.password);
+					try {
+						// Try to add player with authentication
+						PlayerConnection playerConnection = sharedWorld.addPlayer(
+							connection, authPacket.username, authPacket.password);
 
-					if (playerConnection == null) {
-						// Authentication failed (duplicate or wrong password)
-						System.err.println("Authentication failed for " + authPacket.username);
-						mc.sayda.mcraze.network.packet.PacketAuthResponse response =
-							new mc.sayda.mcraze.network.packet.PacketAuthResponse(false, "Authentication failed");
-						connection.sendPacket(response);
-						connection.disconnect();
-					} else {
-						// Authentication successful
-						System.out.println("Player " + authPacket.username + " authenticated successfully");
-						mc.sayda.mcraze.network.packet.PacketAuthResponse response =
-							new mc.sayda.mcraze.network.packet.PacketAuthResponse(true, "");
-						connection.sendPacket(response);
+						if (playerConnection == null) {
+							// Authentication failed (duplicate or wrong password)
+							System.err.println("Authentication failed for " + authPacket.username);
+							mc.sayda.mcraze.network.packet.PacketAuthResponse response =
+								new mc.sayda.mcraze.network.packet.PacketAuthResponse(false, "Authentication failed");
+							connection.sendPacket(response);
+							connection.disconnect();
+						} else {
+							// Authentication successful
+							System.out.println("Player " + authPacket.username + " authenticated successfully");
+							mc.sayda.mcraze.network.packet.PacketAuthResponse response =
+								new mc.sayda.mcraze.network.packet.PacketAuthResponse(true, "");
+							connection.sendPacket(response);
 
-						connectedPlayers.add(playerConnection);
-						System.out.println("Player " + authPacket.username + " joined (" + connectedPlayers.size() + " players online)");
+							connectedPlayers.add(playerConnection);
+							System.out.println("Player " + authPacket.username + " joined (" + connectedPlayers.size() + " players online)");
+						}
+					} catch (Exception e) {
+						System.err.println("Error adding player " + authPacket.username + ": " + e.getMessage());
+						e.printStackTrace();
+						try {
+							mc.sayda.mcraze.network.packet.PacketAuthResponse response =
+								new mc.sayda.mcraze.network.packet.PacketAuthResponse(false, "Server error: " + e.getMessage());
+							connection.sendPacket(response);
+							connection.disconnect();
+						} catch (Exception disconnectError) {
+							System.err.println("Failed to send error response: " + disconnectError.getMessage());
+						}
 					}
 
 				} catch (IOException e) {
@@ -260,6 +281,16 @@ public class DedicatedServer {
 			System.out.println("World saved successfully");
 		} else {
 			System.err.println("Failed to save world");
+		}
+
+		// Save chest data to ./world/chests.dat
+		java.util.Map<String, mc.sayda.mcraze.world.ChestData> chests =
+			tempServer.world != null ? tempServer.world.getAllChests() : new java.util.concurrent.ConcurrentHashMap<>();
+		boolean chestsSaved = mc.sayda.mcraze.world.WorldSaveManager.saveChestsToDirectory(worldDir, chests);
+		if (chestsSaved) {
+			System.out.println("Chests saved successfully (" + chests.size() + " chests)");
+		} else {
+			System.err.println("Failed to save chests");
 		}
 	}
 

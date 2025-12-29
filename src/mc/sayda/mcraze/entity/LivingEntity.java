@@ -36,8 +36,8 @@ public abstract class LivingEntity extends Entity {
 	protected float armLength = Constants.ARM_LENGTH;
 	protected float moveDirection = 0;
 	protected long ticksAlive = 0;
-	protected int ticksUnderwater = 0;
-	protected boolean jumping = false;
+	public int ticksUnderwater = 0;  // PUBLIC for network sync
+	public boolean jumping = false;  // PUBLIC for network sync
 
 	public LivingEntity(boolean gravityApplies, float x, float y, int width, int height) {
 		super(null, gravityApplies, x, y, width, height);

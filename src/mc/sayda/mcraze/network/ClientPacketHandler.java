@@ -32,6 +32,7 @@ public interface ClientPacketHandler {
     void handleAuthResponse(PacketAuthResponse packet);
     void handleBiomeData(PacketBiomeData packet);
     void handleBackdropChange(PacketBackdropChange packet);  // NEW: For backdrop sync
+    void handleBackdropBatch(PacketBackdropBatch packet);  // NEW: For batched backdrop sync
     void handleChestOpen(PacketChestOpen packet);  // NEW: For opening chest UI
     void handleGameruleUpdate(PacketGameruleUpdate packet);  // NEW: For syncing gamerule changes
 }

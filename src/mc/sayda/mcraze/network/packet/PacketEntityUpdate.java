@@ -35,8 +35,26 @@ public class PacketEntityUpdate extends ServerPacket {
 	public boolean[] facingRight;  // Entity facing direction
 	public boolean[] dead;  // Entity death state
 	public long[] ticksAlive;  // Entity animation timing
+	public int[] ticksUnderwater;  // Oxygen/drowning state (for LivingEntity)
 	public String[] itemIds;  // Item ID (for Item entities only, null for others)
 	public String[] playerNames;  // Player username (for Player entities only, null for others)
+
+	// Movement states (LivingEntity fields)
+	public boolean[] flying;
+	public boolean[] noclip;
+	public boolean[] sneaking;
+	public boolean[] climbing;
+	public boolean[] jumping;
+
+	// Command effects (LivingEntity)
+	public float[] speedMultiplier;
+
+	// Player-specific fields
+	public boolean[] backdropPlacementMode;
+
+	// Hand targeting (Player fields)
+	public int[] handTargetX;
+	public int[] handTargetY;
 
 	public PacketEntityUpdate() {}
 
@@ -64,10 +82,15 @@ public class PacketEntityUpdate extends ServerPacket {
 			totalSize += 4;  // entityHealth
 			totalSize += 2;  // 2 booleans (facingRight, dead)
 			totalSize += 8;  // ticksAlive (long)
+			totalSize += 4;  // ticksUnderwater (int)
 			String itemId = (itemIds[i] != null) ? itemIds[i] : "";
 			totalSize += 2 + itemId.getBytes(StandardCharsets.UTF_8).length;  // itemId
 			String playerName = (playerNames[i] != null) ? playerNames[i] : "";
 			totalSize += 2 + playerName.getBytes(StandardCharsets.UTF_8).length;  // playerName
+			totalSize += 5;  // 5 booleans (flying, noclip, sneaking, climbing, jumping)
+			totalSize += 4;  // 1 float (speedMultiplier)
+			totalSize += 1;  // 1 boolean (backdropPlacementMode)
+			totalSize += 8;  // 2 ints (handTargetX, handTargetY)
 		}
 
 		ByteBuffer buf = ByteBuffer.allocate(totalSize);
@@ -106,6 +129,9 @@ public class PacketEntityUpdate extends ServerPacket {
 			// Animation timing
 			buf.putLong(ticksAlive[i]);
 
+			// Oxygen state
+			buf.putInt(ticksUnderwater[i]);
+
 			// Item ID (nullable)
 			String itemId = (itemIds[i] != null) ? itemIds[i] : "";
 			byte[] itemIdBytes = itemId.getBytes(StandardCharsets.UTF_8);
@@ -117,6 +143,23 @@ public class PacketEntityUpdate extends ServerPacket {
 			byte[] playerNameBytes = playerName.getBytes(StandardCharsets.UTF_8);
 			buf.putShort((short) playerNameBytes.length);
 			buf.put(playerNameBytes);
+
+			// Movement states (LivingEntity)
+			buf.put((byte) (flying[i] ? 1 : 0));
+			buf.put((byte) (noclip[i] ? 1 : 0));
+			buf.put((byte) (sneaking[i] ? 1 : 0));
+			buf.put((byte) (climbing[i] ? 1 : 0));
+			buf.put((byte) (jumping[i] ? 1 : 0));
+
+			// Command effects
+			buf.putFloat(speedMultiplier[i]);
+
+			// Player-specific
+			buf.put((byte) (backdropPlacementMode[i] ? 1 : 0));
+
+			// Hand targeting
+			buf.putInt(handTargetX[i]);
+			buf.putInt(handTargetY[i]);
 		}
 
 		return buf.array();
@@ -138,8 +181,18 @@ public class PacketEntityUpdate extends ServerPacket {
 		packet.facingRight = new boolean[count];
 		packet.dead = new boolean[count];
 		packet.ticksAlive = new long[count];
+		packet.ticksUnderwater = new int[count];
 		packet.itemIds = new String[count];
 		packet.playerNames = new String[count];
+		packet.flying = new boolean[count];
+		packet.noclip = new boolean[count];
+		packet.sneaking = new boolean[count];
+		packet.climbing = new boolean[count];
+		packet.jumping = new boolean[count];
+		packet.speedMultiplier = new float[count];
+		packet.backdropPlacementMode = new boolean[count];
+		packet.handTargetX = new int[count];
+		packet.handTargetY = new int[count];
 
 		// Read each entity
 		for (int i = 0; i < count; i++) {
@@ -174,6 +227,9 @@ public class PacketEntityUpdate extends ServerPacket {
 			// Animation timing
 			packet.ticksAlive[i] = buf.getLong();
 
+			// Oxygen state
+			packet.ticksUnderwater[i] = buf.getInt();
+
 			// Item ID (nullable)
 			short itemIdLen = buf.getShort();
 			byte[] itemIdBytes = new byte[itemIdLen];
@@ -187,6 +243,23 @@ public class PacketEntityUpdate extends ServerPacket {
 			buf.get(playerNameBytes);
 			String playerName = new String(playerNameBytes, StandardCharsets.UTF_8);
 			packet.playerNames[i] = playerName.isEmpty() ? null : playerName;
+
+			// Movement states (LivingEntity)
+			packet.flying[i] = buf.get() == 1;
+			packet.noclip[i] = buf.get() == 1;
+			packet.sneaking[i] = buf.get() == 1;
+			packet.climbing[i] = buf.get() == 1;
+			packet.jumping[i] = buf.get() == 1;
+
+			// Command effects
+			packet.speedMultiplier[i] = buf.getFloat();
+
+			// Player-specific
+			packet.backdropPlacementMode[i] = buf.get() == 1;
+
+			// Hand targeting
+			packet.handTargetX[i] = buf.getInt();
+			packet.handTargetY[i] = buf.getInt();
 		}
 
 		return packet;

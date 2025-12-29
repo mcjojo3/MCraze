@@ -338,7 +338,7 @@ public class WorldGenerator {
 		}
 	}
 
-	public static TileID[][] generate(int width, int height, Random random, Biome[] biomeMap) {
+	public static TileID[][] generate(int width, int height, Random random, Biome[] biomeMap, World worldObj) {
 		TileID[][] world = new TileID[width][height];
 		visibility = new boolean[width][height];
 		backdrops = new TileID[width][height];  // Initialize backdrop tracking
@@ -686,7 +686,43 @@ public class WorldGenerator {
 							}
 						}
 
-						System.out.println("WorldGenerator: Placed dungeon at (" + dungeonX + ", " + dungeonY + ")");
+						// Populate dungeon chests with loot (chests are at template positions [1][4] and [5][4])
+						if (worldObj != null) {
+							int chest1X = dungeonX + 1;
+							int chest1Y = dungeonY + 4;
+							int chest2X = dungeonX + 5;
+							int chest2Y = dungeonY + 4;
+
+							// Generate loot for both chests using DUNGEON loot table
+							java.util.List<mc.sayda.mcraze.item.InventoryItem> loot1 = LootTable.DUNGEON.generate(random);
+							java.util.List<mc.sayda.mcraze.item.InventoryItem> loot2 = LootTable.DUNGEON.generate(random);
+
+							// Fill chest 1
+							ChestData chest1 = worldObj.getOrCreateChest(chest1X, chest1Y);
+							int slot = 0;
+							for (mc.sayda.mcraze.item.InventoryItem item : loot1) {
+								if (slot >= 27) break;  // 9x3 = 27 slots max
+								int slotX = slot % 9;
+								int slotY = slot / 9;
+								chest1.setInventoryItem(slotX, slotY, item);
+								slot++;
+							}
+
+							// Fill chest 2
+							ChestData chest2 = worldObj.getOrCreateChest(chest2X, chest2Y);
+							slot = 0;
+							for (mc.sayda.mcraze.item.InventoryItem item : loot2) {
+								if (slot >= 27) break;  // 9x3 = 27 slots max
+								int slotX = slot % 9;
+								int slotY = slot / 9;
+								chest2.setInventoryItem(slotX, slotY, item);
+								slot++;
+							}
+
+							System.out.println("WorldGenerator: Placed dungeon with loot at (" + dungeonX + ", " + dungeonY + ") - " + loot1.size() + " items in chest 1, " + loot2.size() + " items in chest 2");
+						} else {
+							System.out.println("WorldGenerator: Placed dungeon at (" + dungeonX + ", " + dungeonY + ")");
+						}
 						break;  // Successfully placed, move to next dungeon
 					}
 				}

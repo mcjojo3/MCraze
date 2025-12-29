@@ -80,6 +80,20 @@ public class ChestUI {
 	}
 
 	/**
+	 * Get chest items array (for rendering)
+	 */
+	public InventoryItem[][] getChestItems() {
+		return chestItems;
+	}
+
+	/**
+	 * Get player inventory reference
+	 */
+	public Inventory getPlayerInventory() {
+		return playerInventory;
+	}
+
+	/**
 	 * Update chest inventory items from packet
 	 */
 	public void updateChestItems(InventoryItem[][] items) {
@@ -161,8 +175,9 @@ public class ChestUI {
 	 * Convert mouse position to slot coordinates
 	 */
 	private Int2 mouseToSlot(int relX, int relY, int separation, int tileSize) {
+		// Simple division approach - no offset needed now that titles are removed
 		int slotX = relX / (separation + tileSize);
-		int slotY = (relY / (separation + tileSize)) - 1;
+		int slotY = relY / (separation + tileSize);
 
 		if (slotX < 0 || slotY < 0) {
 			return null;
@@ -171,110 +186,4 @@ public class ChestUI {
 		return new Int2(slotX, slotY);
 	}
 
-	/**
-	 * Draw the chest UI
-	 */
-	public void draw(GraphicsHandler g, int screenWidth, int screenHeight) {
-		if (!visible) {
-			return;
-		}
-
-		int tileSize = 16;
-		int separation = 15;
-
-		// Calculate chest panel dimensions (9 wide x 3 tall)
-		int chestPanelWidth = 9 * (tileSize + separation) + separation;
-		int chestPanelHeight = 3 * (tileSize + separation) + separation;
-
-		// Calculate player inventory panel dimensions (9 wide x 4 tall)
-		int playerPanelWidth = 9 * (tileSize + separation) + separation;
-		int playerPanelHeight = 4 * (tileSize + separation) + separation;
-
-		// Center chest panel at top, player panel below
-		int totalHeight = chestPanelHeight + playerPanelHeight + separation;
-		int chestXPos = screenWidth / 2 - chestPanelWidth / 2;
-		int chestYPos = screenHeight / 2 - totalHeight / 2;
-		int playerXPos = screenWidth / 2 - playerPanelWidth / 2;
-		int playerYPos = chestYPos + chestPanelHeight + separation;
-
-		// Draw chest panel background
-		g.setColor(new Color(100, 80, 60));  // Brown background for chest
-		g.fillRect(chestXPos, chestYPos, chestPanelWidth, chestPanelHeight);
-
-		// Draw chest title
-		g.setColor(Color.white);
-		g.drawString("Chest", chestXPos + 10, chestYPos + 5);
-
-		// Draw chest slots (9x3)
-		int x = chestXPos + separation;
-		int y = chestYPos + separation * 2;
-		for (int row = 0; row < 3; row++) {
-			for (int col = 0; col < 9; col++) {
-				// Draw slot background
-				g.setColor(Color.LIGHT_GRAY);
-				g.fillRect(x, y, tileSize, tileSize);
-
-				// Draw item in slot
-				if (chestItems[col][row] != null) {
-					chestItems[col][row].draw(g, x, y, tileSize);
-				}
-
-				x += tileSize + separation;
-			}
-			x = chestXPos + separation;
-			y += tileSize + separation;
-		}
-
-		// Draw player inventory panel background
-		g.setColor(Color.gray);
-		g.fillRect(playerXPos, playerYPos, playerPanelWidth, playerPanelHeight);
-
-		// Draw player inventory title
-		g.setColor(Color.white);
-		g.drawString("Inventory", playerXPos + 10, playerYPos + 5);
-
-		// Draw player inventory slots (9x4 - 3 rows + hotbar)
-		if (playerInventory != null && playerInventory.inventoryItems != null) {
-			x = playerXPos + separation;
-			y = playerYPos + separation * 2;
-
-			// Draw main inventory (3 rows)
-			for (int row = 0; row < 3; row++) {
-				for (int col = 0; col < 9; col++) {
-					g.setColor(Color.LIGHT_GRAY);
-					g.fillRect(x, y, tileSize, tileSize);
-
-					// Draw item (from player's main inventory)
-					if (col < playerInventory.inventoryItems.length &&
-					    row < playerInventory.inventoryItems[col].length - 1) {
-						playerInventory.inventoryItems[col][row].draw(g, x, y, tileSize);
-					}
-
-					x += tileSize + separation;
-				}
-				x = playerXPos + separation;
-				y += tileSize + separation;
-			}
-
-			// Draw hotbar (bottom row, highlighted)
-			int hotbarRow = playerInventory.inventoryItems[0].length - 1;
-			for (int col = 0; col < 9; col++) {
-				// Highlight selected hotbar slot
-				if (playerInventory.hotbarIdx == col) {
-					g.setColor(Color.blue);
-					g.fillRect(x - 2, y - 2, tileSize + 4, tileSize + 4);
-				}
-
-				g.setColor(Color.LIGHT_GRAY);
-				g.fillRect(x, y, tileSize, tileSize);
-
-				// Draw item from hotbar
-				if (col < playerInventory.inventoryItems.length) {
-					playerInventory.inventoryItems[col][hotbarRow].draw(g, x, y, tileSize);
-				}
-
-				x += tileSize + separation;
-			}
-		}
-	}
 }

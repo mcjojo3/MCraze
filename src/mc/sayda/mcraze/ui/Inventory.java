@@ -182,8 +182,10 @@ public class Inventory implements java.io.Serializable {
 
 	// relative x/y in px
 	private Int2 mouseToCoor(int x, int y, int seperation, int tileSize) {
+		// Simple division approach (original logic - the -1 is needed due to rendering offset)
 		clickPos.x = x / (seperation + tileSize);
-		clickPos.y = y / (seperation + tileSize) - 1;
+		clickPos.y = y / (seperation + tileSize) - 1;  // Keep -1 (compensates for rendering)
+
 		if (clickPos.x < 0
 				|| clickPos.y < 0
 				|| clickPos.x >= inventoryItems.length
@@ -193,89 +195,6 @@ public class Inventory implements java.io.Serializable {
 			return null;
 		}
 		return clickPos;
-	}
-	
-	public void draw(GraphicsHandler g, int screenWidth, int screenHeight) {
-		int tileSize = 16;
-		int seperation = 10;
-		
-		int panelWidth = inventoryItems.length * (tileSize + seperation) + seperation;
-		int panelHeight = tileSize + seperation * 2;
-		int x = screenWidth / 2 - panelWidth / 2;
-		int y = screenHeight - panelHeight - seperation;
-		
-		g.setColor(Color.gray);
-		g.fillRect(x, y, panelWidth, panelHeight);
-		
-		for (int j = 0; j < inventoryItems.length; j++) {
-			InventoryItem current = inventoryItems[j][playerRow];
-			if (hotbarIdx == j) {
-				g.setColor(Color.blue);
-				g.fillRect(x + seperation - 2, y + seperation - 2, tileSize + 4, tileSize + 4);
-			}
-			g.setColor(Color.LIGHT_GRAY);
-			g.fillRect(x + seperation, y + seperation, tileSize, tileSize);
-			// if(hotbarIdx == j)
-			// {
-			//
-			// if(current.item == null)
-			// }
-			// else
-			// {
-			// g.setColor(Color.LIGHT_GRAY);
-			// g.fillRect(x+seperation-2, y+seperation-2, tileSize+4, tileSize+4);
-			// }
-			
-			current.draw(g, x + seperation, y + seperation, tileSize);
-			x += tileSize + seperation;
-		}
-		if (!isVisible()) {
-			return;
-		}
-		
-		seperation = 15;
-		
-		panelWidth = inventoryItems.length * (tileSize + seperation) + seperation;
-		panelHeight = inventoryItems[0].length * (tileSize + seperation) + seperation;
-		x = screenWidth / 2 - panelWidth / 2;
-		y = screenHeight / 2 - panelHeight / 2;
-		
-		g.setColor(Color.gray);
-		g.fillRect(x, y, panelWidth, panelHeight);
-		
-		g.setColor(Color.DARK_GRAY);
-		g.fillRect(x + panelWidth - tableSizeAvailable * (tileSize + seperation) - seperation, y,
-				tableSizeAvailable * (tileSize + seperation) + seperation, tableSizeAvailable
-						* (tileSize + seperation) + seperation);
-		
-		for (int i = 0; i < inventoryItems[0].length; i++) {
-			x = screenWidth / 2 - panelWidth / 2;
-			for (int j = 0; j < inventoryItems.length; j++) {
-				if ((i < craftingHeight && j < inventoryItems.length - tableSizeAvailable)
-						|| (craftingHeight != tableSizeAvailable && i == tableSizeAvailable)) {
-					x += tileSize + seperation;
-					continue;
-				}
-				
-				g.setColor(Color.LIGHT_GRAY);
-				g.fillRect(x + seperation - 2, y + seperation - 2, tileSize + 4, tileSize + 4);
-				InventoryItem current = inventoryItems[j][i];
-				current.draw(g, x + seperation, y + seperation, tileSize);
-				x += tileSize + seperation;
-			}
-			y += tileSize + seperation;
-		}
-		
-		x = screenWidth / 2 - panelWidth / 2;
-		y = screenHeight / 2 - panelHeight / 2;
-		g.setColor(Color.orange);
-		x = x + (inventoryItems.length - tableSizeAvailable - 1) * (tileSize + seperation);
-		y = y + seperation * 2 + tileSize;
-		
-		g.fillRect(x - 5, y - 5, tileSize + 10, tileSize + 10);
-		
-		craftable.draw(g, x, y, tileSize);
-		holding.draw(g, holdingX - tileSize / 2, holdingY - tileSize / 2, tileSize);
 	}
 	
 	public void setVisible(boolean visible) {

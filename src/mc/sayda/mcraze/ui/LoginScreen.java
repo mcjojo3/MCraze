@@ -17,6 +17,7 @@ import mc.sayda.mcraze.Game;
 import mc.sayda.mcraze.GraphicsHandler;
 import mc.sayda.mcraze.Sprite;
 import mc.sayda.mcraze.SpriteStore;
+import mc.sayda.mcraze.util.CredentialManager;
 
 /**
  * Login screen - first screen shown when game starts
@@ -41,6 +42,7 @@ public class LoginScreen {
 	private TextInput usernameInput;
 	private TextInput passwordInput;
 	private Button loginButton;
+	private Checkbox rememberMeCheckbox;
 
 	// Error handling
 	private String errorMessage;
@@ -61,17 +63,28 @@ public class LoginScreen {
 		passwordInput.setPlaceholder("Password");
 		passwordInput.setPasswordMode(true);
 
+		// Create remember me checkbox
+		rememberMeCheckbox = new Checkbox(
+			"remember_me",
+			"Remember me",
+			200 + (INPUT_HEIGHT + INPUT_SPACING) * 2 + 10,
+			true
+		);
+
 		// Create login button
 		loginButton = new Button(
 			"login",
 			"Login",
-			200 + (INPUT_HEIGHT + INPUT_SPACING) * 2 + 20,
+			200 + (INPUT_HEIGHT + INPUT_SPACING) * 2 + 40,
 			BUTTON_WIDTH,
 			BUTTON_HEIGHT
 		).setOnClick(this::attemptLogin);
 
 		errorMessage = null;
 		errorStartTime = 0;
+
+		// Load saved credentials if available
+		loadSavedCredentials();
 	}
 
 	/**
@@ -94,6 +107,7 @@ public class LoginScreen {
 		int screenWidth = g.getScreenWidth();
 		usernameInput.updatePosition(screenWidth);
 		passwordInput.updatePosition(screenWidth);
+		rememberMeCheckbox.updatePosition(screenWidth);
 		loginButton.updatePosition(screenWidth);
 
 		// Draw labels
@@ -110,9 +124,13 @@ public class LoginScreen {
 		usernameInput.draw(g);
 		passwordInput.draw(g);
 
-		// Draw button
+		// Draw checkbox
 		int mouseX = game.getClient().screenMousePos.x;
 		int mouseY = game.getClient().screenMousePos.y;
+		rememberMeCheckbox.updateHover(mouseX, mouseY);
+		rememberMeCheckbox.draw(g);
+
+		// Draw button
 		loginButton.updateHover(mouseX, mouseY);
 		loginButton.draw(g);
 
@@ -137,6 +155,9 @@ public class LoginScreen {
 		usernameInput.handleClick(mouseX, mouseY);
 		passwordInput.handleClick(mouseX, mouseY);
 
+		// Handle checkbox click
+		rememberMeCheckbox.handleClick(mouseX, mouseY);
+
 		// Handle button click
 		loginButton.handleClick(mouseX, mouseY);
 	}
@@ -154,6 +175,27 @@ public class LoginScreen {
 		// Pass to input fields
 		usernameInput.handleKeyTyped(c);
 		passwordInput.handleKeyTyped(c);
+	}
+
+	/**
+	 * Handle key pressed (for arrow keys, delete, ctrl+c/v, etc.)
+	 */
+	public void handleKeyPressed(int keyCode, boolean shiftPressed, boolean ctrlPressed) {
+		// Handle TAB key to switch between inputs
+		if (keyCode == 9) {  // VK_TAB
+			if (usernameInput.isFocused()) {
+				usernameInput.setFocused(false);
+				passwordInput.setFocused(true);
+			} else {
+				usernameInput.setFocused(true);
+				passwordInput.setFocused(false);
+			}
+			return;
+		}
+
+		// Pass to input fields for cursor navigation and clipboard operations
+		usernameInput.handleKeyPressed(keyCode, shiftPressed, ctrlPressed);
+		passwordInput.handleKeyPressed(keyCode, shiftPressed, ctrlPressed);
 	}
 
 	/**
@@ -193,6 +235,14 @@ public class LoginScreen {
 			return;
 		}
 
+		// Save credentials if "Remember me" is checked
+		if (rememberMeCheckbox.isChecked()) {
+			CredentialManager.saveCredentials(username, password);
+		} else {
+			// Clear saved credentials if unchecked
+			CredentialManager.deleteCredentials();
+		}
+
 		// Login successful - store credentials and show main menu
 		game.setLoggedInUser(username, password);
 		game.showMainMenu();
@@ -207,5 +257,18 @@ public class LoginScreen {
 		this.errorMessage = message;
 		this.errorStartTime = System.currentTimeMillis();
 		System.err.println("Login error: " + message);
+	}
+
+	/**
+	 * Load saved credentials and auto-fill the form
+	 */
+	private void loadSavedCredentials() {
+		CredentialManager.SavedCredentials saved = CredentialManager.loadCredentials();
+		if (saved != null) {
+			usernameInput.setText(saved.username);
+			passwordInput.setText(saved.password);
+			rememberMeCheckbox.setChecked(true);
+			System.out.println("Auto-filled credentials for: " + saved.username);
+		}
 	}
 }

@@ -125,7 +125,7 @@ public class GameStateManager {
                 return to == GameState.MENU;
 
             case MENU:
-                return to == GameState.LOADING;
+                return to == GameState.LOADING || to == GameState.LOGIN;  // Allow logout
 
             case LOADING:
                 return to == GameState.IN_GAME || to == GameState.MENU;  // Can cancel loading

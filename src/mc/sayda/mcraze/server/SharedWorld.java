@@ -95,6 +95,17 @@ public class SharedWorld {
 		this.world = world;
 		this.worldAccess = new WorldAccess(world);
 
+		// Load chest data from disk
+		java.util.Map<String, mc.sayda.mcraze.world.ChestData> loadedChests =
+			mc.sayda.mcraze.world.WorldSaveManager.loadChests(worldName);
+		if (loadedChests != null && !loadedChests.isEmpty()) {
+			world.setChests(loadedChests);
+			System.out.println("SharedWorld: Loaded " + loadedChests.size() + " chests from disk");
+			if (logger != null) {
+				logger.info("SharedWorld: Loaded " + loadedChests.size() + " chests");
+			}
+		}
+
 		System.out.println("SharedWorld: Loaded existing world '" + worldName + "' (" + world.width + "x" + world.height + ")");
 		if (logger != null) {
 			logger.info("SharedWorld: Loaded existing world '" + worldName + "' - " + world.width + "x" + world.height);
@@ -196,6 +207,10 @@ public class SharedWorld {
 		Player playerEntity = playerConnection.getPlayer();
 		if (playerEntity != null) {
 			entityManager.remove(playerEntity);
+
+			// Clean up per-player breaking state (Fix memory leak)
+			playerBreakingState.remove(playerEntity);
+
 			System.out.println("SharedWorld: Removed player entity for " + playerConnection.getPlayerName());
 			if (logger != null) logger.info("SharedWorld: Removed player entity for " + playerConnection.getPlayerName());
 
@@ -372,18 +387,22 @@ public class SharedWorld {
 			int end = Math.min(i + chunkSize, backdropX.size());
 			int chunkNum = (i / chunkSize) + 1;
 
-			// Send each backdrop tile individually (PacketBackdropChange is designed for single tiles)
-			for (int j = i; j < end; j++) {
-				mc.sayda.mcraze.network.packet.PacketBackdropChange backdropPacket =
-					new mc.sayda.mcraze.network.packet.PacketBackdropChange(
-						backdropX.get(j),
-						backdropY.get(j),
-						Constants.TileID.values()[backdropTiles.get(j)]
-					);
-				playerConnection.getConnection().sendPacket(backdropPacket);
+			// Create batched packet (reduces 1000 packets to 1 packet)
+			mc.sayda.mcraze.network.packet.PacketBackdropBatch batchPacket =
+				new mc.sayda.mcraze.network.packet.PacketBackdropBatch();
+			batchPacket.x = new int[end - i];
+			batchPacket.y = new int[end - i];
+			batchPacket.backdropTileIds = new char[end - i];
+
+			for (int j = 0; j < end - i; j++) {
+				batchPacket.x[j] = backdropX.get(i + j);
+				batchPacket.y[j] = backdropY.get(i + j);
+				batchPacket.backdropTileIds[j] = backdropTiles.get(i + j);
 			}
 
-			if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Sent backdrop chunk " + chunkNum + "/" + backdropChunks + " (" + (end - i) + " backdrops)");
+			playerConnection.getConnection().sendPacket(batchPacket);
+
+			if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Sent backdrop batch " + chunkNum + "/" + backdropChunks + " (" + (end - i) + " backdrops)");
 		}
 
 		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: All backdrop data sent (" + backdropX.size() + " backdrops)");
@@ -426,8 +445,18 @@ public class SharedWorld {
 		packet.facingRight = new boolean[entityCount];
 		packet.dead = new boolean[entityCount];
 		packet.ticksAlive = new long[entityCount];
+		packet.ticksUnderwater = new int[entityCount];
 		packet.itemIds = new String[entityCount];
 		packet.playerNames = new String[entityCount];
+		packet.flying = new boolean[entityCount];
+		packet.noclip = new boolean[entityCount];
+		packet.sneaking = new boolean[entityCount];
+		packet.climbing = new boolean[entityCount];
+		packet.jumping = new boolean[entityCount];
+		packet.speedMultiplier = new float[entityCount];
+		packet.backdropPlacementMode = new boolean[entityCount];
+		packet.handTargetX = new int[entityCount];
+		packet.handTargetY = new int[entityCount];
 
 		for (int i = 0; i < entityCount; i++) {
 			Entity entity = allEntities.get(i);
@@ -459,11 +488,40 @@ public class SharedWorld {
 				packet.facingRight[i] = livingEntity.facingRight;
 				packet.dead[i] = livingEntity.dead;
 				packet.ticksAlive[i] = livingEntity.getTicksAlive();
+				packet.ticksUnderwater[i] = livingEntity.ticksUnderwater;
+				packet.flying[i] = livingEntity.flying;
+				packet.noclip[i] = livingEntity.noclip;
+				packet.sneaking[i] = livingEntity.sneaking;
+				packet.climbing[i] = livingEntity.climbing;
+				packet.jumping[i] = livingEntity.jumping;
+				packet.speedMultiplier[i] = livingEntity.speedMultiplier;
+
+				// Player-specific fields
+				if (entity instanceof Player) {
+					Player player = (Player) entity;
+					packet.backdropPlacementMode[i] = player.backdropPlacementMode;
+					packet.handTargetX[i] = player.handTargetPos.x;
+					packet.handTargetY[i] = player.handTargetPos.y;
+				} else {
+					packet.backdropPlacementMode[i] = false;
+					packet.handTargetX[i] = -1;
+					packet.handTargetY[i] = -1;
+				}
 			} else {
 				packet.entityHealth[i] = 0;
 				packet.facingRight[i] = true;
 				packet.dead[i] = false;
 				packet.ticksAlive[i] = 0;
+				packet.ticksUnderwater[i] = 0;
+				packet.flying[i] = false;
+				packet.noclip[i] = false;
+				packet.sneaking[i] = false;
+				packet.climbing[i] = false;
+				packet.jumping[i] = false;
+				packet.speedMultiplier[i] = 1.0f;
+				packet.backdropPlacementMode[i] = false;
+				packet.handTargetX[i] = -1;
+				packet.handTargetY[i] = -1;
 			}
 
 			if (logger != null && i == 0) {
@@ -508,7 +566,7 @@ public class SharedWorld {
 
 		// Update world
 		if (world != null) {
-			world.chunkUpdate(daylightCycle);
+			world.chunkUpdate(world.daylightCycle);
 		}
 
 		// Update all player entities
@@ -635,6 +693,14 @@ public class SharedWorld {
 				savePlayerData(pc);
 			}
 			if (logger != null) logger.info("SharedWorld: Auto-saved " + players.size() + " players");
+
+			// Auto-save chest data
+			if (worldName != null && world != null) {
+				mc.sayda.mcraze.world.WorldSaveManager.saveChests(worldName, world.getAllChests());
+				int chestCount = world.getAllChests().size();
+				System.out.println("SharedWorld: Auto-saved " + chestCount + " chests");
+				if (logger != null) logger.info("SharedWorld: Auto-saved " + chestCount + " chests");
+			}
 		}
 
 		// FARMING: Random tick crop growth every 100 ticks
@@ -722,8 +788,18 @@ public class SharedWorld {
 		packet.facingRight = new boolean[entityCount];
 		packet.dead = new boolean[entityCount];
 		packet.ticksAlive = new long[entityCount];
+		packet.ticksUnderwater = new int[entityCount];
 		packet.itemIds = new String[entityCount];
 		packet.playerNames = new String[entityCount];
+		packet.flying = new boolean[entityCount];
+		packet.noclip = new boolean[entityCount];
+		packet.sneaking = new boolean[entityCount];
+		packet.climbing = new boolean[entityCount];
+		packet.jumping = new boolean[entityCount];
+		packet.speedMultiplier = new float[entityCount];
+		packet.backdropPlacementMode = new boolean[entityCount];
+		packet.handTargetX = new int[entityCount];
+		packet.handTargetY = new int[entityCount];
 
 		for (int i = 0; i < entityCount; i++) {
 			Entity entity = allEntities.get(i);
@@ -755,11 +831,40 @@ public class SharedWorld {
 				packet.facingRight[i] = livingEntity.facingRight;
 				packet.dead[i] = livingEntity.dead;
 				packet.ticksAlive[i] = livingEntity.getTicksAlive();
+				packet.ticksUnderwater[i] = livingEntity.ticksUnderwater;
+				packet.flying[i] = livingEntity.flying;
+				packet.noclip[i] = livingEntity.noclip;
+				packet.sneaking[i] = livingEntity.sneaking;
+				packet.climbing[i] = livingEntity.climbing;
+				packet.jumping[i] = livingEntity.jumping;
+				packet.speedMultiplier[i] = livingEntity.speedMultiplier;
+
+				// Player-specific fields
+				if (entity instanceof Player) {
+					Player player = (Player) entity;
+					packet.backdropPlacementMode[i] = player.backdropPlacementMode;
+					packet.handTargetX[i] = player.handTargetPos.x;
+					packet.handTargetY[i] = player.handTargetPos.y;
+				} else {
+					packet.backdropPlacementMode[i] = false;
+					packet.handTargetX[i] = -1;
+					packet.handTargetY[i] = -1;
+				}
 			} else {
 				packet.entityHealth[i] = 0;
 				packet.facingRight[i] = true;
 				packet.dead[i] = false;
 				packet.ticksAlive[i] = 0;
+				packet.ticksUnderwater[i] = 0;
+				packet.flying[i] = false;
+				packet.noclip[i] = false;
+				packet.sneaking[i] = false;
+				packet.climbing[i] = false;
+				packet.jumping[i] = false;
+				packet.speedMultiplier[i] = 1.0f;
+				packet.backdropPlacementMode[i] = false;
+				packet.handTargetX[i] = -1;
+				packet.handTargetY[i] = -1;
 			}
 
 			// Log first entity details for first few broadcasts
@@ -1182,11 +1287,7 @@ public class SharedWorld {
 				tileId = Constants.TileID.values()[packet.newTileId];
 			}
 
-			if (tileId == null || tileId == Constants.TileID.AIR || tileId == Constants.TileID.NONE) {
-				return;  // Cannot place air or invalid tiles
-			}
-
-			// FARMING: Special handling for hoes and seeds
+			// FARMING: Special handling for hoes and seeds (processed BEFORE block validation)
 			// Get the item in the player's hand
 			Item selectedItem = player.inventory.selectedItem().getItem();
 			if (selectedItem != null && selectedItem.itemId != null) {
@@ -1242,6 +1343,11 @@ public class SharedWorld {
 						return;
 					}
 				}
+			}
+
+			// Block placing validation - check if tileId is valid for normal placement
+			if (tileId == null || tileId == Constants.TileID.AIR || tileId == Constants.TileID.NONE) {
+				return;  // Cannot place air or invalid tiles
 			}
 
 			// BACKDROP MODE: Place backdrop instead of foreground
