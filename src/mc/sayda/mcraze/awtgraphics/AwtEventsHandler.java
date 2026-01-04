@@ -63,6 +63,34 @@ public class AwtEventsHandler {
 	public void sendInputPacket() {
 		if (game.getClient() == null) return;
 
+		// CRITICAL FIX: Calculate WORLD coordinates from screen coordinates
+		// This fixes the bug where remote players could only interact at (0,0)
+		mc.sayda.mcraze.client.Client client = game.getClient();
+		mc.sayda.mcraze.entity.Player localPlayer = client.getLocalPlayer();
+
+		if (localPlayer == null) return;  // No player yet
+
+		// CRITICAL FIX: Check if connection is null before sending packet
+		// This fixes scroll being disabled after rejoining a world
+		if (client.connection == null) {
+			System.err.println("AwtEventsHandler.sendInputPacket: connection is null, cannot send input packet");
+			return;
+		}
+
+		// Get screen dimensions and effective tile size
+		int effectiveTileSize = client.getEffectiveTileSize();
+		mc.sayda.mcraze.GraphicsHandler g = mc.sayda.mcraze.GraphicsHandler.get();
+		int screenWidth = g.getScreenWidth();
+		int screenHeight = g.getScreenHeight();
+
+		// Calculate camera position (same as Client.java:222-223)
+		float cameraX = localPlayer.x - screenWidth / effectiveTileSize / 2f;
+		float cameraY = localPlayer.y - screenHeight / effectiveTileSize / 2f;
+
+		// Convert screen coordinates to world coordinates (same as Client.java:224-225)
+		float worldMouseX = (cameraX * effectiveTileSize + client.screenMousePos.x) / effectiveTileSize;
+		float worldMouseY = (cameraY * effectiveTileSize + client.screenMousePos.y) / effectiveTileSize - 0.5f;
+
 		// Use desired hotbar slot instead of reading from player
 		// Server will apply and broadcast the change
 		mc.sayda.mcraze.network.packet.PacketPlayerInput packet = new mc.sayda.mcraze.network.packet.PacketPlayerInput(
@@ -72,12 +100,12 @@ public class AwtEventsHandler {
 			sneak,
 			game.getClient().leftClick,
 			game.getClient().rightClick,
-			game.getClient().screenMousePos.x,
-			game.getClient().screenMousePos.y,
+			worldMouseX,  // WORLD coordinates, not screen coordinates!
+			worldMouseY,  // WORLD coordinates, not screen coordinates!
 			desiredHotbarSlot
 		);
 
-		game.getClient().connection.sendPacket(packet);
+		client.connection.sendPacket(packet);
 	}
 	
 	private class MouseWheelInputHander implements MouseWheelListener {
@@ -92,6 +120,13 @@ public class AwtEventsHandler {
 					game.getClient().screenMousePos.y,
 					scroll
 				);
+			} else if (game.getClient() != null && game.getClient().chat != null && game.getClient().chat.isOpen()) {
+				// If chat is open, scroll chat history (inverted for natural feel)
+				if (scroll > 0) {
+					game.getClient().chat.scrollDown();  // Scroll wheel down = newer messages
+				} else if (scroll < 0) {
+					game.getClient().chat.scrollUp();    // Scroll wheel up = older messages
+				}
 			} else {
 				// Update desired hotbar slot and send immediately
 				desiredHotbarSlot = Math.max(0, Math.min(9, desiredHotbarSlot + scroll));
@@ -220,7 +255,13 @@ public class AwtEventsHandler {
 				// Priority 5: Close inventory if open
 				mc.sayda.mcraze.entity.Player player = getLocalPlayer();
 				if (player != null && player.inventory.isVisible()) {
-					player.inventory.setVisible(false);
+					// CRITICAL FIX: Use server-authoritative packet instead of direct modification
+				mc.sayda.mcraze.network.packet.PacketInteract packet =
+					new mc.sayda.mcraze.network.packet.PacketInteract(
+						0, 0,
+						mc.sayda.mcraze.network.packet.PacketInteract.InteractionType.TOGGLE_INVENTORY
+					);
+				game.getClient().connection.sendPacket(packet);
 					escUsedToCloseMenu = true;  // Mark that ESC closed a menu
 					e.consume();
 					return;
@@ -239,13 +280,47 @@ public class AwtEventsHandler {
 
 			// Handle chat input
 			if (game.getClient().chat.isOpen()) {
+				boolean ctrlDown = e.isControlDown();
+
+				// Handle Ctrl combinations first
+				if (ctrlDown) {
+					if (e.getKeyCode() == KeyEvent.VK_A) {
+						game.getClient().chat.selectAll();
+						e.consume();
+						return;
+					} else if (e.getKeyCode() == KeyEvent.VK_C) {
+						game.getClient().chat.copyToClipboard();
+						e.consume();
+						return;
+					} else if (e.getKeyCode() == KeyEvent.VK_V) {
+						game.getClient().chat.pasteFromClipboard();
+						e.consume();
+						return;
+					}
+				}
+
+				// Handle regular keys
 				if (e.getKeyCode() == KeyEvent.VK_ENTER) {
 					game.submitChat();
 				} else if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
 					game.getClient().chat.backspace();
+				} else if (e.getKeyCode() == KeyEvent.VK_DELETE) {
+					game.getClient().chat.delete();
 				} else if (e.getKeyCode() == KeyEvent.VK_TAB) {
 					game.getClient().chat.tabComplete();
 					e.consume();  // Prevent tab from changing focus
+				} else if (e.getKeyCode() == KeyEvent.VK_LEFT) {
+					game.getClient().chat.moveCursorLeft(e.isShiftDown());
+					e.consume();
+				} else if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
+					game.getClient().chat.moveCursorRight(e.isShiftDown());
+					e.consume();
+				} else if (e.getKeyCode() == KeyEvent.VK_HOME) {
+					game.getClient().chat.moveCursorHome(e.isShiftDown());
+					e.consume();
+				} else if (e.getKeyCode() == KeyEvent.VK_END) {
+					game.getClient().chat.moveCursorEnd(e.isShiftDown());
+					e.consume();
 				} else if (e.getKeyCode() == KeyEvent.VK_UP) {
 					game.getClient().chat.historyUp();
 					e.consume();  // Prevent default behavior
@@ -421,9 +496,19 @@ public class AwtEventsHandler {
 				sendInputPacket();
 				break;
 			case 'e':
-				// Don't toggle inventory if chest is open
-				if (!game.getClient().isChestUIOpen()) {
-					player.inventory.setVisible(!player.inventory.isVisible());
+				// E key: Toggle inventory or close chest if open
+				if (game.getClient().isChestUIOpen()) {
+					// Close chest UI if open (client-side UI)
+					game.getClient().closeChestUI();
+				} else {
+					// CRITICAL FIX: Send packet to server to toggle inventory (server-authoritative)
+					// This prevents desync where server overwrites client's visibility state
+					mc.sayda.mcraze.network.packet.PacketInteract packet =
+						new mc.sayda.mcraze.network.packet.PacketInteract(
+							0, 0,
+							mc.sayda.mcraze.network.packet.PacketInteract.InteractionType.TOGGLE_INVENTORY
+						);
+					game.getClient().connection.sendPacket(packet);
 				}
 				break;
 			case '=':
@@ -435,7 +520,6 @@ public class AwtEventsHandler {
 				// TODO: Implement pause
 				break;
 			case 'm':
-                // TODO: Input does not appear to be an Ogg bitstream.
 				game.getClient().musicPlayer.toggleSound();
 				break;
 			case 'b':

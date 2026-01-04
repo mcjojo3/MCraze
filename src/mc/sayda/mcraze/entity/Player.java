@@ -32,7 +32,10 @@ public class Player extends LivingEntity {
 	public float handEndX;
 	public float handEndY;
 
-	// Backdrop placement mode (server-authoritative)
+    public boolean debugMode = false;
+	public boolean godmode = false;  // Invincibility mode (no damage taken)
+
+    // Backdrop placement mode (server-authoritative)
 	public boolean backdropPlacementMode = false;
 	
 	private Sprite leftFootSprite;
@@ -61,6 +64,19 @@ public class Player extends LivingEntity {
 	public void scrollHotbar(int scrollAmount) {
 		inventory.hotbarIdx += scrollAmount;
 		inventory.hotbarIdx = Math.max(0, Math.min(9, inventory.hotbarIdx));
+	}
+
+	/**
+	 * Override takeDamage to implement godmode (invincibility).
+	 */
+	@Override
+	public void takeDamage(int amount) {
+		// Godmode prevents all damage
+		if (godmode) {
+			return;  // No damage taken
+		}
+		// Normal damage handling
+		super.takeDamage(amount);
 	}
 
 	/**
@@ -245,6 +261,23 @@ public class Player extends LivingEntity {
 						sprite.draw(g, pos.x, pos.y, widthPX, heightPX);
 					} else {
 						sprite.draw(g, pos.x + widthPX, pos.y, -widthPX, heightPX);
+					}
+				}
+			}
+
+			// CRITICAL FIX: Draw held item for all players (local and remote)
+			// Render the selected inventory item in the player's hand
+			if (inventory != null) {
+				InventoryItem selectedItem = inventory.selectedItem();
+				if (selectedItem != null && !selectedItem.isEmpty()) {
+					Item heldItem = selectedItem.getItem();
+					if (heldItem != null && heldItem.sprite != null) {
+						// Position held item near player's hand
+						int itemSize = tileSize / 2;  // Half tile size for held items
+						int handOffsetX = facingRight ? widthPX / 2 : -itemSize;
+						int handOffsetY = heightPX / 4;  // Near center of player
+
+						heldItem.sprite.draw(g, pos.x + handOffsetX, pos.y + handOffsetY, itemSize, itemSize);
 					}
 				}
 			}

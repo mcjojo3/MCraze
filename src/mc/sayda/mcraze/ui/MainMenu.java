@@ -392,9 +392,10 @@ public class MainMenu {
 
 		int startY = 200;
 
-		// Create IP input field
+		// Create IP input field and load last used IP
 		ipInput = new TextInput("ip_input", startY, BUTTON_WIDTH, BUTTON_HEIGHT, 32);
-		ipInput.setText("localhost:25565");  // Default
+		String lastIP = mc.sayda.mcraze.util.CredentialManager.loadLastIP();
+		ipInput.setText(lastIP != null ? lastIP : "localhost:25565");  // Use last IP or default
 
 		// Connect button
 		Button connectBtn = new Button(
@@ -551,6 +552,10 @@ public class MainMenu {
 			}
 
 			System.out.println("Connecting to " + host + ":" + port);
+
+			// Save the IP address for next time
+			mc.sayda.mcraze.util.CredentialManager.saveLastIP(address);
+
 			game.connectMultiplayer(host, port);
 		} catch (NumberFormatException e) {
 			System.err.println("Invalid port number: " + e.getMessage());
@@ -580,7 +585,7 @@ public class MainMenu {
 		g.setColor(mc.sayda.mcraze.Color.white);
 		String menuTitle = getMenuTitle();
 		if (menuTitle != null) {
-			int titleX = g.getScreenWidth() / 2 - (menuTitle.length() * 7) / 2;
+			int titleX = g.getScreenWidth() / 2 - g.getStringWidth(menuTitle) / 2;
 			g.drawString(menuTitle, titleX, 150);
 		}
 
@@ -603,7 +608,7 @@ public class MainMenu {
 			// Draw label above input
 			g.setColor(mc.sayda.mcraze.Color.white);
 			String label = "World Name:";
-			int labelX = screenWidth / 2 - (label.length() * 7) / 2;
+			int labelX = screenWidth / 2 - g.getStringWidth(label) / 2;
 			worldNameInput.updatePosition(screenWidth);
 			g.drawString(label, labelX, worldNameInput.getY() - 20);
 		}

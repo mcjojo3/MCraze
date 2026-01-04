@@ -42,6 +42,14 @@ public class PlayerData implements Serializable {
 	public int[] inventoryToolUses;        // Tool durability
 	public int inventoryHotbarIdx;         // Selected hotbar slot
 
+	// Crafting grid size (2 = normal, 3 = workbench)
+	public int tableSizeAvailable = 2;
+
+	// Cursor item (item being held by mouse)
+	public String holdingItemId;           // Item ID of held item (null if empty)
+	public int holdingItemCount;           // Stack count
+	public int holdingToolUses;            // Tool durability (0 if not a tool)
+
 	// Metadata
 	public long firstJoinTime;
 	public long lastPlayTime;

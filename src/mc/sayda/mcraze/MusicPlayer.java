@@ -34,11 +34,14 @@ public class MusicPlayer {
 
 	// Playlist support - separate playlists for different contexts
 	private List<String> menuPlaylist;
-	private List<String> gamePlaylist;
+	private List<String> dayPlaylist;
+    private List<String> nightPlaylist;
+    private List<String> cavePlaylist;
+    private List<String> musicPlaylist;
 	private List<String> currentPlaylist;  // Active playlist
 	private int currentTrackIndex = -1;
 	private Random random;
-	private String currentContext = "menu";  // Current music context (menu/game)
+	private String currentContext = "menu";  // Current music context (menu/cave)
 
 	// Selected mixer for audio playback (avoids PortMixer)
 	private Mixer.Info selectedMixerInfo = null;
@@ -46,9 +49,12 @@ public class MusicPlayer {
 	public MusicPlayer(String filename) {
 		this.random = new Random();
 
-		// Load separate playlists for menu and game music
+		// Load separate playlists
 		this.menuPlaylist = loadPlaylistFromFolder("sounds/menu");
-		this.gamePlaylist = loadPlaylistFromFolder("sounds/game");
+		this.dayPlaylist = loadPlaylistFromFolder("sounds/day");
+        this.nightPlaylist = loadPlaylistFromFolder("sounds/night");
+        this.cavePlaylist = loadPlaylistFromFolder("sounds/cave");
+        this.musicPlaylist = loadPlaylistFromFolder("sounds/music");
 
 		// Start with menu playlist
 		this.currentPlaylist = menuPlaylist;
@@ -118,7 +124,7 @@ public class MusicPlayer {
 
 	/**
 	 * Load playlist from a specific folder
-	 * @param folderPath Path relative to src/ (e.g., "sounds/menu" or "sounds/game")
+	 * @param folderPath Path relative to src/
 	 */
 	private List<String> loadPlaylistFromFolder(String folderPath) {
 		List<String> tracks = new ArrayList<>();
@@ -235,21 +241,17 @@ public class MusicPlayer {
 			// Open and prepare clip
 			currentClip.open(audioStream);
 
-			// Loop continuously (no need to set loop points explicitly)
-			currentClip.loop(Clip.LOOP_CONTINUOUSLY);
+            currentClip.start(); // play once
 
-			// Add listener for track end (in case loop fails)
-			currentClip.addLineListener(new LineListener() {
-				@Override
-				public void update(LineEvent event) {
-					if (event.getType() == LineEvent.Type.STOP) {
-						// Track stopped - play next
-						nextTrack();
-					}
-				}
-			});
+            // Add listener for track natural end
+            currentClip.addLineListener(event -> {
+                if (event.getType() == LineEvent.Type.STOP &&
+                        currentClip.getMicrosecondPosition() >= currentClip.getMicrosecondLength() - 1_000) {
+                    nextTrack();
+                }
+            });
 
-			// Apply current volume and muted state
+            // Apply current volume and muted state
 			updateVolume();
 
 			System.out.println("Loaded track: " + trackURL);
@@ -415,9 +417,9 @@ public class MusicPlayer {
 	}
 
 	/**
-	 * Switch music context (menu/game)
+	 * Switch music context
 	 * This will change the active playlist and start playing from the new playlist
-	 * @param context "menu" for main menu music, "game" for in-game music
+	 * @param context "menu" for main menu music, "day", "night", "cave" for in-game music
 	 */
 	public void switchContext(String context) {
 		if (context.equals(currentContext)) {
@@ -431,8 +433,14 @@ public class MusicPlayer {
 		// Switch to appropriate playlist
 		if (context.equals("menu")) {
 			currentPlaylist = menuPlaylist;
-		} else if (context.equals("game")) {
-			currentPlaylist = gamePlaylist;
+		} else if (context.equals("day")) {
+			currentPlaylist = dayPlaylist;
+        } else if (context.equals("night")) {
+            currentPlaylist = nightPlaylist;
+        } else if (context.equals("cave")) {
+            currentPlaylist = cavePlaylist;
+        } else if (context.equals("music")) {
+            currentPlaylist = musicPlaylist;
 		} else {
 			System.err.println("Unknown music context: " + context);
 			return;

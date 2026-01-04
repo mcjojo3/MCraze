@@ -212,8 +212,8 @@ public class Button {
 		// Draw text centered
 		if (text != null) {
 			g.setColor(textColor);
-			// More accurate text width calculation (assuming 8px per char with slight adjustment)
-			int textWidth = text.length() * 7;  // Slightly tighter spacing for better centering
+			// Use actual font metrics for accurate centering
+			int textWidth = g.getStringWidth(text);
 			int textX = x + (width - textWidth) / 2;
 			int textY = y + (height / 2) + 2;  // Adjust vertical centering
 			g.drawString(text, textX, textY);

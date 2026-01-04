@@ -56,6 +56,12 @@ public class PacketEntityUpdate extends ServerPacket {
 	public int[] handTargetX;
 	public int[] handTargetY;
 
+	// Held item synchronization (Player fields) - FIX for invisible held items
+	public int[] hotbarIndex;              // Selected hotbar slot (0-8)
+	public String[] selectedItemId;        // Item ID of held item (null if empty)
+	public int[] selectedItemCount;        // Stack count
+	public int[] selectedItemDurability;   // Tool uses (0 if not a tool)
+
 	public PacketEntityUpdate() {}
 
 	@Override
@@ -91,6 +97,10 @@ public class PacketEntityUpdate extends ServerPacket {
 			totalSize += 4;  // 1 float (speedMultiplier)
 			totalSize += 1;  // 1 boolean (backdropPlacementMode)
 			totalSize += 8;  // 2 ints (handTargetX, handTargetY)
+			totalSize += 4;  // 1 int (hotbarIndex)
+			String selectedItem = (selectedItemId[i] != null) ? selectedItemId[i] : "";
+			totalSize += 2 + selectedItem.getBytes(StandardCharsets.UTF_8).length;  // selectedItemId
+			totalSize += 8;  // 2 ints (selectedItemCount, selectedItemDurability)
 		}
 
 		ByteBuffer buf = ByteBuffer.allocate(totalSize);
@@ -160,6 +170,15 @@ public class PacketEntityUpdate extends ServerPacket {
 			// Hand targeting
 			buf.putInt(handTargetX[i]);
 			buf.putInt(handTargetY[i]);
+
+			// Held item synchronization (FIX for invisible held items)
+			buf.putInt(hotbarIndex[i]);
+			String selectedItem = (selectedItemId[i] != null) ? selectedItemId[i] : "";
+			byte[] selectedItemBytes = selectedItem.getBytes(StandardCharsets.UTF_8);
+			buf.putShort((short) selectedItemBytes.length);
+			buf.put(selectedItemBytes);
+			buf.putInt(selectedItemCount[i]);
+			buf.putInt(selectedItemDurability[i]);
 		}
 
 		return buf.array();
@@ -193,6 +212,10 @@ public class PacketEntityUpdate extends ServerPacket {
 		packet.backdropPlacementMode = new boolean[count];
 		packet.handTargetX = new int[count];
 		packet.handTargetY = new int[count];
+		packet.hotbarIndex = new int[count];
+		packet.selectedItemId = new String[count];
+		packet.selectedItemCount = new int[count];
+		packet.selectedItemDurability = new int[count];
 
 		// Read each entity
 		for (int i = 0; i < count; i++) {
@@ -260,6 +283,16 @@ public class PacketEntityUpdate extends ServerPacket {
 			// Hand targeting
 			packet.handTargetX[i] = buf.getInt();
 			packet.handTargetY[i] = buf.getInt();
+
+			// Held item synchronization (FIX for invisible held items)
+			packet.hotbarIndex[i] = buf.getInt();
+			short selectedItemLen = buf.getShort();
+			byte[] selectedItemBytes = new byte[selectedItemLen];
+			buf.get(selectedItemBytes);
+			String selectedItem = new String(selectedItemBytes, StandardCharsets.UTF_8);
+			packet.selectedItemId[i] = selectedItem.isEmpty() ? null : selectedItem;
+			packet.selectedItemCount[i] = buf.getInt();
+			packet.selectedItemDurability[i] = buf.getInt();
 		}
 
 		return packet;

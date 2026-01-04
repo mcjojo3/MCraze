@@ -146,9 +146,10 @@ public class Tooltip implements UIComponent {
 		// Only show if delay elapsed
 		if (delayElapsed && !lines.isEmpty()) {
 			this.visible = true;
-			// Position tooltip offset from mouse (avoid cursor covering it)
-			this.x = mouseX + 10;
-			this.y = mouseY + 10;
+			// CRITICAL FIX: Position tooltip to the right and further below mouse
+			// This prevents it from obscuring the slot and appearing "half a slot above"
+			this.x = mouseX + 15;
+			this.y = mouseY + 35;  // Increased offset to appear well below cursor without obscuring items
 		}
 
 		return this;
@@ -212,6 +213,16 @@ public class Tooltip implements UIComponent {
 			return;
 		}
 
+		// Calculate actual max width using font metrics
+		int maxWidth = 0;
+		for (String line : lines) {
+			int lineWidth = g.getStringWidth(line);
+			if (lineWidth > maxWidth) {
+				maxWidth = lineWidth;
+			}
+		}
+		width = maxWidth + (PADDING * 2);
+
 		// Draw background
 		if (backgroundSprite != null && ninePatch != null) {
 			ninePatch.draw(g, x, y, width, height);
@@ -243,8 +254,8 @@ public class Tooltip implements UIComponent {
 	public void onMouseMove(int mouseX, int mouseY) {
 		// Update position to follow mouse
 		if (visible) {
-			this.x = mouseX + 10;
-			this.y = mouseY + 10;
+			this.x = mouseX + 15;
+			this.y = mouseY + 20;  // Match show() method offset
 		}
 	}
 

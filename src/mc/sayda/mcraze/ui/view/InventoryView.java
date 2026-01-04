@@ -226,6 +226,11 @@ public class InventoryView {
 	 * @param mouseY Mouse Y position
 	 */
 	public void updateTooltip(int mouseX, int mouseY) {
+		// DEFENSIVE FIX: Ensure tooltip is initialized (prevent NPE)
+		if (tooltip == null) {
+			tooltip = new Tooltip();
+		}
+
 		lastMouseX = mouseX;
 		lastMouseY = mouseY;
 
@@ -235,26 +240,43 @@ public class InventoryView {
 		if (hoveredItem != null && !hoveredItem.isEmpty()) {
 			// Build tooltip text
 			tooltip.clearLines();
-			tooltip.addLine(hoveredItem.getItem().name);
 
-			// Add count if > 1
-			if (hoveredItem.getCount() > 1) {
-				tooltip.addLine("Count: " + hoveredItem.getCount());
-			}
+			// DEFENSIVE FIX: Check item is not null
+			if (hoveredItem.getItem() != null && hoveredItem.getItem().name != null) {
+				tooltip.addLine(hoveredItem.getItem().name);
 
-			// Add durability for tools
-			if (hoveredItem.getItem() instanceof Tool) {
-				Tool tool = (Tool) hoveredItem.getItem();
-				if (tool.uses > 0) {
-					int remaining = tool.totalUses - tool.uses;
-					tooltip.addLine("Durability: " + remaining + "/" + tool.totalUses);
+				// Add count if > 1
+				if (hoveredItem.getCount() > 1) {
+					tooltip.addLine("Count: " + hoveredItem.getCount());
 				}
-			}
 
-			tooltip.show(mouseX, mouseY);
+				// Add durability for tools
+				if (hoveredItem.getItem() instanceof Tool) {
+					Tool tool = (Tool) hoveredItem.getItem();
+					if (tool.uses > 0) {
+						int remaining = tool.totalUses - tool.uses;
+						tooltip.addLine("Durability: " + remaining + "/" + tool.totalUses);
+					}
+				}
+
+				tooltip.show(mouseX, mouseY);
+			} else {
+				tooltip.hide();
+			}
 		} else {
 			tooltip.hide();
 		}
+	}
+
+	/**
+	 * Reset tooltip state (call when inventory closes or on errors).
+	 */
+	public void resetTooltip() {
+		if (tooltip != null) {
+			tooltip.hide();
+		}
+		lastMouseX = -1;
+		lastMouseY = -1;
 	}
 
 	/**
@@ -338,11 +360,13 @@ public class InventoryView {
 		for (int j = 0; j < inventory.inventoryItems.length; j++) {
 			InventoryItem current = inventory.inventoryItems[j][playerRow];
 
-			// Highlight selected slot
+			// Draw slot border (blue for selected, dark gray for unselected)
 			if (inventory.hotbarIdx == j) {
 				g.setColor(Color.blue);
-				g.fillRect(x + separation - 2, y + separation - 2, tileSize + 4, tileSize + 4);
+			} else {
+				g.setColor(Color.DARK_GRAY);
 			}
+			g.fillRect(x + separation - 2, y + separation - 2, tileSize + 4, tileSize + 4);
 
 			// Draw slot background
 			g.setColor(Color.LIGHT_GRAY);
@@ -453,5 +477,13 @@ public class InventoryView {
 	 */
 	public void invalidateLayout() {
 		layoutDirty = true;
+	}
+
+	/**
+	 * Get the inventory this view is rendering.
+	 * Used to detect when player changes (after rejoin) and view needs recreation.
+	 */
+	public Inventory getInventory() {
+		return inventory;
 	}
 }

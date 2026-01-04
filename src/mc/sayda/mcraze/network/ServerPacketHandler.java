@@ -30,4 +30,6 @@ public interface ServerPacketHandler {
     void handleRespawn(PacketRespawn packet);    // NEW: For player respawning
     void handleToggleBackdropMode(PacketToggleBackdropMode packet);  // NEW: For backdrop mode toggle
     void handleChestAction(PacketChestAction packet);  // NEW: For chest inventory actions
+    void handleEntityAttack(PacketEntityAttack packet);  // NEW: For entity attacks (combat)
+    void handlePing(PacketPing packet);  // NEW: For latency measurement
 }

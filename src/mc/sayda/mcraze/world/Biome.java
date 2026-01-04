@@ -19,7 +19,7 @@ public enum Biome {
 	PLAINS("Plains", 0.5f, 0.5f),      // Temperate, moderate humidity
 	FOREST("Forest", 0.6f, 0.7f),      // Warm, high humidity
 	DESERT("Desert", 0.9f, 0.1f),      // Hot, dry
-    MOUNTAIN("Mountain", 0.2f, 0.1f),  // Cold, frosty
+    MOUNTAIN("Mountain", 0.2f, 0.3f),  // Cold, moderately dry
     OCEAN("Ocean", 0.5f, 1.0f);        // Temperate, very wet
 
 	private final String displayName;

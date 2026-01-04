@@ -66,6 +66,7 @@ public class PacketInteract extends ClientPacket {
     public enum InteractionType {
         OPEN_CRAFTING,    // Open 3x3 crafting table
         OPEN_CHEST,       // Open chest inventory (future)
-        OPEN_FURNACE      // Open furnace UI (future)
+        OPEN_FURNACE,     // Open furnace UI (future)
+        TOGGLE_INVENTORY  // Toggle inventory open/closed (E key)
     }
 }

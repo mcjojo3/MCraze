@@ -175,9 +175,11 @@ public class ChestUI {
 	 * Convert mouse position to slot coordinates
 	 */
 	private Int2 mouseToSlot(int relX, int relY, int separation, int tileSize) {
-		// Simple division approach - no offset needed now that titles are removed
-		int slotX = relX / (separation + tileSize);
-		int slotY = relY / (separation + tileSize);
+		// CRITICAL FIX: Account for initial separation offset before first slot
+		// Rendering starts at (x + separation, y + separation), so we must subtract
+		// the initial offset before dividing to get correct slot coordinates
+		int slotX = (relX - separation) / (separation + tileSize);
+		int slotY = (relY - separation) / (separation + tileSize);
 
 		if (slotX < 0 || slotY < 0) {
 			return null;

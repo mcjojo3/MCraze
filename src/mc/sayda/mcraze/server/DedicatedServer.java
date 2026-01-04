@@ -80,13 +80,13 @@ public class DedicatedServer {
 		// Create shared world (either with loaded world or generate new)
 		String worldName = "ServerWorld";  // Dedicated server uses fixed world name
 		if (loadedWorld != null) {
-			sharedWorld = new SharedWorld(loadedWorld, new Random(), worldName);
+			sharedWorld = new SharedWorld(loadedWorld, new Random(), worldName, worldDir);
 		} else {
-			sharedWorld = new SharedWorld(worldWidth, new Random(), worldName);
+			sharedWorld = new SharedWorld(worldWidth, new Random(), worldName, worldDir);
 			// Save the newly generated world
 			saveWorld();
 		}
-		System.out.println("Shared world initialized");
+		System.out.println("Shared world initialized (playerdata will be saved to ./world/playerdata/)");
 
 		// Set up CommandHandler for dedicated server
 		// Create minimal Server object with world reference for commands
@@ -219,9 +219,10 @@ public class DedicatedServer {
 				}
 			}
 
-			// Sleep for 1 second between checks (no need to check every tick)
+			// CRITICAL FIX: Check every 100ms for faster player cleanup (was 1 second)
+			// This prevents ghost players from being visible after disconnect
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(100);
 			} catch (InterruptedException e) {
 				System.err.println("Maintenance loop interrupted");
 				break;

@@ -157,7 +157,7 @@ public class WorldSaveManager {
 			// Save metadata to temp file
 			WorldMetadata metadata = new WorldMetadata(
 				worldName,
-				0,  // TODO: Store seed in World class
+				server.world.getSeed(),  // CRITICAL FIX: Save actual world seed instead of 0
 				server.world.width,
 				server.world.height
 			);
@@ -258,8 +258,15 @@ public class WorldSaveManager {
 		WorldMetadata metadata = gson.fromJson(json, WorldMetadata.class);
 
 		// Load world data
-		return loadWorldData(worldPath.resolve(worldDataName).toFile(),
+		World world = loadWorldData(worldPath.resolve(worldDataName).toFile(),
 			metadata.worldWidth, metadata.worldHeight);
+
+		// CRITICAL FIX: Restore world seed from metadata
+		if (world != null) {
+			world.setSeed(metadata.seed);
+		}
+
+		return world;
 	}
 
 	public static boolean loadWorld(String worldName, Server server) {
@@ -310,6 +317,11 @@ public class WorldSaveManager {
 		// Load world data
 		server.world = loadWorldData(worldPath.resolve(worldDataName).toFile(),
 			metadata.worldWidth, metadata.worldHeight);
+
+		// CRITICAL FIX: Restore world seed from metadata
+		if (server.world != null) {
+			server.world.setSeed(metadata.seed);
+		}
 
 		// Set spawn location from loaded world
 		if (server.world != null && server.world.spawnLocation != null) {
@@ -745,10 +757,10 @@ public class WorldSaveManager {
 			// Create directory if it doesn't exist
 			Files.createDirectories(directory);
 
-			// Save metadata (seed is not stored in World, use 0)
+			// Save metadata (including world seed for regeneration)
 			WorldMetadata metadata = new WorldMetadata(
 				"world",
-				0L,  // World doesn't store seed after generation
+				server.world.getSeed(),  // CRITICAL FIX: Save actual world seed
 				server.world.width,
 				server.world.height
 			);

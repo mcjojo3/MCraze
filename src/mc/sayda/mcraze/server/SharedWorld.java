@@ -49,16 +49,23 @@ public class SharedWorld {
 	private final EntityManager entityManager = new EntityManager();
 
 	// Authentication tracking
-	private HashMap<String, PlayerConnection> playersByUsername = new HashMap<>();
+	// CRITICAL FIX: Use ConcurrentHashMap for thread-safety (accessed from multiple threads)
+	private java.util.concurrent.ConcurrentHashMap<String, PlayerConnection> playersByUsername = new java.util.concurrent.ConcurrentHashMap<>();
 	private String worldName;
+	private java.nio.file.Path worldDirectory;  // null for integrated server, ./world for dedicated server
 
 	// Command handler (for integrated server only)
 	private mc.sayda.mcraze.ui.CommandHandler commandHandler;
 
 	public SharedWorld(int worldWidth, Random random, String worldName) {
+		this(worldWidth, random, worldName, null);  // Integrated server - no world directory
+	}
+
+	public SharedWorld(int worldWidth, Random random, String worldName, java.nio.file.Path worldDirectory) {
 		GameLogger logger = GameLogger.get();
 		this.random = random;
 		this.worldName = worldName;
+		this.worldDirectory = worldDirectory;
 		this.players = new CopyOnWriteArrayList<>();  // Thread-safe for concurrent access
 
 		// Generate world
@@ -86,11 +93,13 @@ public class SharedWorld {
 	 * @param world Pre-loaded world instance
 	 * @param random Random instance for game logic
 	 * @param worldName Name of the world (for playerdata)
+	 * @param worldDirectory Directory where world is stored (null for integrated server)
 	 */
-	public SharedWorld(World world, Random random, String worldName) {
+	public SharedWorld(World world, Random random, String worldName, java.nio.file.Path worldDirectory) {
 		GameLogger logger = GameLogger.get();
 		this.random = random;
 		this.worldName = worldName;
+		this.worldDirectory = worldDirectory;
 		this.players = new CopyOnWriteArrayList<>();
 		this.world = world;
 		this.worldAccess = new WorldAccess(world);
@@ -115,6 +124,13 @@ public class SharedWorld {
 	}
 
 	/**
+	 * Constructor for loading an existing world (backward compatibility - integrated server)
+	 */
+	public SharedWorld(World world, Random random, String worldName) {
+		this(world, random, worldName, null);  // Integrated server - no world directory
+	}
+
+	/**
 	 * Add a player to the shared world with authentication
 	 * @return PlayerConnection if successful, null if authentication failed or duplicate username
 	 */
@@ -134,14 +150,25 @@ public class SharedWorld {
 		}
 
 		// Authenticate or auto-register
-		mc.sayda.mcraze.world.PlayerData playerData =
-			mc.sayda.mcraze.world.PlayerDataManager.authenticate(worldName, username, password);
-
-		if (playerData == null && mc.sayda.mcraze.world.PlayerDataManager.exists(worldName, username)) {
-			// Wrong password
-			System.err.println("SharedWorld: Wrong password for " + username);
-			if (logger != null) logger.warn("SharedWorld: Authentication failed for " + username);
-			return null;
+		mc.sayda.mcraze.world.PlayerData playerData;
+		if (worldDirectory != null) {
+			// Dedicated server - use world directory
+			playerData = mc.sayda.mcraze.world.PlayerDataManager.authenticate(worldDirectory, username, password);
+			if (playerData == null && mc.sayda.mcraze.world.PlayerDataManager.exists(worldDirectory, username)) {
+				// Wrong password
+				System.err.println("SharedWorld: Wrong password for " + username);
+				if (logger != null) logger.warn("SharedWorld: Authentication failed for " + username);
+				return null;
+			}
+		} else {
+			// Integrated server - use AppData
+			playerData = mc.sayda.mcraze.world.PlayerDataManager.authenticate(worldName, username, password);
+			if (playerData == null && mc.sayda.mcraze.world.PlayerDataManager.exists(worldName, username)) {
+				// Wrong password
+				System.err.println("SharedWorld: Wrong password for " + username);
+				if (logger != null) logger.warn("SharedWorld: Authentication failed for " + username);
+				return null;
+			}
 		}
 
 		// Create player entity
@@ -242,7 +269,15 @@ public class SharedWorld {
 		if (player != null) {
 			mc.sayda.mcraze.world.PlayerData data =
 				mc.sayda.mcraze.world.PlayerDataManager.extractFromPlayer(username, password, player);
-			boolean saved = mc.sayda.mcraze.world.PlayerDataManager.save(worldName, data);
+
+			boolean saved;
+			if (worldDirectory != null) {
+				// Dedicated server - save to world directory
+				saved = mc.sayda.mcraze.world.PlayerDataManager.save(worldDirectory, data);
+			} else {
+				// Integrated server - save to AppData
+				saved = mc.sayda.mcraze.world.PlayerDataManager.save(worldName, data);
+			}
 
 			if (saved) {
 				System.out.println("SharedWorld: Saved playerdata for " + username);
@@ -301,7 +336,9 @@ public class SharedWorld {
 		}
 
 		// Calculate total packets (world update chunks + biome data + entity update)
-		int chunkSize = 1000;
+		// PERFORMANCE FIX: Increased chunk size from 1000 to 5000 tiles
+		// This reduces packet count from ~65 to ~13 for a 256x256 world, improving load times
+		int chunkSize = 5000;
 		int numChunks = (int) Math.ceil((double) changedX.size() / chunkSize);
 		int totalPackets = 1 + numChunks + 1;  // +1 biome, +numChunks world, +1 entity
 
@@ -414,6 +451,12 @@ public class SharedWorld {
 			logger.info("SharedWorld.sendInitialWorldState: Initial entity update sent to " + playerConnection.getPlayerName());
 			logger.info("SharedWorld: Initial world state complete for " + playerConnection.getPlayerName() + " (" + changedX.size() + " tiles)");
 		}
+
+		// Mark player as fully loaded - they can now receive live world updates
+		playerConnection.setInitialWorldLoaded(true);
+		if (logger != null) {
+			logger.info("Player " + playerConnection.getPlayerName() + " marked as fully loaded and ready for live updates");
+		}
 	}
 
 	/**
@@ -457,6 +500,10 @@ public class SharedWorld {
 		packet.backdropPlacementMode = new boolean[entityCount];
 		packet.handTargetX = new int[entityCount];
 		packet.handTargetY = new int[entityCount];
+		packet.hotbarIndex = new int[entityCount];
+		packet.selectedItemId = new String[entityCount];
+		packet.selectedItemCount = new int[entityCount];
+		packet.selectedItemDurability = new int[entityCount];
 
 		for (int i = 0; i < entityCount; i++) {
 			Entity entity = allEntities.get(i);
@@ -502,10 +549,31 @@ public class SharedWorld {
 					packet.backdropPlacementMode[i] = player.backdropPlacementMode;
 					packet.handTargetX[i] = player.handTargetPos.x;
 					packet.handTargetY[i] = player.handTargetPos.y;
+
+					// CRITICAL FIX: Synchronize held item for remote players
+					packet.hotbarIndex[i] = player.inventory.hotbarIdx;
+					mc.sayda.mcraze.item.InventoryItem selectedSlot = player.inventory.selectedItem();
+					if (selectedSlot != null && !selectedSlot.isEmpty()) {
+						packet.selectedItemId[i] = selectedSlot.getItem().itemId;
+						packet.selectedItemCount[i] = selectedSlot.getCount();
+						if (selectedSlot.getItem() instanceof mc.sayda.mcraze.item.Tool) {
+							packet.selectedItemDurability[i] = ((mc.sayda.mcraze.item.Tool) selectedSlot.getItem()).uses;
+						} else {
+							packet.selectedItemDurability[i] = 0;
+						}
+					} else {
+						packet.selectedItemId[i] = null;
+						packet.selectedItemCount[i] = 0;
+						packet.selectedItemDurability[i] = 0;
+					}
 				} else {
 					packet.backdropPlacementMode[i] = false;
 					packet.handTargetX[i] = -1;
 					packet.handTargetY[i] = -1;
+					packet.hotbarIndex[i] = 0;
+					packet.selectedItemId[i] = null;
+					packet.selectedItemCount[i] = 0;
+					packet.selectedItemDurability[i] = 0;
 				}
 			} else {
 				packet.entityHealth[i] = 0;
@@ -522,6 +590,10 @@ public class SharedWorld {
 				packet.backdropPlacementMode[i] = false;
 				packet.handTargetX[i] = -1;
 				packet.handTargetY[i] = -1;
+				packet.hotbarIndex[i] = 0;
+				packet.selectedItemId[i] = null;
+				packet.selectedItemCount[i] = 0;
+				packet.selectedItemDurability[i] = 0;
 			}
 
 			if (logger != null && i == 0) {
@@ -564,9 +636,20 @@ public class SharedWorld {
 			logger.debug("SharedWorld.tick: Packets processed");
 		}
 
-		// Update world
+		// Update world physics (grass growth, sand falling, sapling growth, wheat growth, water spread, etc.)
 		if (world != null) {
-			world.chunkUpdate(world.daylightCycle);
+			java.util.List<mc.sayda.mcraze.world.World.BlockChange> blockChanges = world.chunkUpdate(world.daylightCycle);
+
+			// CRITICAL FIX: Broadcast all world physics changes to multiplayer clients
+			// This syncs falling sand, sapling→tree growth, wheat growth, water spread, etc.
+			if (blockChanges != null && !blockChanges.isEmpty()) {
+				for (mc.sayda.mcraze.world.World.BlockChange change : blockChanges) {
+					broadcastBlockChange(change.x, change.y, change.tileId);
+				}
+				if (logger != null && ticksRunning <= 10 && !blockChanges.isEmpty()) {
+					logger.debug("SharedWorld.tick: Broadcast " + blockChanges.size() + " world physics changes");
+				}
+			}
 		}
 
 		// Update all player entities
@@ -597,7 +680,8 @@ public class SharedWorld {
 						mc.sayda.mcraze.item.Item item = (mc.sayda.mcraze.item.Item) entity;
 						int leftover = player.giveItem(item, 1);
 						if (leftover == 0) {
-							// Item fully picked up - mark for removal from worldEntities
+							// FIX: Item fully picked up - mark for removal from worldEntities
+							// Only remove if inventory had space (leftover == 0)
 							entitiesToRemove.add(entity);
 							pickedUp = true;
 							pickupPlayer = pc;
@@ -605,6 +689,13 @@ public class SharedWorld {
 								logger.debug("SharedWorld.tick: Player " + pc.getPlayerName() + " picked up " + item.itemId);
 							}
 							break;
+						} else {
+							// FIX: Inventory full (leftover > 0) - item stays on ground
+							// Entity is NOT added to entitiesToRemove, so it remains in the world
+							if (logger != null && ticksRunning <= 10) {
+								logger.debug("SharedWorld.tick: Player " + pc.getPlayerName() + " inventory full, item remains on ground");
+							}
+							// Don't break - let other players try to pick it up
 						}
 					}
 				}
@@ -671,18 +762,30 @@ public class SharedWorld {
 			logger.debug("SharedWorld.tick: Entities updated");
 		}
 
-		// Broadcast entity updates every tick (60Hz) for smooth client-side rendering
-		// This ensures clients see the same smooth motion as the host
+		// Broadcast entity updates at reduced rate ONLY for dedicated servers
+		// Integrated server (including LAN): 60 Hz - fast enough for local network
+		// Dedicated server: 10 Hz - prevents client FPS drop from packet processing overhead
 		if (logger != null && ticksRunning <= 15) {
 			logger.debug("SharedWorld.tick: Broadcasting entity update (tick " + ticksRunning + ")");
 		}
-		broadcastEntityUpdate();
+
+		// Only reduce update rate for DEDICATED servers (not integrated servers with LAN)
+		// Integrated servers can handle 60 Hz even with LAN clients (same local network)
+		boolean isDedicatedServer = (worldDirectory != null);  // worldDirectory is only set for dedicated servers
+
+		// Update at 60 Hz for integrated (LAN or singleplayer), 10 Hz for dedicated only
+		// This keeps LAN play smooth while fixing dedicated server performance
+		int updateInterval = isDedicatedServer ? 6 : 1;  // Every 6 ticks = 10 Hz, every 1 tick = 60 Hz
+		if (ticksRunning % updateInterval == 0) {
+			broadcastEntityUpdate();
+		}
 		// NOTE: Inventory updates are NOT broadcast on timer - only when inventory actually changes
 		// This prevents packet spam. Inventory is broadcast via handleBlockChange, handleInventoryAction, etc.
 
-		// Broadcast world time every 20 ticks (~3 times per second) for smooth daylight updates
-		// This ensures clients see daylight changes even without block updates
-		if (ticksRunning % 20 == 0) {
+		// PERFORMANCE FIX: Broadcast world time less frequently to reduce packet spam
+		// Changed from every 20 ticks to every 100 ticks (once per 5 seconds at 20 TPS)
+		// This still ensures clients see daylight changes, but with much less network overhead
+		if (ticksRunning % 100 == 0) {
 			broadcastWorldTime();
 		}
 
@@ -703,44 +806,23 @@ public class SharedWorld {
 			}
 		}
 
-		// FARMING: Random tick crop growth every 100 ticks
-		// This checks a few random blocks for crop growth opportunities
-		if (ticksRunning % 100 == 0 && world != null) {
-			randomTickCropGrowth();
-		}
-	}
-
-	/**
-	 * FARMING: Random tick crop growth system
-	 * Checks a few random blocks each tick for crop growth opportunities
-	 * Currently only tracks wheat crops, but can be extended for other crops
-	 */
-	private void randomTickCropGrowth() {
-		if (world == null || world.tiles == null) return;
-
-		int worldWidth = world.width;
-		int worldHeight = world.height;
-
-		// Check 3 random blocks per random tick (adjustable for performance)
-		int blocksToCheck = 3;
-
-		for (int i = 0; i < blocksToCheck; i++) {
-			// Pick random coordinates
-			int x = random.nextInt(worldWidth);
-			int y = random.nextInt(worldHeight);
-
-			// Check if it's a wheat crop
-			Tile tile = world.tiles[x][y];
-			if (tile != null && tile.type != null && tile.type.name == Constants.TileID.WHEAT_CROP) {
-				// Crop found! For now, crops are already fully grown when placed (only one sprite)
-				// This is where you would implement growth stages:
-				// - Check crop metadata for growth stage
-				// - Advance to next stage with some probability
-				// - Update tile sprite based on stage
-				// - When fully grown, allow harvesting
-
-				// Currently: Wheat crops are instantly "mature" when planted
-				// No action needed, but this infrastructure is ready for growth stages
+		// Remove despawned items (prevents packet size growth and lag over time)
+		// Check every 100 ticks (5 seconds) to avoid excessive iteration
+		if (ticksRunning % 100 == 0) {
+			List<Entity> despawnedItems = new ArrayList<>();
+			for (Entity entity : entityManager.getAll()) {
+				if (entity instanceof mc.sayda.mcraze.item.Item) {
+					mc.sayda.mcraze.item.Item item = (mc.sayda.mcraze.item.Item) entity;
+					if (item.shouldDespawn()) {
+						despawnedItems.add(entity);
+					}
+				}
+			}
+			for (Entity entity : despawnedItems) {
+				entityManager.remove(entity);
+			}
+			if (!despawnedItems.isEmpty() && logger != null) {
+				logger.info("SharedWorld: Despawned " + despawnedItems.size() + " items");
 			}
 		}
 	}
@@ -752,7 +834,11 @@ public class SharedWorld {
 	public List<Entity> getAllEntities() {
 		List<Entity> allEntities = new ArrayList<>();
 		for (PlayerConnection playerConnection : players) {
-			allEntities.add(playerConnection.getPlayer());
+			Player player = playerConnection.getPlayer();
+			// CRITICAL FIX: Null check to prevent NPE during disconnection
+			if (player != null) {
+				allEntities.add(player);
+			}
 		}
 		// Add world entities (dropped items, etc.) - thread-safe iteration
 		allEntities.addAll(entityManager.getAll());
@@ -800,6 +886,10 @@ public class SharedWorld {
 		packet.backdropPlacementMode = new boolean[entityCount];
 		packet.handTargetX = new int[entityCount];
 		packet.handTargetY = new int[entityCount];
+		packet.hotbarIndex = new int[entityCount];
+		packet.selectedItemId = new String[entityCount];
+		packet.selectedItemCount = new int[entityCount];
+		packet.selectedItemDurability = new int[entityCount];
 
 		for (int i = 0; i < entityCount; i++) {
 			Entity entity = allEntities.get(i);
@@ -845,10 +935,31 @@ public class SharedWorld {
 					packet.backdropPlacementMode[i] = player.backdropPlacementMode;
 					packet.handTargetX[i] = player.handTargetPos.x;
 					packet.handTargetY[i] = player.handTargetPos.y;
+
+					// CRITICAL FIX: Synchronize held item for remote players
+					packet.hotbarIndex[i] = player.inventory.hotbarIdx;
+					mc.sayda.mcraze.item.InventoryItem selectedSlot = player.inventory.selectedItem();
+					if (selectedSlot != null && !selectedSlot.isEmpty()) {
+						packet.selectedItemId[i] = selectedSlot.getItem().itemId;
+						packet.selectedItemCount[i] = selectedSlot.getCount();
+						if (selectedSlot.getItem() instanceof mc.sayda.mcraze.item.Tool) {
+							packet.selectedItemDurability[i] = ((mc.sayda.mcraze.item.Tool) selectedSlot.getItem()).uses;
+						} else {
+							packet.selectedItemDurability[i] = 0;
+						}
+					} else {
+						packet.selectedItemId[i] = null;
+						packet.selectedItemCount[i] = 0;
+						packet.selectedItemDurability[i] = 0;
+					}
 				} else {
 					packet.backdropPlacementMode[i] = false;
 					packet.handTargetX[i] = -1;
 					packet.handTargetY[i] = -1;
+					packet.hotbarIndex[i] = 0;
+					packet.selectedItemId[i] = null;
+					packet.selectedItemCount[i] = 0;
+					packet.selectedItemDurability[i] = 0;
 				}
 			} else {
 				packet.entityHealth[i] = 0;
@@ -865,6 +976,10 @@ public class SharedWorld {
 				packet.backdropPlacementMode[i] = false;
 				packet.handTargetX[i] = -1;
 				packet.handTargetY[i] = -1;
+				packet.hotbarIndex[i] = 0;
+				packet.selectedItemId[i] = null;
+				packet.selectedItemCount[i] = 0;
+				packet.selectedItemDurability[i] = 0;
 			}
 
 			// Log first entity details for first few broadcasts
@@ -927,6 +1042,23 @@ public class SharedWorld {
 				packet.craftableItemId = null;
 				packet.craftableCount = 0;
 				packet.craftableToolUse = 0;
+			}
+
+			// CRITICAL FIX: Synchronize cursor item (holding item) for all players
+			// This ensures joined players see their own cursor item, not just the host
+			mc.sayda.mcraze.item.InventoryItem holding = inv.holding;
+			if (holding != null && holding.item != null && holding.count > 0) {
+				packet.holdingItemId = holding.item.itemId;
+				packet.holdingCount = holding.count;
+				if (holding.item instanceof Tool) {
+					packet.holdingToolUse = ((Tool) holding.item).uses;
+				} else {
+					packet.holdingToolUse = 0;
+				}
+			} else {
+				packet.holdingItemId = null;
+				packet.holdingCount = 0;
+				packet.holdingToolUse = 0;
 			}
 
 			// Flatten 2D inventory array
@@ -1012,7 +1144,8 @@ public class SharedWorld {
 	 */
 	private void broadcast(Object packet) {
 		for (PlayerConnection playerConnection : players) {
-			if (playerConnection.getConnection().isConnected()) {
+			// Only send to fully loaded players to prevent ghost blocks during initial world load
+			if (playerConnection.isInitialWorldLoaded() && playerConnection.getConnection().isConnected()) {
 				playerConnection.getConnection().sendPacket((mc.sayda.mcraze.network.Packet) packet);
 			}
 		}
@@ -1095,11 +1228,12 @@ public class SharedWorld {
 		}
 
 		// Wheat crops can only be on farmland
-		if (unstableBlock == Constants.TileID.WHEAT_CROP) {
-			return support == Constants.TileID.FARMLAND;
-		}
+        if (unstableBlock == Constants.TileID.WHEAT_SEEDS || unstableBlock == Constants.TileID.WHEAT) {
+            return support == Constants.TileID.FARMLAND;
+        }
 
-		// Other unstable blocks (flowers, saplings, tall grass, torches) need dirt or grass
+
+        // Other unstable blocks (flowers, saplings, tall grass, torches) need dirt or grass
 		return support == Constants.TileID.DIRT || support == Constants.TileID.GRASS;
 	}
 
@@ -1167,6 +1301,11 @@ public class SharedWorld {
 			Item currentItem = player.inventory.selectedItem().getItem();
 			int ticksNeeded = world.breakTicks(packet.x, packet.y, currentItem);
 
+			// Debug mode: instant break (1 tick)
+			if (player.debugMode) {
+				ticksNeeded = 1;
+			}
+
 			// Send breaking progress to this player (ISSUE #3 fix)
 			playerConnection.getConnection().sendPacket(new PacketBreakingProgress(packet.x, packet.y,
 				breakingState.ticks, ticksNeeded));
@@ -1222,7 +1361,38 @@ public class SharedWorld {
 				}
 			}
 
-			// Convert certain blocks when broken (like in BlockInteractionSystem)
+			// DOOR SYSTEM: When breaking a door part, also break the other part
+			if (broken == Constants.TileID.DOOR_BOT_CLOSED || broken == Constants.TileID.DOOR_BOT) {
+				// Breaking door bottom - also break door top
+				int topY = packet.y - 1;
+				if (topY >= 0) {
+					Tile topTile = worldAccess.getTile(packet.x, topY);
+					if (topTile != null && topTile.type != null &&
+					    (topTile.type.name == Constants.TileID.DOOR_TOP_CLOSED || topTile.type.name == Constants.TileID.DOOR_TOP)) {
+						world.removeTile(packet.x, topY);
+						broadcastBlockChange(packet.x, topY, null);
+						if (logger != null) {
+							logger.debug("SharedWorld: Auto-removed door top at (" + packet.x + ", " + topY + ")");
+						}
+					}
+				}
+			} else if (broken == Constants.TileID.DOOR_TOP_CLOSED || broken == Constants.TileID.DOOR_TOP) {
+				// Breaking door top - also break door bottom
+				int botY = packet.y + 1;
+				if (botY < world.height) {
+					Tile botTile = worldAccess.getTile(packet.x, botY);
+					if (botTile != null && botTile.type != null &&
+					    (botTile.type.name == Constants.TileID.DOOR_BOT_CLOSED || botTile.type.name == Constants.TileID.DOOR_BOT)) {
+						world.removeTile(packet.x, botY);
+						broadcastBlockChange(packet.x, botY, null);
+						if (logger != null) {
+							logger.debug("SharedWorld: Auto-removed door bottom at (" + packet.x + ", " + botY + ")");
+						}
+					}
+				}
+			}
+
+			// Convert certain blocks when broken (grass->dirt, stone->cobble, etc.)
 			Constants.TileID dropId = broken;
 			if (broken == Constants.TileID.GRASS) {
 				dropId = Constants.TileID.DIRT;
@@ -1235,15 +1405,58 @@ public class SharedWorld {
 			}
 
 			// Drop items if block was broken - use thread-safe EntityManager
-			if (dropId != null && dropId.itemDropId != null) {
+
+			// Special case: Tall grass has 75% chance to drop wheat seeds (no self-drop)
+			if (broken == Constants.TileID.TALL_GRASS) {
+				if (random.nextDouble() < 0.75) {
+					Item seedItem = Constants.itemTypes.get("wheat_seeds");
+					if (seedItem != null) {
+						Item seed = seedItem.clone();
+						seed.x = packet.x + random.nextFloat() * 0.5f;
+						seed.y = packet.y + random.nextFloat() * 0.5f;
+						seed.dy = -0.07f;
+						entityManager.add(seed);
+						if (logger != null) logger.debug("SharedWorld: Tall grass dropped seed at (" + seed.x + ", " + seed.y + ")");
+					}
+				}
+				// Note: 25% chance to drop nothing (matching original BlockInteractionSystem logic)
+			}
+			// Regular drops for blocks with itemDropId
+			else if (dropId != null && dropId.itemDropId != null) {
 				Item droppedItem = Constants.itemTypes.get(dropId.itemDropId);
 				if (droppedItem != null) {
-					Item item = droppedItem.clone();
-					item.x = packet.x + random.nextFloat() * 0.5f;
-					item.y = packet.y + random.nextFloat() * 0.5f;
-					item.dy = -0.07f;  // Give it upward velocity
-					entityManager.add(item);
-					if (logger != null) logger.debug("SharedWorld: Dropped item " + item.itemId + " at (" + item.x + ", " + item.y + ")");
+					// Special case: Wheat crops drop 1 wheat + 1-3 seeds
+					if (broken == Constants.TileID.WHEAT) {
+						// Drop 1 wheat item
+						Item wheat = droppedItem.clone();
+						wheat.x = packet.x + random.nextFloat() * 0.5f;
+						wheat.y = packet.y + random.nextFloat() * 0.5f;
+						wheat.dy = -0.07f;
+						entityManager.add(wheat);
+						if (logger != null) logger.debug("SharedWorld: Dropped wheat at (" + wheat.x + ", " + wheat.y + ")");
+
+						// Drop 1-3 wheat seeds
+						Item seedItem = Constants.itemTypes.get("wheat_seeds");
+						if (seedItem != null) {
+							int seedCount = 1 + random.nextInt(3);  // 1-3 seeds
+							for (int i = 0; i < seedCount; i++) {
+								Item seed = seedItem.clone();
+								seed.x = packet.x + random.nextFloat() * 0.5f;
+								seed.y = packet.y + random.nextFloat() * 0.5f;
+								seed.dy = -0.07f;
+								entityManager.add(seed);
+								if (logger != null) logger.debug("SharedWorld: Dropped seed at (" + seed.x + ", " + seed.y + ")");
+							}
+						}
+					} else {
+						// Normal drop for other blocks
+						Item item = droppedItem.clone();
+						item.x = packet.x + random.nextFloat() * 0.5f;
+						item.y = packet.y + random.nextFloat() * 0.5f;
+						item.dy = -0.07f;  // Give it upward velocity
+						entityManager.add(item);
+						if (logger != null) logger.debug("SharedWorld: Dropped item " + item.itemId + " at (" + item.x + ", " + item.y + ")");
+					}
 				}
 			}
 
@@ -1279,6 +1492,59 @@ public class SharedWorld {
 						" opened chest at (" + packet.x + ", " + packet.y + ")");
 				}
 				return;
+			}
+
+			// DOOR SYSTEM: Check if clicking on a door to toggle open/closed
+			Tile doorTile = worldAccess.getTile(packet.x, packet.y);
+			if (doorTile != null && doorTile.type != null) {
+				Constants.TileID doorType = doorTile.type.name;
+				boolean isDoorBot = (doorType == Constants.TileID.DOOR_BOT_CLOSED || doorType == Constants.TileID.DOOR_BOT);
+				boolean isDoorTop = (doorType == Constants.TileID.DOOR_TOP_CLOSED || doorType == Constants.TileID.DOOR_TOP);
+
+				if (isDoorBot || isDoorTop) {
+					// Determine the new state (toggle open/closed)
+					Constants.TileID newBotState, newTopState;
+					if (doorType == Constants.TileID.DOOR_BOT_CLOSED) {
+						newBotState = Constants.TileID.DOOR_BOT;
+						newTopState = Constants.TileID.DOOR_TOP;
+					} else if (doorType == Constants.TileID.DOOR_BOT) {
+						newBotState = Constants.TileID.DOOR_BOT_CLOSED;
+						newTopState = Constants.TileID.DOOR_TOP_CLOSED;
+					} else if (doorType == Constants.TileID.DOOR_TOP_CLOSED) {
+						newBotState = Constants.TileID.DOOR_BOT;
+						newTopState = Constants.TileID.DOOR_TOP;
+					} else {  // DOOR_TOP
+						newBotState = Constants.TileID.DOOR_BOT_CLOSED;
+						newTopState = Constants.TileID.DOOR_TOP_CLOSED;
+					}
+
+					// Toggle the clicked door part and its counterpart
+					if (isDoorBot) {
+						// Clicked on bottom - toggle both parts
+						world.addTile(packet.x, packet.y, newBotState);
+						broadcastBlockChange(packet.x, packet.y, newBotState);
+						int topY = packet.y - 1;
+						if (topY >= 0) {
+							world.addTile(packet.x, topY, newTopState);
+							broadcastBlockChange(packet.x, topY, newTopState);
+						}
+					} else {
+						// Clicked on top - toggle both parts
+						world.addTile(packet.x, packet.y, newTopState);
+						broadcastBlockChange(packet.x, packet.y, newTopState);
+						int botY = packet.y + 1;
+						if (botY < world.height) {
+							world.addTile(packet.x, botY, newBotState);
+							broadcastBlockChange(packet.x, botY, newBotState);
+						}
+					}
+
+					if (logger != null) {
+						logger.debug("SharedWorld: Player " + player.username +
+							" toggled door at (" + packet.x + ", " + packet.y + ")");
+					}
+					return;  // Don't proceed with block placement
+				}
 			}
 
 			// Block placing - validate and apply
@@ -1318,7 +1584,7 @@ public class SharedWorld {
 						}
 					}
 				}
-				// SEED PLANTING: Place wheat_crop on farmland
+				// SEED PLANTING: Place wheat on farmland
 				else if (selectedItem.itemId.equals("wheat_seeds")) {
 					// Check if block below is farmland
 					int belowY = packet.y + 1;  // Y increases downward
@@ -1329,17 +1595,15 @@ public class SharedWorld {
 							// Can only plant if position is empty
 							if (!world.isBreakable(packet.x, packet.y)) {
 								// Place wheat crop
-								if (world.addTile(packet.x, packet.y, Constants.TileID.WHEAT_CROP)) {
+								if (world.addTile(packet.x, packet.y, Constants.TileID.WHEAT_SEEDS)) {
 									player.inventory.decreaseSelected(1);
 									broadcastInventoryUpdates();
-									broadcastBlockChange(packet.x, packet.y, Constants.TileID.WHEAT_CROP);
+									broadcastBlockChange(packet.x, packet.y, Constants.TileID.WHEAT_SEEDS);
 								}
 							}
 							return;  // Don't proceed with normal placement
 						}
 						// If not on farmland, seeds will deny placement
-						//player.inventory.decreaseSelected(1);
-						broadcastInventoryUpdates();
 						return;
 					}
 				}
@@ -1352,10 +1616,7 @@ public class SharedWorld {
 
 			// BACKDROP MODE: Place backdrop instead of foreground
 			if (player.backdropPlacementMode) {
-				// Can only place backdrop where there's empty space (no solid block)
-				if (!world.isBreakable(packet.x, packet.y)) {
-					return;  // Cannot place backdrop on solid blocks
-				}
+				// FIXED: Allow backdrop placement anywhere (no restrictions - backdrops are visual only)
 
 				// Place backdrop
 				if (world.setBackdrop(packet.x, packet.y, tileId)) {
@@ -1397,6 +1658,20 @@ public class SharedWorld {
 
 				// Broadcast change to all players
 				broadcastBlockChange(packet.x, packet.y, tileId);
+
+			// DOOR SYSTEM: Auto-place door top when placing door bottom
+			if (tileId == Constants.TileID.DOOR_BOT_CLOSED) {
+				int topY = packet.y - 1;  // Y increases downward, so door top is above (y-1)
+				// Check if space above is empty and within world bounds
+				if (topY >= 0 && !world.isBreakable(packet.x, topY)) {
+					// Place door top
+					world.addTile(packet.x, topY, Constants.TileID.DOOR_TOP_CLOSED);
+					broadcastBlockChange(packet.x, topY, Constants.TileID.DOOR_TOP_CLOSED);
+					if (logger != null) {
+						logger.debug("SharedWorld: Auto-placed door top at (" + packet.x + ", " + topY + ")");
+					}
+				}
+			}
 			}
 		}
 	}
@@ -1490,6 +1765,15 @@ public class SharedWorld {
 				boolean differentItem = !craftedItem.itemId.equals(inv.holding.item.itemId);
 				if (isTool || differentItem) {
 					GameLogger.get().info("  Cannot craft - holding incompatible item");
+					broadcastInventoryUpdates();
+					return;
+				}
+
+				// CRITICAL FIX: Check if crafted items would fit in holding stack
+				int maxStack = isTool ? 1 : 64;
+				if (inv.holding.count + craftedCount > maxStack) {
+					GameLogger.get().info("  Cannot craft - would exceed stack limit (" +
+						inv.holding.count + " + " + craftedCount + " > " + maxStack + ")");
 					broadcastInventoryUpdates();
 					return;
 				}
@@ -1651,6 +1935,21 @@ public class SharedWorld {
 			return;
 		}
 
+		// CRITICAL FIX: Handle E key inventory toggle (doesn't require tile validation)
+		if (packet.type == PacketInteract.InteractionType.TOGGLE_INVENTORY) {
+			// Toggle inventory visibility
+			player.inventory.setVisible(!player.inventory.isVisible());
+
+			// When closing inventory, reset to 2x2 crafting grid
+			if (!player.inventory.isVisible()) {
+				player.inventory.tableSizeAvailable = 2;
+			}
+
+			// Broadcast inventory update to sync visibility state to all clients
+			broadcastInventoryUpdates();
+			return;
+		}
+
 		// Get the tile being interacted with - use thread-safe WorldAccess
 		if (packet.blockX < 0 || packet.blockY < 0 ||
 		    packet.blockX >= worldAccess.getWidth() || packet.blockY >= worldAccess.getHeight()) {
@@ -1790,9 +2089,10 @@ public class SharedWorld {
 			}
 		}
 
-		// Broadcast chest state to all players (so others viewing same chest see updates)
+		// Send chest update only to the acting player (not all players)
+		// This prevents all players' chest UIs from opening when one player opens a chest
 		PacketChestOpen refreshPacket = new PacketChestOpen(packet.chestX, packet.chestY, chestData.items);
-		broadcast(refreshPacket);
+		playerConnection.getConnection().sendPacket(refreshPacket);
 
 		// Also broadcast inventory updates (for player inventory changes)
 		broadcastInventoryUpdates();
@@ -1827,13 +2127,13 @@ public class SharedWorld {
 			}
 		} else if (slot.isEmpty()) {
 			// Placing into empty slot
-			if (!rightClick) {
-				// Right click: place one item
+			if (rightClick) {
+				// FIXED: Right click: place one item
 				slot.setItem(inv.holding.getItem());
 				slot.setCount(1);
 				inv.holding.remove(1);
 			} else {
-				// Left click: place entire stack
+				// FIXED: Left click: place entire stack
 				slot.setItem(inv.holding.getItem());
 				slot.setCount(inv.holding.getCount());
 				inv.holding.setEmpty();
@@ -1843,12 +2143,12 @@ public class SharedWorld {
 			boolean isTool = (inv.holding.getItem() instanceof mc.sayda.mcraze.item.Tool) ||
 			                 (slot.getItem() instanceof mc.sayda.mcraze.item.Tool);
 			if (!isTool) {
-				if (!rightClick) {
-					// Right click: add one item
+				if (rightClick) {
+					// FIXED: Right click: add one item
 					slot.setCount(slot.getCount() + 1);
 					inv.holding.remove(1);
 				} else {
-					// Left click: merge as much as possible
+					// FIXED: Left click: merge as much as possible
 					int spaceInSlot = maxCount - slot.getCount();
 					int toTransfer = Math.min(spaceInSlot, inv.holding.getCount());
 					slot.setCount(slot.getCount() + toTransfer);
@@ -1891,6 +2191,66 @@ public class SharedWorld {
 
 			// Broadcast inventory update (item was removed from player inventory)
 			broadcastInventoryUpdates();
+		}
+	}
+
+	/**
+	 * Handle entity attack from a player (server-authoritative)
+	 * Applies damage from player's held item to the target entity
+	 */
+	public void handleEntityAttack(PlayerConnection playerConnection, mc.sayda.mcraze.network.packet.PacketEntityAttack packet) {
+		Player attacker = playerConnection.getPlayer();
+		if (attacker == null || attacker.dead) {
+			return;  // Dead players can't attack
+		}
+
+		// Find the target entity by ID (index in getAllEntities list)
+		java.util.List<mc.sayda.mcraze.entity.Entity> entities = getAllEntities();
+		if (packet.entityId < 0 || packet.entityId >= entities.size()) {
+			GameLogger.get().warn("Player " + playerConnection.getPlayerName() + " tried to attack invalid entity ID " + packet.entityId);
+			return;
+		}
+
+		mc.sayda.mcraze.entity.Entity target = entities.get(packet.entityId);
+
+		// Only living entities can take damage
+		if (!(target instanceof mc.sayda.mcraze.entity.LivingEntity)) {
+			return;
+		}
+
+		mc.sayda.mcraze.entity.LivingEntity livingTarget = (mc.sayda.mcraze.entity.LivingEntity) target;
+
+		// Calculate damage from held item
+		int damage = 1;  // Base damage (fist)
+		mc.sayda.mcraze.item.InventoryItem heldItem = attacker.inventory.selectedItem();
+		if (heldItem != null && !heldItem.isEmpty() && heldItem.getItem() instanceof mc.sayda.mcraze.item.Tool) {
+			mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) heldItem.getItem();
+			damage = tool.attackDamage;
+
+			// Damage sword durability (swords lose 1 durability per hit)
+			if (tool.toolType == mc.sayda.mcraze.item.Tool.ToolType.Sword) {
+				tool.uses++;
+				if (tool.uses >= tool.totalUses) {
+					// Sword broke
+					heldItem.setEmpty();
+					broadcastInventoryUpdates();
+				}
+			}
+		}
+
+		// Apply damage to target
+		livingTarget.takeDamage(damage);
+
+		GameLogger.get().info("Player " + playerConnection.getPlayerName() + " attacked " +
+			target.getClass().getSimpleName() + " for " + damage + " damage");
+
+		// Broadcast entity update to show health change
+		broadcastEntityUpdate();
+
+		// Check if target died
+		if (livingTarget.dead) {
+			GameLogger.get().info(target.getClass().getSimpleName() + " died from attack");
+			// Entity death handling will be in the entity's tick/update logic
 		}
 	}
 

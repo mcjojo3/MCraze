@@ -27,6 +27,7 @@ public class Tool extends Item {
 	public int uses;
 	public ToolType toolType;
 	public ToolPower toolPower;
+	public int attackDamage;  // Damage dealt when used as a weapon
 
 	public Tool(String ref, int size, String itemId, String name, String[][] template, int templateCount,
 			ToolType toolType, ToolPower toolPower) {
@@ -44,6 +45,33 @@ public class Tool extends Item {
         }
 		this.toolPower = toolPower;
 		this.toolType = toolType;
+
+		// Set attack damage based on tool type and power
+		// Pre-1.9 Minecraft damage values
+		if (toolType == ToolType.Sword) {
+			switch (toolPower) {
+				case Wood:
+					attackDamage = 4;  // 2 hearts
+					break;
+				case Stone:
+					attackDamage = 5;  // 2.5 hearts
+					break;
+				case Iron:
+					attackDamage = 6;  // 3 hearts
+					break;
+				case Gold:
+					attackDamage = 4;  // 2 hearts (gold is weak but fast)
+					break;
+				case Diamond:
+					attackDamage = 7;  // 3.5 hearts
+					break;
+				default:
+					attackDamage = 1;
+			}
+		} else {
+			// Non-sword tools deal base damage of 1 (fists deal 1 too)
+			attackDamage = 1;
+		}
 	}
 
 	@Override

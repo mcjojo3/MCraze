@@ -39,7 +39,7 @@ public class PlayerDataManager {
 	private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
 	/**
-	 * Get playerdata directory for a specific world
+	 * Get playerdata directory for a specific world (AppData location)
 	 */
 	private static Path getPlayerDataDirectory(String worldName) {
 		String savesDir = WorldSaveManager.getSavesDirectory();
@@ -48,7 +48,14 @@ public class PlayerDataManager {
 	}
 
 	/**
-	 * Check if playerdata exists for a username in this world
+	 * Get playerdata directory for a specific world directory (dedicated server)
+	 */
+	private static Path getPlayerDataDirectory(Path worldDirectory) {
+		return worldDirectory.resolve("playerdata");
+	}
+
+	/**
+	 * Check if playerdata exists for a username in this world (AppData)
 	 */
 	public static boolean exists(String worldName, String username) {
 		Path playerDataFile = getPlayerDataFile(worldName, username);
@@ -56,7 +63,15 @@ public class PlayerDataManager {
 	}
 
 	/**
-	 * Authenticate user: check if playerdata exists and password matches.
+	 * Check if playerdata exists for a username in this world directory (dedicated server)
+	 */
+	public static boolean exists(Path worldDirectory, String username) {
+		Path playerDataFile = getPlayerDataDirectory(worldDirectory).resolve(sanitizeUsername(username) + ".dat");
+		return Files.exists(playerDataFile);
+	}
+
+	/**
+	 * Authenticate user: check if playerdata exists and password matches (AppData).
 	 * Returns PlayerData if authentication successful, null otherwise.
 	 * If playerdata doesn't exist, returns null for auto-register.
 	 */
@@ -84,7 +99,35 @@ public class PlayerDataManager {
 	}
 
 	/**
-	 * Load playerdata from disk
+	 * Authenticate user in world directory (dedicated server).
+	 * Returns PlayerData if authentication successful, null otherwise.
+	 * If playerdata doesn't exist, returns null for auto-register.
+	 */
+	public static PlayerData authenticate(Path worldDirectory, String username, String password) {
+		if (!exists(worldDirectory, username)) {
+			// Auto-register: No playerdata exists, return null so caller can create new
+			System.out.println("PlayerDataManager: No existing playerdata for " + username + " in ./world/");
+			return null;
+		}
+
+		try {
+			PlayerData data = load(worldDirectory, username);
+			if (data != null && data.password.equals(password)) {
+				System.out.println("PlayerDataManager: Authentication successful for " + username);
+				return data;  // Authentication successful
+			} else {
+				System.err.println("PlayerDataManager: Wrong password for " + username);
+				return null;  // Wrong password
+			}
+		} catch (IOException e) {
+			System.err.println("Failed to authenticate " + username + ": " + e.getMessage());
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	/**
+	 * Load playerdata from disk (AppData)
 	 */
 	public static PlayerData load(String worldName, String username) throws IOException {
 		Path playerDataFile = getPlayerDataFile(worldName, username);
@@ -113,7 +156,36 @@ public class PlayerDataManager {
 	}
 
 	/**
-	 * Save playerdata to disk (atomic with backup)
+	 * Load playerdata from world directory (dedicated server)
+	 */
+	public static PlayerData load(Path worldDirectory, String username) throws IOException {
+		Path playerDataFile = getPlayerDataDirectory(worldDirectory).resolve(sanitizeUsername(username) + ".dat");
+
+		if (!Files.exists(playerDataFile)) {
+			return null;
+		}
+
+		try {
+			String json = new String(Files.readAllBytes(playerDataFile));
+			PlayerData data = gson.fromJson(json, PlayerData.class);
+			System.out.println("Loaded playerdata for " + username + " from ./world/");
+			return data;
+		} catch (Exception e) {
+			// Try backup if main file is corrupted
+			Path backupFile = getPlayerDataDirectory(worldDirectory).resolve(sanitizeUsername(username) + ".dat.bak");
+			if (Files.exists(backupFile)) {
+				System.err.println("Main playerdata file corrupted, trying backup...");
+				String json = new String(Files.readAllBytes(backupFile));
+				PlayerData data = gson.fromJson(json, PlayerData.class);
+				System.out.println("Loaded playerdata from backup for " + username);
+				return data;
+			}
+			throw e;
+		}
+	}
+
+	/**
+	 * Save playerdata to disk (atomic with backup) - AppData
 	 */
 	public static boolean save(String worldName, PlayerData playerData) {
 		try {
@@ -145,6 +217,48 @@ public class PlayerDataManager {
 					java.nio.file.StandardCopyOption.ATOMIC_MOVE);
 
 			System.out.println("Saved playerdata for " + playerData.username + " in world " + worldName);
+			return true;
+
+		} catch (IOException e) {
+			System.err.println("Failed to save playerdata: " + e.getMessage());
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	/**
+	 * Save playerdata to world directory (atomic with backup) - dedicated server
+	 */
+	public static boolean save(Path worldDirectory, PlayerData playerData) {
+		try {
+			// Create playerdata directory if it doesn't exist
+			Path playerDataDir = getPlayerDataDirectory(worldDirectory);
+			Files.createDirectories(playerDataDir);
+
+			// Write to temp file first (atomic save)
+			Path tempFile = playerDataDir.resolve(playerData.username + ".dat.tmp");
+			Path finalFile = playerDataDir.resolve(sanitizeUsername(playerData.username) + ".dat");
+
+			// Update last play time
+			playerData.lastPlayTime = System.currentTimeMillis();
+
+			// Write JSON
+			try (FileWriter writer = new FileWriter(tempFile.toFile())) {
+				gson.toJson(playerData, writer);
+			}
+
+			// Backup old file if exists
+			if (Files.exists(finalFile)) {
+				Path backupFile = playerDataDir.resolve(sanitizeUsername(playerData.username) + ".dat.bak");
+				Files.move(finalFile, backupFile,
+						java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			}
+
+			// Atomic rename
+			Files.move(tempFile, finalFile,
+					java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+
+			System.out.println("Saved playerdata for " + playerData.username + " to ./world/");
 			return true;
 
 		} catch (IOException e) {
@@ -205,6 +319,25 @@ public class PlayerDataManager {
 						index++;
 					}
 				}
+
+				// Restore crafting grid size (2 = normal, 3 = workbench)
+				inv.tableSizeAvailable = data.tableSizeAvailable;
+
+				// Restore cursor item (item being held by mouse)
+				if (data.holdingItemId != null && data.holdingItemCount > 0) {
+					Item item = Constants.itemTypes.get(data.holdingItemId);
+					if (item != null) {
+						Item clonedItem = item.clone();
+						inv.holding.setItem(clonedItem);
+						inv.holding.setCount(data.holdingItemCount);
+						if (clonedItem instanceof Tool) {
+							((Tool) clonedItem).uses = data.holdingToolUses;
+						}
+					}
+				} else {
+					// No cursor item - ensure it's empty
+					inv.holding.setEmpty();
+				}
 			}
 		}
 	}
@@ -254,6 +387,24 @@ public class PlayerDataManager {
 				}
 				index++;
 			}
+		}
+
+		// Save crafting grid size (2 = normal, 3 = workbench)
+		data.tableSizeAvailable = inv.tableSizeAvailable;
+
+		// Save cursor item (item being held by mouse)
+		if (inv.holding != null && !inv.holding.isEmpty()) {
+			data.holdingItemId = inv.holding.getItem().itemId;
+			data.holdingItemCount = inv.holding.getCount();
+			if (inv.holding.getItem() instanceof Tool) {
+				data.holdingToolUses = ((Tool) inv.holding.getItem()).uses;
+			} else {
+				data.holdingToolUses = 0;
+			}
+		} else {
+			data.holdingItemId = null;
+			data.holdingItemCount = 0;
+			data.holdingToolUses = 0;
 		}
 
 		data.lastPlayTime = System.currentTimeMillis();

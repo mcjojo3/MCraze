@@ -83,7 +83,7 @@ public class LoadingScreen {
 		// Draw title
 		g.setColor(Color.white);
 		String title = "MCraze - Loading";
-		int titleX = screenWidth / 2 - (title.length() * 8) / 2;
+		int titleX = screenWidth / 2 - g.getStringWidth(title) / 2;
 		g.drawString(title, titleX, 100);
 
 		// Draw current status with animated dots
@@ -92,7 +92,7 @@ public class LoadingScreen {
 		for (int i = 0; i < dots; i++) {
 			statusText += ".";
 		}
-		int statusX = screenWidth / 2 - (statusText.length() * 8) / 2;
+		int statusX = screenWidth / 2 - g.getStringWidth(statusText) / 2;
 		g.drawString(statusText, statusX, 150);
 
 		// Draw progress bar
@@ -116,7 +116,7 @@ public class LoadingScreen {
 
 		// Progress percentage
 		String progressText = progress + "%";
-		int progressX = screenWidth / 2 - (progressText.length() * 8) / 2;
+		int progressX = screenWidth / 2 - g.getStringWidth(progressText) / 2;
 		g.drawString(progressText, progressX, barY + barHeight / 2 - 4);
 
 		// Draw console messages

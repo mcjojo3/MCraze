@@ -65,7 +65,7 @@ public class SettingsMenu {
 		// Draw title
 		g.setColor(Color.white);
 		String title = "Settings";
-		int titleX = g.getScreenWidth() / 2 - (title.length() * 8) / 2;
+		int titleX = g.getScreenWidth() / 2 - g.getStringWidth(title) / 2;
 		g.drawString(title, titleX, 150);
 
 		// Get mouse position

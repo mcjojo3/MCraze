@@ -52,28 +52,37 @@ public abstract class LivingEntity extends Entity {
 	 * @return Number of items that couldn't fit (0 if all added successfully)
 	 */
 	public int giveItem(Item item, int count) {
-		return inventory.addItem(item, count);
+
+        return inventory.addItem(item, count);
 	}
 
 	public int airRemaining() {
-		return Math.max(10 - (ticksUnderwater / 50), 0);
+
+        return Math.max(10 - (ticksUnderwater / 50), 0);
 	}
 
 	/**
 	 * Get the number of ticks this entity has been alive (for animation timing)
 	 */
 	public long getTicksAlive() {
-		return ticksAlive;
+
+        return ticksAlive;
 	}
 
 	/**
 	 * Set the number of ticks this entity has been alive (used by client for animation sync)
 	 */
 	public void setTicksAlive(long ticksAlive) {
-		this.ticksAlive = ticksAlive;
+
+        this.ticksAlive = ticksAlive;
 	}
 
-	public void jump(World world, int tileSize) {
+    public int getMaxHP() {
+        return maxHP;
+    }
+
+
+    public void jump(World world, int tileSize) {
 		if (dead || jumping) {
 			return;
 		}
@@ -271,10 +280,20 @@ public abstract class LivingEntity extends Entity {
 		// Example: SoundPlayer.play("death");
 	}
 
-	@Override
-	public void heal(int amount) {
-		int newHP = this.hitPoints + amount;
-		this.hitPoints = (newHP > maxHP) ? maxHP : newHP;
-		System.out.println("Healed " + amount + ". Current health = " + this.hitPoints);
-	}
+    @Override
+    public void heal(int amount) {
+        if (amount <= 0 || dead) {
+            return;
+        }
+
+        // Clamp healing to avoid overflow
+        int healAmount = Math.min(amount, maxHP - this.hitPoints);
+        if (healAmount <= 0) {
+            return;
+        }
+        this.hitPoints += healAmount;
+        System.out.println(
+                "Healed " + healAmount + ". Current health = " + this.hitPoints
+        );
+    }
 }

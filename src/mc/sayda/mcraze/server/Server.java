@@ -22,6 +22,7 @@ import mc.sayda.mcraze.entity.LivingEntity;
 import mc.sayda.mcraze.entity.Player;
 import mc.sayda.mcraze.item.Item;
 import mc.sayda.mcraze.item.Tool;
+import mc.sayda.mcraze.logging.GameLogger;
 import mc.sayda.mcraze.network.Connection;
 import mc.sayda.mcraze.network.Packet;
 import mc.sayda.mcraze.network.PacketHandler;
@@ -207,26 +208,36 @@ public class Server implements PacketHandler {
 
 		ticksRunning++;
 
-		// Check for disconnected players (LAN clients only, host never disconnects)
-		if (lanEnabled) {
-			java.util.List<mc.sayda.mcraze.server.PlayerConnection> disconnectedPlayers = new java.util.ArrayList<>();
+		// CRITICAL FIX: Check for disconnected players ALWAYS (not just when LAN enabled)
+		// This fixes ghost players and E key inconsistency
+		java.util.List<mc.sayda.mcraze.server.PlayerConnection> disconnectedPlayers = new java.util.ArrayList<>();
 
-			for (mc.sayda.mcraze.server.PlayerConnection pc : sharedWorld.getPlayers()) {
-				// Skip host player (never disconnects - if they do, whole server stops)
-				if (pc == hostPlayerConnection) {
-					continue;
-				}
-
-				// Check if LAN client is still connected
-				if (!pc.isConnected()) {
-					System.out.println("LAN player " + pc.getPlayerName() + " disconnected");
-					disconnectedPlayers.add(pc);
-				}
+		for (mc.sayda.mcraze.server.PlayerConnection pc : sharedWorld.getPlayers()) {
+			// Skip host player (never disconnects - if they do, whole server stops)
+			if (pc == hostPlayerConnection) {
+				continue;
 			}
 
-			// Remove disconnected players
-			for (mc.sayda.mcraze.server.PlayerConnection pc : disconnectedPlayers) {
-				sharedWorld.removePlayer(pc);
+			// Check if player is still connected (works for both LAN and singleplayer)
+			if (!pc.isConnected()) {
+				GameLogger logger = GameLogger.get();
+				if (logger != null) {
+					logger.info("Detected disconnected player: " + pc.getPlayerName());
+				} else {
+					System.out.println("Player " + pc.getPlayerName() + " disconnected");
+				}
+				disconnectedPlayers.add(pc);
+			}
+		}
+
+		// Remove disconnected players
+		for (mc.sayda.mcraze.server.PlayerConnection pc : disconnectedPlayers) {
+			GameLogger logger = GameLogger.get();
+			sharedWorld.removePlayer(pc);
+			if (logger != null) {
+				logger.info("Removed player connection: " + pc.getPlayerName());
+			} else {
+				System.out.println("Removed player: " + pc.getPlayerName());
 			}
 		}
 

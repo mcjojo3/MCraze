@@ -27,6 +27,7 @@ public class Checkbox {
 	private boolean hovered;
 	private final int size = 16;  // Checkbox box size
 	private final boolean centered;  // Whether to center horizontally
+	private int cachedLabelWidth = 0;  // Cached actual label width from font metrics
 
 	/**
 	 * Create a checkbox
@@ -78,8 +79,8 @@ public class Checkbox {
 	 */
 	public void updatePosition(int screenWidth) {
 		if (centered) {
-			// Calculate total width (checkbox + spacing + label)
-			int labelWidth = label.length() * 7;  // Approximate character width
+			// Use cached width from draw(), or estimate if not yet available
+			int labelWidth = (cachedLabelWidth > 0) ? cachedLabelWidth : label.length() * 7;
 			int totalWidth = size + 5 + labelWidth;
 			this.x = screenWidth / 2 - totalWidth / 2;
 		}
@@ -89,8 +90,8 @@ public class Checkbox {
 	 * Update hover state
 	 */
 	public void updateHover(int mouseX, int mouseY) {
-		// Calculate total clickable width (checkbox + label)
-		int labelWidth = label.length() * 7;
+		// Use cached width from draw(), or estimate if not yet available
+		int labelWidth = (cachedLabelWidth > 0) ? cachedLabelWidth : label.length() * 7;
 		int totalWidth = size + 5 + labelWidth;
 		this.hovered = mouseX >= x && mouseX <= x + totalWidth &&
 		               mouseY >= y && mouseY <= y + size;
@@ -101,8 +102,8 @@ public class Checkbox {
 	 * @return true if click was handled
 	 */
 	public boolean handleClick(int mouseX, int mouseY) {
-		// Calculate total clickable width (checkbox + label)
-		int labelWidth = label.length() * 7;
+		// Use cached width from draw(), or estimate if not yet available
+		int labelWidth = (cachedLabelWidth > 0) ? cachedLabelWidth : label.length() * 7;
 		int totalWidth = size + 5 + labelWidth;
 
 		if (mouseX >= x && mouseX <= x + totalWidth &&
@@ -117,6 +118,9 @@ public class Checkbox {
 	 * Draw the checkbox
 	 */
 	public void draw(GraphicsHandler g) {
+		// Cache actual label width for accurate positioning and hit detection
+		cachedLabelWidth = g.getStringWidth(label);
+
 		// Draw checkbox box
 		g.setColor(hovered ? Color.LIGHT_GRAY : Color.white);
 		g.fillRect(x, y, size, size);

@@ -35,4 +35,5 @@ public interface ClientPacketHandler {
     void handleBackdropBatch(PacketBackdropBatch packet);  // NEW: For batched backdrop sync
     void handleChestOpen(PacketChestOpen packet);  // NEW: For opening chest UI
     void handleGameruleUpdate(PacketGameruleUpdate packet);  // NEW: For syncing gamerule changes
+    void handlePong(PacketPong packet);  // NEW: For latency measurement
 }

@@ -18,8 +18,11 @@ import mc.sayda.mcraze.network.ServerPacketHandler;
 import java.nio.ByteBuffer;
 
 /**
- * Client → Server: Player input (movement, mouse position)
+ * Client → Server: Player input (movement, mouse position in WORLD coordinates)
  * Binary protocol: 6 booleans + 2 floats + 1 int = 18 bytes (was ~200 bytes!)
+ *
+ * IMPORTANT: worldMouseX/worldMouseY are in WORLD coordinates, not screen coordinates!
+ * Client must convert screen coords to world coords before sending.
  */
 public class PacketPlayerInput extends ClientPacket {
 	public boolean moveLeft;
@@ -28,23 +31,23 @@ public class PacketPlayerInput extends ClientPacket {
 	public boolean sneak;
 	public boolean leftClick;
 	public boolean rightClick;
-	public float mouseX;
-	public float mouseY;
+	public float worldMouseX;  // World coordinates (not screen coordinates!)
+	public float worldMouseY;  // World coordinates (not screen coordinates!)
 	public int hotbarSlot;
 
 	public PacketPlayerInput() {}
 
 	public PacketPlayerInput(boolean moveLeft, boolean moveRight, boolean climb, boolean sneak,
 							 boolean leftClick, boolean rightClick,
-							 float mouseX, float mouseY, int hotbarSlot) {
+							 float worldMouseX, float worldMouseY, int hotbarSlot) {
 		this.moveLeft = moveLeft;
 		this.moveRight = moveRight;
 		this.climb = climb;
 		this.sneak = sneak;
 		this.leftClick = leftClick;
 		this.rightClick = rightClick;
-		this.mouseX = mouseX;
-		this.mouseY = mouseY;
+		this.worldMouseX = worldMouseX;
+		this.worldMouseY = worldMouseY;
 		this.hotbarSlot = hotbarSlot;
 	}
 
@@ -67,8 +70,8 @@ public class PacketPlayerInput extends ClientPacket {
 		buf.put((byte) (sneak ? 1 : 0));
 		buf.put((byte) (leftClick ? 1 : 0));
 		buf.put((byte) (rightClick ? 1 : 0));
-		buf.putFloat(mouseX);
-		buf.putFloat(mouseY);
+		buf.putFloat(worldMouseX);
+		buf.putFloat(worldMouseY);
 		buf.putInt(hotbarSlot);
 		return buf.array();
 	}
@@ -80,9 +83,9 @@ public class PacketPlayerInput extends ClientPacket {
 		boolean sneak = buf.get() == 1;
 		boolean leftClick = buf.get() == 1;
 		boolean rightClick = buf.get() == 1;
-		float mouseX = buf.getFloat();
-		float mouseY = buf.getFloat();
+		float worldMouseX = buf.getFloat();
+		float worldMouseY = buf.getFloat();
 		int hotbarSlot = buf.getInt();
-		return new PacketPlayerInput(moveLeft, moveRight, climb, sneak, leftClick, rightClick, mouseX, mouseY, hotbarSlot);
+		return new PacketPlayerInput(moveLeft, moveRight, climb, sneak, leftClick, rightClick, worldMouseX, worldMouseY, hotbarSlot);
 	}
 }

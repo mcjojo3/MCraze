@@ -100,7 +100,7 @@ public class LoginScreen {
 		// Draw title
 		g.setColor(Color.white);
 		String title = "Login";
-		int titleX = g.getScreenWidth() / 2 - (title.length() * 7) / 2;
+		int titleX = g.getScreenWidth() / 2 - g.getStringWidth(title) / 2;
 		g.drawString(title, titleX, 150);
 
 		// Update and draw input fields
@@ -113,11 +113,11 @@ public class LoginScreen {
 		// Draw labels
 		g.setColor(Color.white);
 		String usernameLabel = "Username:";
-		int usernameLabelX = screenWidth / 2 - (usernameLabel.length() * 7) / 2;
+		int usernameLabelX = screenWidth / 2 - g.getStringWidth(usernameLabel) / 2;
 		g.drawString(usernameLabel, usernameLabelX, usernameInput.getY() - 20);
 
 		String passwordLabel = "Password:";
-		int passwordLabelX = screenWidth / 2 - (passwordLabel.length() * 7) / 2;
+		int passwordLabelX = screenWidth / 2 - g.getStringWidth(passwordLabel) / 2;
 		g.drawString(passwordLabel, passwordLabelX, passwordInput.getY() - 20);
 
 		// Draw inputs
@@ -139,7 +139,7 @@ public class LoginScreen {
 			long elapsed = System.currentTimeMillis() - errorStartTime;
 			if (elapsed < ERROR_DISPLAY_DURATION) {
 				g.setColor(new Color(255, 100, 100, 255));  // Red color for errors
-				int errorX = screenWidth / 2 - (errorMessage.length() * 7) / 2;
+				int errorX = screenWidth / 2 - g.getStringWidth(errorMessage) / 2;
 				g.drawString(errorMessage, errorX, loginButton.getY() + loginButton.getHeight() + 30);
 			} else {
 				errorMessage = null;  // Clear expired error

@@ -64,6 +64,10 @@ public class World implements java.io.Serializable {
 		return seed;
 	}
 
+	public void setSeed(long seed) {
+		this.seed = seed;
+	}
+
 	/**
 	 * Get biome at a specific location
 	 */
@@ -203,6 +207,10 @@ public class World implements java.io.Serializable {
 		this.tiles = new Tile[width][height];
 		this.random = random;
 
+		// CRITICAL FIX: Initialize seed (defaults to 0 if not set by loader)
+		// Loader should call setSeed() after construction to restore saved seed
+		this.seed = 0;
+
 		// Convert TileID array to Tile array
 		// IMPORTANT: Create NEW Tile instances, don't reuse templates!
 		for (int i = 0; i < width; i++) {
@@ -237,11 +245,32 @@ public class World implements java.io.Serializable {
 		System.out.println("World.refreshLighting: Block lighting engine recreated");
 	}
 
+	/**
+	 * Simple class to track block changes for multiplayer broadcasting
+	 */
+	public static class BlockChange {
+		public final int x;
+		public final int y;
+		public final Constants.TileID tileId;
+
+		public BlockChange(int x, int y, Constants.TileID tileId) {
+			this.x = x;
+			this.y = y;
+			this.tileId = tileId;
+		}
+	}
+
 	public void chunkUpdate() {
 		chunkUpdate(true);  // Default: daylight cycle enabled
 	}
 
-	public void chunkUpdate(boolean daylightCycle) {
+	/**
+	 * Update a chunk of the world (block physics, growth, etc.)
+	 * Returns list of changed blocks for multiplayer broadcasting
+	 */
+	public java.util.List<BlockChange> chunkUpdate(boolean daylightCycle) {
+		java.util.List<BlockChange> changes = new java.util.ArrayList<>();
+
 		if (daylightCycle) {
 			ticksAlive++;
 		}
@@ -260,6 +289,7 @@ public class World implements java.io.Serializable {
 				if (isDirectLight && tiles[x][y].type.name == TileID.DIRT) {
 					if (random.nextDouble() < .005) {
 						tiles[x][y] = Constants.tileTypes.get(TileID.GRASS);
+						changes.add(new BlockChange(x, y, TileID.GRASS));
 					}
 				} else if (tiles[x][y].type.name == TileID.GRASS) {
 					// Grass turns to dirt when covered by non-passable (solid) blocks
@@ -269,26 +299,70 @@ public class World implements java.io.Serializable {
 						// Solid block above - convert grass to dirt
 						if (random.nextDouble() < .25) {
 							tiles[x][y] = Constants.tileTypes.get(TileID.DIRT);
+							changes.add(new BlockChange(x, y, TileID.DIRT));
 						}
 					}
 				} else if (tiles[x][y].type.name == TileID.SAND) {
 					if (isAir(x, y + 1) || isLiquid(x, y + 1)) {
 						changeTile(x, y + 1, tiles[x][y]);
 						changeTile(x, y, Constants.tileTypes.get(TileID.AIR));
+						changes.add(new BlockChange(x, y + 1, TileID.SAND));
+						changes.add(new BlockChange(x, y, TileID.AIR));
 					}
 				} else if (tiles[x][y].type.name == TileID.SAPLING) {
 					if (random.nextDouble() < .01) {
 						addTemplate(TileTemplate.tree, x, y);
+						// CRITICAL FIX: Track all tree blocks placed by template for multiplayer sync
+						TileTemplate tree = TileTemplate.tree;
+						if (tree != null && tree.template != null) {
+							for (int ti = 0; ti < tree.template.length; ti++) {
+								for (int tj = 0; tj < tree.template[0].length; tj++) {
+									if (tree.template[ti][tj] != TileID.NONE) {
+										int blockX = x - tree.spawnY + ti;
+										int blockY = y - tree.spawnX + tj;
+										if (blockX >= 0 && blockX < width && blockY >= 0 && blockY < height) {
+											changes.add(new BlockChange(blockX, blockY, tree.template[ti][tj]));
+										}
+									}
+								}
+							}
+						}
 					}
+                } else if (tiles[x][y].type.name == TileID.WHEAT_SEEDS) {
+                    if (y + 1 < height && tiles[x][y + 1].type.name == TileID.FARMLAND) {
+                        // CRITICAL FIX: Reduced from 0.01 (1%) to 0.001 (0.1%) for slower growth
+                        // At 20 TPS: 0.001 = ~1000 ticks = ~50 seconds to grow
+                        // Previously: 0.01 = ~100 ticks = ~5 seconds (too fast!)
+                        if (random.nextDouble() < .001) {
+                            changeTile(x, y,
+                                    new Tile(Constants.tileTypes.get(TileID.WHEAT).type)
+                            );
+                            changes.add(new BlockChange(x, y, TileID.WHEAT));
+                        }
+                    }
+                } else if (tiles[x][y].type.name == TileID.FARMLAND) {
+                    // CRITICAL FIX: Farmland turns to dirt when obstructed (like grass)
+                    // Check if there's a non-passable block above
+                    if (y - 1 >= 0) {
+                        Tile blockAbove = tiles[x][y - 1];
+                        if (blockAbove.type.name != TileID.AIR && !blockAbove.type.passable) {
+                            // Solid block above - convert farmland to dirt instantly
+                            changeTile(x, y, Constants.tileTypes.get(TileID.DIRT));
+                            changes.add(new BlockChange(x, y, TileID.DIRT));
+                        }
+                    }
 				} else if (tiles[x][y].type.liquid) {
 					if (isAir(x + 1, y)) {
 						changeTile(x + 1, y, tiles[x][y]);
+						changes.add(new BlockChange(x + 1, y, tiles[x][y].type.name));
 					}
 					if (isAir(x - 1, y)) {
 						changeTile(x - 1, y, tiles[x][y]);
+						changes.add(new BlockChange(x - 1, y, tiles[x][y].type.name));
 					}
 					if (isAir(x, y + 1)) {
 						changeTile(x, y + 1, tiles[x][y]);
+						changes.add(new BlockChange(x, y + 1, tiles[x][y].type.name));
 					}
 				}
 				if ((!tiles[x][y].type.passable || tiles[x][y].type.liquid)
@@ -301,7 +375,8 @@ public class World implements java.io.Serializable {
 		if (chunkNeedsUpdate == 0) {
 			chunkFillRight = !chunkFillRight;
 		}
-		
+
+		return changes;
 	}
 	
 	private void addTemplate(TileTemplate tileTemplate, int x, int y) {
@@ -317,8 +392,16 @@ public class World implements java.io.Serializable {
 			}
 		}
 	}
-	
-	public boolean addTile(Int2 pos, TileID name) {
+
+    public boolean placeTemplate(TileTemplate template, int x, int y) {
+        if (template == null) return false;
+
+        addTemplate(template, x, y);
+        return true;
+    }
+
+
+    public boolean addTile(Int2 pos, TileID name) {
 		return addTile(pos.x, pos.y, name);
 	}
 
@@ -338,8 +421,17 @@ public class World implements java.io.Serializable {
 				return false;
 			}
 		}
+		// CRITICAL FIX: Preserve existing backdrop when placing a new foreground tile
+		// Before: new Tile() would wipe out backdrop (backdropType = null in constructor)
+		// After: Save existing backdrop and restore it after creating new tile
+		TileType existingBackdrop = tiles[x][y].backdropType;
+
 		// Create NEW tile instance (not shared reference) to avoid backdrop sharing bug
 		tiles[x][y] = new Tile(tile.type);
+
+		// Restore the backdrop that was there before
+		tiles[x][y].backdropType = existingBackdrop;
+
 		lightingEngineSun.addedTile(x, y);
 		lightingEngineSourceBlocks.addedTile(x, y);
 
@@ -351,14 +443,31 @@ public class World implements java.io.Serializable {
 			return TileID.NONE;
 		}
 		TileID name = tiles[x][y].type.name;
-		tiles[x][y] = Constants.tileTypes.get(TileID.AIR);
+
+		// CRITICAL FIX: Preserve existing backdrop when removing foreground
+		// Same pattern as addTile() (lines 427-433)
+		TileType existingBackdrop = tiles[x][y].backdropType;
+
+		// Create NEW Tile instance to prevent backdrop hivemind bug
+		// Using shared reference causes all removed tiles to share the same Tile object
+		tiles[x][y] = new Tile(Constants.tileTypes.get(TileID.AIR).type);
+
+		// Restore the backdrop that was there before
+		tiles[x][y].backdropType = existingBackdrop;
+
 		lightingEngineSun.removedTile(x, y);
 		lightingEngineSourceBlocks.removedTile(x, y);
 		return name;
 	}
-	
+
 	public void changeTile(int x, int y, Tile tile) {
-		tiles[x][y] = tile;
+		// CRITICAL FIX: Create NEW Tile instance to prevent backdrop hivemind bug
+		// Directly assigning references causes multiple tiles to share the same object
+		tiles[x][y] = new Tile(tile.type);
+		// Preserve backdrop if it exists on the source tile
+		if (tile.backdropType != null) {
+			tiles[x][y].backdropType = tile.backdropType;
+		}
 		if (tile.type.lightBlocking > 0) {
 			lightingEngineSun.addedTile(x, y);
 		} else {
@@ -371,6 +480,8 @@ public class World implements java.io.Serializable {
 		if (x < 0 || x >= width || y < 0 || y >= height) return false;
 		Tile tile = Constants.tileTypes.get(backdropId);
 		if (tile == null) return false;
+		// Prevent placing backdrop over existing backdrop
+		if (tiles[x][y].backdropType != null) return false;
 		tiles[x][y].backdropType = tile.type;
 		return true;
 	}
@@ -423,14 +534,23 @@ public class World implements java.io.Serializable {
 	private TileID[] breakStone = new TileID[] { TileID.STONE, TileID.COBBLE, TileID.COAL_ORE };
 	private TileID[] breakIron = new TileID[] { TileID.IRON_ORE };
 	private TileID[] breakDiamond = new TileID[] { TileID.DIAMOND_ORE };
+	private TileID[] breakPlant = new TileID[] { TileID.TALL_GRASS, TileID.ROSE, TileID.DANDELION,
+	                                              TileID.WHEAT, TileID.WHEAT_SEEDS, TileID.SAPLING, TileID.CACTUS };
 	
 	public int breakTicks(int x, int y, Item item) {
 		if (x < 0 || x >= width || y < 0 || y >= height) {
 			return Integer.MAX_VALUE;
 		}
 		TileID currentName = tiles[x][y].type.name;
-		
+
 		TileID[] breakType = null; // hand breakable by all
+
+		// Check plant category first (almost instant break)
+		for (TileID element : breakPlant) {
+			if (element == currentName) {
+				return 3;  // Plants break almost instantly (3 ticks = 0.15 seconds at 20 TPS)
+			}
+		}
 		for (TileID element : breakWood) {
 			if (element == currentName) {
 				breakType = breakWood;

@@ -43,6 +43,8 @@ public abstract class GraphicsHandler {
 
 	public abstract void drawString(String string, int x, int y);
 
+	public abstract int getStringWidth(String string);
+
 	public abstract void fillOval(int x, int y, int width, int height);
 
 	public abstract void drawImage(Sprite sprite, int x, int y);

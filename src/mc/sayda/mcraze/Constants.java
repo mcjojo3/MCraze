@@ -36,13 +36,26 @@ public class Constants {
 		TORCH("torch"),
 		ROSE("rose"),
 		DANDELION("dandelion"),
-		TALL_GRASS("wheat_seeds"),
+		TALL_GRASS(null),
+        WHEAT_SEEDS(null),
         CACTUS("cactus"),
 		MOSSY_COBBLE("mossy_cobble"),
+        HAY_BLOCK("hay_block"),
+        DIAMOND_BLOCK("diamond_block"),
+        IRON_BLOCK("iron_block"),
+        GOLD_BLOCK("gold_block"),
+        EMERALD_BLOCK("emerald_block"),
+        LAPIS_BLOCK("lapis_block"),
+        COAL_BLOCK("coal_block"),
 		CHEST("chest"),           // Dungeon chest (no drop yet)
 		SPAWNER(null),         // Monster spawner (no drop yet)
 		FARMLAND("dirt"),        // Tilled soil for planting crops
-		WHEAT_CROP("wheat");  // Growing wheat (drops wheat item when harvested)
+		WHEAT("wheat"),  // Growing wheat (drops wheat item when harvested)
+        FURNACE("furnace"),
+	    DOOR_BOT_CLOSED("door"),
+	    DOOR_TOP_CLOSED("door"),  // Top doesn't drop separately
+	    DOOR_BOT("door"),    // Open states don't drop items
+	    DOOR_TOP("door");
 
 		// The string ID of the item this tile drops when broken (null = no drop)
 		public final String itemDropId;
@@ -59,6 +72,10 @@ public class Constants {
 		 */
 		public static TileID fromItemId(String itemId) {
 			if (itemId == null) return null;
+
+			// Non-placeable items (checked first to prevent matches below)
+			// Wheat item drops from WHEAT block but should not be placeable (use wheat_seeds instead)
+			if (itemId.equals("wheat")) return null;
 
 			// Direct matches (most tiles match their item drops)
 			for (TileID tileID : values()) {
@@ -120,6 +137,8 @@ public class Constants {
 				TileID.COBBLE)));
 		tileTypes.put(TileID.WORKBENCH, new Tile(new TileType("sprites/tiles/workbench.png",
 				TileID.WORKBENCH, true, false, 0)));
+        tileTypes.put(TileID.FURNACE, new Tile(new TileType("sprites/tiles/furnace.png",
+                TileID.FURNACE, true, false, 0)));
 		tileTypes.put(TileID.BEDROCK, new Tile(new TileType("sprites/tiles/bedrock.png",
 				TileID.BEDROCK)));
 		tileTypes.put(TileID.SAPLING, new Tile(new TileType("sprites/tiles/sapling.png",
@@ -143,9 +162,33 @@ public class Constants {
         tileTypes.put(TileID.SPAWNER, new Tile(new TileType("sprites/tiles/spawner.png",
 				TileID.SPAWNER, true, false, 1)));
         tileTypes.put(TileID.FARMLAND, new Tile(new TileType("sprites/tiles/farmland.png",
-				TileID.FARMLAND, false, false, 0)));
-		tileTypes.put(TileID.WHEAT_CROP, new Tile(new TileType("sprites/tiles/wheat_crop.png",
-				TileID.WHEAT_CROP, true, false, 0, 0, false)));  // Passable, unstable - needs farmland
+				TileID.FARMLAND)));
+        tileTypes.put(TileID.HAY_BLOCK, new Tile(new TileType("sprites/tiles/hay_block.png",
+                TileID.HAY_BLOCK, false, false, 0)));
+        tileTypes.put(TileID.DIAMOND_BLOCK, new Tile(new TileType("sprites/tiles/diamond_block.png",
+                TileID.DIAMOND_BLOCK, false, false, 0)));
+        tileTypes.put(TileID.IRON_BLOCK, new Tile(new TileType("sprites/tiles/iron_block.png",
+                TileID.IRON_BLOCK, false, false, 0)));
+        tileTypes.put(TileID.EMERALD_BLOCK, new Tile(new TileType("sprites/tiles/emerald_block.png",
+                TileID.EMERALD_BLOCK, false, false, 0)));
+        tileTypes.put(TileID.COAL_BLOCK, new Tile(new TileType("sprites/tiles/coal_block.png",
+                TileID.COAL_BLOCK, false, false, 0)));
+        tileTypes.put(TileID.LAPIS_BLOCK, new Tile(new TileType("sprites/tiles/lapis_block.png",
+                TileID.LAPIS_BLOCK, false, false, 0)));
+        tileTypes.put(TileID.GOLD_BLOCK, new Tile(new TileType("sprites/tiles/gold_block.png",
+                TileID.GOLD_BLOCK, false, false, 0)));
+		tileTypes.put(TileID.WHEAT, new Tile(new TileType("sprites/tiles/wheat.png",
+				TileID.WHEAT, true, false, 0, 0, false)));  // Passable, unstable - needs farmland
+        tileTypes.put(TileID.WHEAT_SEEDS, new Tile(new TileType("sprites/tiles/wheat_seeds.png",
+                TileID.WHEAT_SEEDS, true, false, 0, 0, false)));  // Passable, unstable - needs farmland
+        tileTypes.put(TileID.DOOR_BOT_CLOSED, new Tile(new TileType("sprites/tiles/door_bot_closed.png",
+                TileID.DOOR_BOT_CLOSED, false, false, 0)));  // Not passable when closed
+        tileTypes.put(TileID.DOOR_TOP_CLOSED, new Tile(new TileType("sprites/tiles/door_top_closed.png",
+                TileID.DOOR_TOP_CLOSED, false, false, 0)));  // Not passable when closed
+        tileTypes.put(TileID.DOOR_BOT, new Tile(new TileType("sprites/tiles/door_bot.png",
+                TileID.DOOR_BOT, true, false, 0)));  // Passable when open
+        tileTypes.put(TileID.DOOR_TOP, new Tile(new TileType("sprites/tiles/door_top.png",
+                TileID.DOOR_TOP, true, false, 0)));  // Passable when open
 	}
 
 	public static Map<String, Item> itemTypes;

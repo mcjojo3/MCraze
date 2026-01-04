@@ -143,6 +143,11 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 	}
 
 	@Override
+	public int getStringWidth(String string) {
+		return g.getFontMetrics().stringWidth(string);
+	}
+
+	@Override
 	public void fillOval(int x, int y, int width, int height) {
 		g.fillOval(x, y, width, height);
 	}

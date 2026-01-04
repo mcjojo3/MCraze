@@ -420,10 +420,20 @@ public class Game {
 
 		String input = client.chat.submit();
 		if (input != null && !input.trim().isEmpty()) {
-			// Send chat message to server via packet
-			mc.sayda.mcraze.network.packet.PacketChatSend packet =
-				new mc.sayda.mcraze.network.packet.PacketChatSend(input);
-			client.connection.sendPacket(packet);
+			// Special handling for client-side commands
+			if (input.equalsIgnoreCase("/ping")) {
+				// Send ping packet instead of chat message
+				long timestamp = System.currentTimeMillis();
+				mc.sayda.mcraze.network.packet.PacketPing pingPacket =
+					new mc.sayda.mcraze.network.packet.PacketPing(timestamp);
+				client.connection.sendPacket(pingPacket);
+				client.chat.addMessage("Pinging server...", mc.sayda.mcraze.Color.gray);
+			} else {
+				// Send chat message to server via packet
+				mc.sayda.mcraze.network.packet.PacketChatSend packet =
+					new mc.sayda.mcraze.network.packet.PacketChatSend(input);
+				client.connection.sendPacket(packet);
+			}
 		}
 		client.chat.setOpen(false);
 	}

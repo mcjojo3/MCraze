@@ -42,6 +42,11 @@ public class PacketInventoryUpdate extends ServerPacket {
 	public int craftableCount;        // Stack count of craftable result
 	public int craftableToolUse;      // Tool durability of craftable result
 
+	// Cursor item (holding item) synchronization
+	public String holdingItemId;      // Item ID of item on cursor (null if empty)
+	public int holdingCount;          // Stack count of cursor item
+	public int holdingToolUse;        // Tool durability (0 if not a tool)
+
 	public PacketInventoryUpdate() {}
 
 	@Override
@@ -75,6 +80,12 @@ public class PacketInventoryUpdate extends ServerPacket {
 		totalSize += 4;  // craftableCount
 		totalSize += 4;  // craftableToolUse
 
+		// Add holding item size
+		String holdingId = (holdingItemId != null) ? holdingItemId : "";
+		totalSize += 2 + holdingId.getBytes(StandardCharsets.UTF_8).length;  // holdingItemId
+		totalSize += 4;  // holdingCount
+		totalSize += 4;  // holdingToolUse
+
 		ByteBuffer buf = ByteBuffer.allocate(totalSize);
 
 		// Write UUID
@@ -105,6 +116,13 @@ public class PacketInventoryUpdate extends ServerPacket {
 		buf.put(craftableIdBytes);
 		buf.putInt(craftableCount);
 		buf.putInt(craftableToolUse);
+
+		// Write holding item (cursor item)
+		byte[] holdingIdBytes = holdingId.getBytes(StandardCharsets.UTF_8);
+		buf.putShort((short) holdingIdBytes.length);
+		buf.put(holdingIdBytes);
+		buf.putInt(holdingCount);
+		buf.putInt(holdingToolUse);
 
 		return buf.array();
 	}
@@ -148,6 +166,15 @@ public class PacketInventoryUpdate extends ServerPacket {
 		packet.craftableItemId = craftableId.isEmpty() ? null : craftableId;
 		packet.craftableCount = buf.getInt();
 		packet.craftableToolUse = buf.getInt();
+
+		// Read holding item (cursor item)
+		short holdingIdLen = buf.getShort();
+		byte[] holdingIdBytes = new byte[holdingIdLen];
+		buf.get(holdingIdBytes);
+		String holdingId = new String(holdingIdBytes, StandardCharsets.UTF_8);
+		packet.holdingItemId = holdingId.isEmpty() ? null : holdingId;
+		packet.holdingCount = buf.getInt();
+		packet.holdingToolUse = buf.getInt();
 
 		return packet;
 	}

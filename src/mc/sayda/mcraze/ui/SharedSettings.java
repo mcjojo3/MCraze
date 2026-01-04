@@ -162,7 +162,7 @@ public class SharedSettings {
 		// Draw volume label and value
 		g.setColor(Color.white);
 		String volumeLabel = "Music Volume:";
-		int volumeLabelX = screenWidth / 2 - (volumeLabel.length() * 8) / 2;
+		int volumeLabelX = screenWidth / 2 - g.getStringWidth(volumeLabel) / 2;
 		g.drawString(volumeLabel, volumeLabelX, 185);
 
 		// Get and display current volume
@@ -172,7 +172,7 @@ public class SharedSettings {
 		}
 		int volumePercent = Math.round(currentVolume * 100);
 		String volumeText = volumePercent + "%";
-		int volumeTextX = screenWidth / 2 - (volumeText.length() * 8) / 2;
+		int volumeTextX = screenWidth / 2 - g.getStringWidth(volumeText) / 2;
 		g.drawString(volumeText, volumeTextX, 220);
 
 		// Draw volume buttons (arranged horizontally)

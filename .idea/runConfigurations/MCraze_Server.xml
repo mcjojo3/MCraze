@@ -2,7 +2,7 @@
   <configuration default="false" name="MCraze Server" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="mc.sayda.mcraze.Game" />
     <module name="MCraze" />
-    <option name="PROGRAM_PARAMETERS" value="--server --port 25565 --world-width 256" />
+    <option name="PROGRAM_PARAMETERS" value="--server --port 25565 --world-width 512" />
     <extension name="coverage">
       <pattern>
         <option name="PATTERN" value="mc.sayda.*" />

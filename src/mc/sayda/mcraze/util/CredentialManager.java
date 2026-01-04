@@ -27,6 +27,7 @@ import java.util.Base64;
 public class CredentialManager {
 	private static final String APP_NAME = "MCraze";
 	private static final String CREDENTIALS_FILE = "credentials.dat";
+	private static final String LAST_IP_FILE = "lastip.dat";
 
 	/**
 	 * Saved credentials container
@@ -160,5 +161,66 @@ public class CredentialManager {
 	 */
 	public static boolean hasCredentials() {
 		return Files.exists(getCredentialsFilePath());
+	}
+
+	/**
+	 * Get the last IP file path
+	 */
+	private static Path getLastIPFilePath() {
+		return getCredentialsDirectory().resolve(LAST_IP_FILE);
+	}
+
+	/**
+	 * Save the last used multiplayer IP address
+	 * @param ipAddress The IP address to save
+	 * @return true if saved successfully
+	 */
+	public static boolean saveLastIP(String ipAddress) {
+		if (ipAddress == null || ipAddress.trim().isEmpty()) {
+			return false;
+		}
+
+		try {
+			// Create directory if it doesn't exist
+			Path directory = getCredentialsDirectory();
+			if (!Files.exists(directory)) {
+				Files.createDirectories(directory);
+			}
+
+			// Write IP address to file
+			Path ipFile = getLastIPFilePath();
+			Files.write(ipFile, ipAddress.trim().getBytes(StandardCharsets.UTF_8));
+
+			System.out.println("Last IP saved to: " + ipFile);
+			return true;
+		} catch (IOException e) {
+			System.err.println("Failed to save last IP: " + e.getMessage());
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	/**
+	 * Load the last used multiplayer IP address
+	 * @return The last IP address, or null if not found
+	 */
+	public static String loadLastIP() {
+		try {
+			Path ipFile = getLastIPFilePath();
+
+			// Check if file exists
+			if (!Files.exists(ipFile)) {
+				return null;
+			}
+
+			// Read IP address
+			String ip = new String(Files.readAllBytes(ipFile), StandardCharsets.UTF_8).trim();
+			System.out.println("Last IP loaded from: " + ipFile);
+			return ip.isEmpty() ? null : ip;
+		} catch (IOException e) {
+			System.err.println("Failed to load last IP: " + e.getMessage());
+			e.printStackTrace();
+			return null;
+		}
 	}
 }

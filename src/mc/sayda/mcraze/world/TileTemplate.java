@@ -13,13 +13,25 @@
 package mc.sayda.mcraze.world;
 
 import mc.sayda.mcraze.Constants.TileID;
-
-import mc.sayda.mcraze.Constants.TileID;
+import java.util.HashMap;
+import java.util.Map;
 
 public final class TileTemplate implements java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 
-	public final static TileTemplate tree = new TileTemplate(
+    public static final Map<String, TileTemplate> REGISTRY = new HashMap<>();
+
+    private static TileTemplate register(String name, TileTemplate t) {
+        REGISTRY.put(name.toLowerCase(), t);
+        return t;
+    }
+
+    public static TileTemplate get(String name) {
+        return REGISTRY.get(name.toLowerCase());
+    }
+
+    public static final TileTemplate tree = register("tree",
+            new TileTemplate(
 			new TileID[][] {
 					{ TileID.NONE, TileID.LEAVES, TileID.LEAVES, TileID.NONE, TileID.NONE,
 							TileID.NONE },
@@ -30,7 +42,7 @@ public final class TileTemplate implements java.io.Serializable {
 					{ TileID.LEAVES, TileID.LEAVES, TileID.LEAVES, TileID.LEAVES, TileID.NONE,
 							TileID.NONE },
 					{ TileID.NONE, TileID.LEAVES, TileID.LEAVES, TileID.NONE, TileID.NONE,
-							TileID.NONE } }, null, 5, 2);
+							TileID.NONE } }, null, 5, 2));
 
 	// Dungeon template (6 tall, 7 wide) - TRANSPOSED for correct orientation
 	// BBBBBBB - Roof
@@ -39,7 +51,8 @@ public final class TileTemplate implements java.io.Serializable {
 	// BbbbbbB
 	// BCbMbCB - Chests, Spawner in middle
 	// BBBBBBB - Floor
-	public final static TileTemplate dungeon = new TileTemplate(
+    public static final TileTemplate dungeon = register("dungeon",
+            new TileTemplate(
 			new TileID[][] {
 					{ TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE },  // Left wall
 					{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.CHEST, TileID.COBBLE },
@@ -57,7 +70,7 @@ public final class TileTemplate implements java.io.Serializable {
 					{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE },
 					{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE, TileID.NONE },
 					{ TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE }   // Right wall backdrop
-			}, 0, 0);
+			}, 0, 0));
 
 	public TileID[][] template;        // Foreground tiles
 	public TileID[][] backdropTemplate; // Backdrop tiles (can be null)

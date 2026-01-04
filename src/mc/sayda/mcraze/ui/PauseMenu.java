@@ -188,7 +188,7 @@ public class PauseMenu {
 		// Draw title
 		g.setColor(mc.sayda.mcraze.Color.white);
 		String title = "Game Paused";
-		int titleX = g.getScreenWidth() / 2 - (title.length() * 8) / 2;
+		int titleX = g.getScreenWidth() / 2 - g.getStringWidth(title) / 2;
 		g.drawString(title, titleX, 150);
 
 		// Update button positions and draw them

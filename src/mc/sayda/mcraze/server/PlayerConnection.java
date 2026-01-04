@@ -17,6 +17,7 @@ public class PlayerConnection implements ServerPacketHandler {
 	private final String playerName;
 	private final String password;
 	private final SharedWorld sharedWorld;
+	private boolean initialWorldLoaded = false;  // Track if player has finished loading initial world data
 
 	public PlayerConnection(Connection connection, Player player, String playerName, String password, SharedWorld sharedWorld) {
 		GameLogger logger = GameLogger.get();
@@ -106,6 +107,31 @@ public class PlayerConnection implements ServerPacketHandler {
 		// Apply sneaking state
 		player.sneaking = packet.sneak;
 
+		// CRITICAL FIX: Update hand target position from world mouse coordinates
+		// This fixes the bug where remote players could only interact at (0,0)
+		// Convert world mouse coordinates to block coordinates
+		int targetBlockX = (int) Math.floor(packet.worldMouseX);
+		int targetBlockY = (int) Math.floor(packet.worldMouseY);
+
+		// Calculate distance from player center to target block center
+		float playerCenterX = player.getCenterX(mc.sayda.mcraze.Constants.TILE_SIZE);
+		float playerCenterY = player.getCenterY(mc.sayda.mcraze.Constants.TILE_SIZE);
+		float targetCenterX = targetBlockX + 0.5f;
+		float targetCenterY = targetBlockY + 0.5f;
+		float dx = targetCenterX - playerCenterX;
+		float dy = targetCenterY - playerCenterY;
+		float distance = (float) Math.sqrt(dx * dx + dy * dy);
+
+		// Check if within arm's reach
+		if (distance <= mc.sayda.mcraze.Constants.ARM_LENGTH) {
+			player.handTargetPos.x = targetBlockX;
+			player.handTargetPos.y = targetBlockY;
+		} else {
+			// Out of reach - set to invalid position
+			player.handTargetPos.x = -1;
+			player.handTargetPos.y = -1;
+		}
+
 		// Update hotbar selection
 		if (packet.hotbarSlot >= 0 && packet.hotbarSlot < 10) {
 			player.setHotbarItem(packet.hotbarSlot);
@@ -191,6 +217,19 @@ public class PlayerConnection implements ServerPacketHandler {
 	}
 
 	@Override
+	public void handleEntityAttack(mc.sayda.mcraze.network.packet.PacketEntityAttack packet) {
+		// Handle entity attack - delegate to SharedWorld for processing
+		sharedWorld.handleEntityAttack(this, packet);
+	}
+
+	@Override
+	public void handlePing(mc.sayda.mcraze.network.packet.PacketPing packet) {
+		// Respond to ping request with pong containing original timestamp
+		mc.sayda.mcraze.network.packet.PacketPong pong = new mc.sayda.mcraze.network.packet.PacketPong(packet.timestamp);
+		connection.sendPacket(pong);
+	}
+
+	@Override
 	public void handleChatSend(PacketChatSend packet) {
 		GameLogger logger = GameLogger.get();
 		if (packet.message == null || packet.message.trim().isEmpty()) {
@@ -256,5 +295,13 @@ public class PlayerConnection implements ServerPacketHandler {
 
 	public boolean isConnected() {
 		return connection.isConnected();
+	}
+
+	public void setInitialWorldLoaded(boolean loaded) {
+		this.initialWorldLoaded = loaded;
+	}
+
+	public boolean isInitialWorldLoaded() {
+		return initialWorldLoaded;
 	}
 }

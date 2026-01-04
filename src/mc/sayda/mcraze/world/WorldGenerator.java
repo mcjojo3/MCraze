@@ -61,6 +61,10 @@ public class WorldGenerator {
 				// Forests: above sea level (NEGATIVE offset = higher up), varied terrain, many trees
 				// Reduced variation from 0.7 to 0.5 and increased offset to -7 to keep above water
 				return new BiomeParams(-7, 0.5, TileID.GRASS, TileID.DIRT, 0.35);
+            case MOUNTAIN:
+                // Mountains: above sea level (NEGATIVE offset = higher up), varied terrain, many trees
+                // Reduced variation from 0.7 to 0.5 and increased offset to -7 to keep above water
+                return new BiomeParams(-21, 2.0, TileID.STONE, TileID.STONE, 0.0);
 			case OCEAN:
 				// Oceans: BELOW sea level (POSITIVE offset = deeper down), sandy ocean floor with water above
 				return new BiomeParams(8, 0.4, TileID.SAND, TileID.SAND, 0.0);
@@ -68,7 +72,7 @@ public class WorldGenerator {
 			default:
 				// Plains: above sea level (NEGATIVE offset = higher up), moderate variation, no trees
 				// Reduced variation from 0.6 to 0.45 and increased offset to -6 to keep above water
-				return new BiomeParams(-6, 0.45, TileID.GRASS, TileID.DIRT, 0.0);
+				return new BiomeParams(-6, 0.45, TileID.GRASS, TileID.DIRT, 0.02);
 		}
 	}
 
@@ -179,8 +183,9 @@ public class WorldGenerator {
 			return getBiomeParams(centerBiome);
 		}
 
-		// Blend parameters (linear interpolation)
-		double blendFactor = (double) distanceFromBoundary / transitionRange;
+		// Blend parameters (smooth interpolation using fade curve to prevent spikes)
+		double linearFactor = (double) distanceFromBoundary / transitionRange;
+		double blendFactor = fade(linearFactor);  // Use smooth curve instead of linear
 		BiomeParams center = getBiomeParams(centerBiome);
 		BiomeParams adjacent = getBiomeParams(adjacentBiome);
 
@@ -204,12 +209,12 @@ public class WorldGenerator {
 		Biome[] biomes = new Biome[width];
 
 		// Calculate biome sizes based on world width
-		int oceanWidth = Math.max(80, width / 8);  // Ocean is ~12.5% of world width (min 80 blocks)
+		int oceanWidth = Math.max(60, width / 12);  // Ocean is ~8.3% of world width (min 60 blocks) - REDUCED from width/8
 		int minLandBiomeWidth = Math.max(60, width / 16);  // Min land biome width scales with world
 		int maxLandBiomeWidth = Math.max(150, width / 6);  // Max land biome width scales with world
 
 		// Get all non-ocean biomes for guaranteed placement
-		Biome[] landBiomes = {Biome.PLAINS, Biome.FOREST, Biome.DESERT};
+		Biome[] landBiomes = {Biome.PLAINS, Biome.FOREST, Biome.DESERT, Biome.MOUNTAIN};
 
 		// PHASE 1: Place ocean at left edge
 		int leftOceanWidth = oceanWidth + random.nextInt(oceanWidth / 2);  // Vary ocean size
@@ -235,8 +240,21 @@ public class WorldGenerator {
 			java.util.List<BiomeSegment> segments = new java.util.ArrayList<>();
 
 			// Add guaranteed biomes (one of each land biome)
+			// CRITICAL FIX: Scale guaranteed biome widths to fit available space
+			int guaranteedCount = landBiomes.length;
+			int maxTotalGuaranteedWidth = (int) (middleWidth * 0.8);  // Use 80% of space for guaranteed biomes
+			int avgGuaranteedWidth = maxTotalGuaranteedWidth / guaranteedCount;
+
 			for (Biome biome : landBiomes) {
-				int segmentWidth = minLandBiomeWidth + random.nextInt(maxLandBiomeWidth - minLandBiomeWidth);
+				// Vary width but ensure total doesn't exceed available space
+				int variance = Math.min(
+					random.nextInt(maxLandBiomeWidth - minLandBiomeWidth),
+					avgGuaranteedWidth / 2  // Limit variance to half of average
+				);
+				int segmentWidth = Math.min(
+					minLandBiomeWidth + variance,
+					avgGuaranteedWidth + avgGuaranteedWidth / 2  // Max = 1.5x average
+				);
 				segments.add(new BiomeSegment(biome, segmentWidth));
 			}
 
@@ -306,37 +324,49 @@ public class WorldGenerator {
 		double chance = random.nextDouble();
 
 		// Define natural biome transitions
-		switch (current) {
-			case OCEAN:
-				// Ocean -> Plains (40%), Forest (20%), Desert (10%), stay Ocean (30%)
-				if (chance < 0.30) return Biome.OCEAN;
-				if (chance < 0.70) return Biome.PLAINS;
-				if (chance < 0.90) return Biome.FOREST;
-				return Biome.DESERT;
+        switch (current) {
+            case OCEAN:
+                // Ocean -> stay Ocean (35%), Plains (40%), Forest (15%), Desert (7%), Mountain (3%)
+                if (chance < 0.35) return Biome.OCEAN;
+                if (chance < 0.75) return Biome.PLAINS;
+                if (chance < 0.90) return Biome.FOREST;
+                if (chance < 0.97) return Biome.DESERT;
+                return Biome.MOUNTAIN;
 
-			case DESERT:
-				// Desert -> Plains (50%), Forest (15%), Ocean (10%), stay Desert (25%)
-				if (chance < 0.25) return Biome.DESERT;
-				if (chance < 0.75) return Biome.PLAINS;
-				if (chance < 0.90) return Biome.FOREST;
-				return Biome.OCEAN;
+            case DESERT:
+                // Desert -> stay Desert (30%), Plains (45%), Forest (12%), Ocean (8%), Mountain (5%)
+                if (chance < 0.30) return Biome.DESERT;
+                if (chance < 0.75) return Biome.PLAINS;
+                if (chance < 0.87) return Biome.FOREST;
+                if (chance < 0.95) return Biome.OCEAN;
+                return Biome.MOUNTAIN;
 
-			case FOREST:
-				// Forest -> Plains (45%), Desert (15%), Ocean (15%), stay Forest (25%)
-				if (chance < 0.25) return Biome.FOREST;
-				if (chance < 0.70) return Biome.PLAINS;
-				if (chance < 0.85) return Biome.DESERT;
-				return Biome.OCEAN;
+            case FOREST:
+                // Forest -> stay Forest (30%), Plains (45%), Desert (12%), Ocean (8%), Mountain (5%)
+                if (chance < 0.30) return Biome.FOREST;
+                if (chance < 0.75) return Biome.PLAINS;
+                if (chance < 0.87) return Biome.DESERT;
+                if (chance < 0.95) return Biome.OCEAN;
+                return Biome.MOUNTAIN;
 
-			case PLAINS:
-			default:
-				// Plains -> Forest (30%), Desert (25%), Ocean (15%), stay Plains (30%)
-				if (chance < 0.30) return Biome.PLAINS;
-				if (chance < 0.60) return Biome.FOREST;
-				if (chance < 0.85) return Biome.DESERT;
-				return Biome.OCEAN;
-		}
-	}
+            case MOUNTAIN:
+                // Mountain -> Plains (55%), Forest (25%), Desert (10%), Ocean (7%), stay Mountain (3%)
+                if (chance < 0.55) return Biome.PLAINS;
+                if (chance < 0.80) return Biome.FOREST;
+                if (chance < 0.90) return Biome.DESERT;
+                if (chance < 0.97) return Biome.OCEAN;
+                return Biome.MOUNTAIN;
+
+            case PLAINS:
+            default:
+                // Plains -> stay Plains (40%), Forest (30%), Desert (15%), Ocean (7%), Mountain (8%)
+                if (chance < 0.40) return Biome.PLAINS;
+                if (chance < 0.70) return Biome.FOREST;
+                if (chance < 0.85) return Biome.DESERT;
+                if (chance < 0.92) return Biome.OCEAN;
+                return Biome.MOUNTAIN;
+        }
+    }
 
 	public static TileID[][] generate(int width, int height, Random random, Biome[] biomeMap, World worldObj) {
 		TileID[][] world = new TileID[width][height];
