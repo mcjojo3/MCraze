@@ -530,12 +530,26 @@ public class World implements java.io.Serializable {
 		chests.put(ChestData.makeKey(x, y), chest);
 	}
 
-	private TileID[] breakWood = new TileID[] { TileID.WOOD, TileID.PLANK, TileID.WORKBENCH };
-	private TileID[] breakStone = new TileID[] { TileID.STONE, TileID.COBBLE, TileID.COAL_ORE };
-	private TileID[] breakIron = new TileID[] { TileID.IRON_ORE };
-	private TileID[] breakDiamond = new TileID[] { TileID.DIAMOND_ORE };
-	private TileID[] breakPlant = new TileID[] { TileID.TALL_GRASS, TileID.ROSE, TileID.DANDELION,
-	                                              TileID.WHEAT, TileID.WHEAT_SEEDS, TileID.SAPLING, TileID.CACTUS };
+	private TileID[] breakWood = new TileID[] {
+            TileID.WOOD, TileID.PLANK, TileID.WORKBENCH, TileID.CHEST,
+            TileID.DOOR_TOP_CLOSED, TileID.DOOR_TOP, TileID.DOOR_BOT_CLOSED, TileID.DOOR_BOT
+    };
+
+	private TileID[] breakStone = new TileID[] {
+            TileID.STONE, TileID.COBBLE, TileID.COAL_ORE, TileID.COAL_BLOCK, TileID.LAPIS_BLOCK, TileID.FURNACE
+    };
+
+	private TileID[] breakIron = new TileID[] {
+            TileID.IRON_ORE, TileID.DIAMOND_BLOCK, TileID.IRON_BLOCK, TileID.GOLD_BLOCK, TileID.EMERALD_BLOCK
+    };
+
+	private TileID[] breakDiamond = new TileID[] {
+            TileID.DIAMOND_ORE
+    };
+
+	private TileID[] breakPlant = new TileID[] {
+            TileID.TALL_GRASS, TileID.ROSE, TileID.DANDELION, TileID.WHEAT, TileID.WHEAT_SEEDS, TileID.SAPLING, //TileID.CACTUS
+    };
 	
 	public int breakTicks(int x, int y, Item item) {
 		if (x < 0 || x >= width || y < 0 || y >= height) {

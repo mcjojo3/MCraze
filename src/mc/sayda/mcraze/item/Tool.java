@@ -16,7 +16,7 @@ public class Tool extends Item {
 	private static final long serialVersionUID = 1L;
 
 	public enum ToolType {
-		Shovel, Pick, Axe, Sword
+		Shovel, Pick, Axe, Sword, Hoe
 	};
 
 	public enum ToolPower {

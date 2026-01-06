@@ -47,14 +47,14 @@ public class Constants {
         EMERALD_BLOCK("emerald_block"),
         LAPIS_BLOCK("lapis_block"),
         COAL_BLOCK("coal_block"),
-		CHEST("chest"),           // Dungeon chest (no drop yet)
+		CHEST("chest"),
 		SPAWNER(null),         // Monster spawner (no drop yet)
-		FARMLAND("dirt"),        // Tilled soil for planting crops
-		WHEAT("wheat"),  // Growing wheat (drops wheat item when harvested)
+		FARMLAND("dirt"),
+		WHEAT("wheat"),
         FURNACE("furnace"),
 	    DOOR_BOT_CLOSED("door"),
-	    DOOR_TOP_CLOSED("door"),  // Top doesn't drop separately
-	    DOOR_BOT("door"),    // Open states don't drop items
+	    DOOR_TOP_CLOSED("door"),
+	    DOOR_BOT("door"),
 	    DOOR_TOP("door");
 
 		// The string ID of the item this tile drops when broken (null = no drop)
