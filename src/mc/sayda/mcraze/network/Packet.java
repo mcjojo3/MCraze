@@ -26,4 +26,13 @@ public abstract class Packet {
 	 * Encode this packet to binary format
 	 */
 	public abstract byte[] encode();
+
+	/**
+	 * Whether this packet requires immediate flush (for critical packets like auth, world init)
+	 * Default: false (batched for performance)
+	 * Override to true for time-sensitive packets that must be sent immediately
+	 */
+	public boolean requiresImmediateFlush() {
+		return false;  // Default: no flush, better performance
+	}
 }

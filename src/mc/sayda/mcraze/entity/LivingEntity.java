@@ -275,7 +275,8 @@ public abstract class LivingEntity extends Entity {
 	 * Called when the entity dies. Subclasses can override for specific death behavior.
 	 */
 	protected void onDeath() {
-		System.out.println(getClass().getSimpleName() + " has died!");
+		// PERFORMANCE: Commented out console logging
+		// System.out.println(getClass().getSimpleName() + " has died!");
 		// TODO: Add death sound effect when sound system is implemented
 		// Example: SoundPlayer.play("death");
 	}
@@ -292,8 +293,9 @@ public abstract class LivingEntity extends Entity {
             return;
         }
         this.hitPoints += healAmount;
-        System.out.println(
-                "Healed " + healAmount + ". Current health = " + this.hitPoints
-        );
+        // PERFORMANCE: Commented out console logging
+        // System.out.println(
+        //         "Healed " + healAmount + ". Current health = " + this.hitPoints
+        // );
     }
 }

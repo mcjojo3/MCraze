@@ -33,6 +33,16 @@ public interface Connection {
 	boolean isConnected();
 
 	/**
+	 * Flush pending outbound packets to the network.
+	 * For NetworkConnection: flushes BufferedOutputStream to TCP socket.
+	 * For LocalConnection: no-op (no buffering).
+	 * Should be called once per server tick to batch I/O operations.
+	 */
+	default void flush() {
+		// Default: no-op (for LocalConnection)
+	}
+
+	/**
 	 * Close the connection
 	 */
 	void disconnect();

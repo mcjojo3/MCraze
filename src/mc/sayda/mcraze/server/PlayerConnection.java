@@ -241,7 +241,8 @@ public class PlayerConnection implements ServerPacketHandler {
 			// Handle command via CommandHandler (if available)
 			mc.sayda.mcraze.ui.CommandHandler cmdHandler = sharedWorld.getCommandHandler();
 			if (cmdHandler != null) {
-				System.out.println("[" + playerName + "] Command: " + packet.message);
+				// PERFORMANCE: Commented out console logging (use logger instead)
+				// System.out.println("[" + playerName + "] Command: " + packet.message);
 				if (logger != null) {
 					logger.info("Command [" + playerName + "]: " + packet.message);
 				}
@@ -249,13 +250,15 @@ public class PlayerConnection implements ServerPacketHandler {
 				cmdHandler.executeCommand(packet.message, this.player);
 			} else {
 				// No command handler available (dedicated server)
-				System.out.println("[" + playerName + "] Command not supported: " + packet.message);
+				// PERFORMANCE: Commented out console logging
+				// System.out.println("[" + playerName + "] Command not supported: " + packet.message);
 			}
 			return;  // Don't broadcast commands
 		}
 
 		// Regular chat message
-		System.out.println("[" + playerName + "] " + packet.message);
+		// PERFORMANCE: Commented out console logging (use logger instead)
+		// System.out.println("[" + playerName + "] " + packet.message);
 		if (logger != null) {
 			logger.info("Chat [" + playerName + "]: " + packet.message);
 		}

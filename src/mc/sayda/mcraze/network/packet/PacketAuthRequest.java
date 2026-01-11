@@ -44,6 +44,11 @@ public class PacketAuthRequest extends ClientPacket {
 	}
 
 	@Override
+	public boolean requiresImmediateFlush() {
+		return true;  // CRITICAL: Auth packets must be flushed immediately
+	}
+
+	@Override
 	public byte[] encode() {
 		byte[] usernameBytes = username.getBytes(StandardCharsets.UTF_8);
 		byte[] passwordBytes = password.getBytes(StandardCharsets.UTF_8);

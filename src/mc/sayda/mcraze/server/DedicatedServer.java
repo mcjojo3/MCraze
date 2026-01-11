@@ -165,6 +165,7 @@ public class DedicatedServer {
 							mc.sayda.mcraze.network.packet.PacketAuthResponse response =
 								new mc.sayda.mcraze.network.packet.PacketAuthResponse(false, "Authentication failed");
 							connection.sendPacket(response);
+							connection.flush();  // Flush immediately so client receives auth failure
 							connection.disconnect();
 						} else {
 							// Authentication successful
@@ -172,6 +173,7 @@ public class DedicatedServer {
 							mc.sayda.mcraze.network.packet.PacketAuthResponse response =
 								new mc.sayda.mcraze.network.packet.PacketAuthResponse(true, "");
 							connection.sendPacket(response);
+							connection.flush();  // Flush immediately so client receives auth success
 
 							connectedPlayers.add(playerConnection);
 							System.out.println("Player " + authPacket.username + " joined (" + connectedPlayers.size() + " players online)");
@@ -183,6 +185,7 @@ public class DedicatedServer {
 							mc.sayda.mcraze.network.packet.PacketAuthResponse response =
 								new mc.sayda.mcraze.network.packet.PacketAuthResponse(false, "Server error: " + e.getMessage());
 							connection.sendPacket(response);
+							connection.flush();  // Flush immediately so client receives error
 							connection.disconnect();
 						} catch (Exception disconnectError) {
 							System.err.println("Failed to send error response: " + disconnectError.getMessage());

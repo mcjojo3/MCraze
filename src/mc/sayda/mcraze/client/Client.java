@@ -216,7 +216,7 @@ public class Client implements ClientPacketHandler {
 			String newContext;
 			// Determine context: cave (deep underground), night (surface at night), or day (surface during day)
 			// Note: Y=0 is sky, Y=128 is sea level, Y=256 is bedrock. Surface is typically Y=100-130.
-			final int CAVE_DEPTH = 150;  // Y position where cave music starts (20-30 blocks below surface)
+			final int CAVE_DEPTH = 140;  // Y position where cave music starts (20-30 blocks below surface)
 			boolean isUnderground = player.y > CAVE_DEPTH;
 			boolean isNight = localServer.world.isNight();
 
@@ -532,10 +532,11 @@ public class Client implements ClientPacketHandler {
 	 * Process packets from server (limited per frame to avoid blocking render)
 	 * EXCEPT during world initialization when we need all data immediately
 	 */
-	// PERFORMANCE: Reduced from 100 to 30 to prevent frame time bloat on dedicated servers
-	// Processing 100 packets/frame was taking 50-80% of frame time, causing low FPS
-	// 30 packets/frame = ~5-10ms max, leaving time for rendering
-	private static final int MAX_PACKETS_PER_FRAME = 30;
+	// PERFORMANCE: Process ALL packets to prevent packet loss and stuttering
+	// Dropping packets causes position desync and laggy gameplay on dedicated servers
+	// With packet pooling optimizations, server rarely sends >100 packets/frame
+	// Increased from 200 to 1000 to handle burst scenarios without dropping packets
+	private static final int MAX_PACKETS_PER_FRAME = 1000;
 	private int worldInitPacketsRemaining = 0;  // Unlimited packet processing for initial world load
 	private int worldInitTotalPackets = 0;  // Track total packets expected for progress calculation
 

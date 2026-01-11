@@ -62,7 +62,49 @@ public class PacketEntityUpdate extends ServerPacket {
 	public int[] selectedItemCount;        // Stack count
 	public int[] selectedItemDurability;   // Tool uses (0 if not a tool)
 
+	// PERFORMANCE: Reusable ByteBuffer to avoid allocation in encode()
+	// This is thread-safe because each SharedWorld instance has its own cachedEntityPacket
+	private ByteBuffer encodeBuffer = null;
+
 	public PacketEntityUpdate() {}
+
+	/**
+	 * PERFORMANCE: Ensure arrays have sufficient capacity, reusing existing arrays when possible
+	 * This avoids allocating new arrays on every broadcast (60 Hz = 1560 arrays/sec)
+	 */
+	public void ensureCapacity(int size) {
+		// Reuse arrays if they exist and are large enough, otherwise allocate new ones
+		if (entityIds == null || entityIds.length < size) {
+			entityIds = new int[size];
+			entityTypes = new String[size];
+			entityUUIDs = new String[size];
+			entityX = new float[size];
+			entityY = new float[size];
+			entityDX = new float[size];
+			entityDY = new float[size];
+			entityHealth = new int[size];
+			facingRight = new boolean[size];
+			dead = new boolean[size];
+			ticksAlive = new long[size];
+			ticksUnderwater = new int[size];
+			itemIds = new String[size];
+			playerNames = new String[size];
+			flying = new boolean[size];
+			noclip = new boolean[size];
+			sneaking = new boolean[size];
+			climbing = new boolean[size];
+			jumping = new boolean[size];
+			speedMultiplier = new float[size];
+			backdropPlacementMode = new boolean[size];
+			handTargetX = new int[size];
+			handTargetY = new int[size];
+			hotbarIndex = new int[size];
+			selectedItemId = new String[size];
+			selectedItemCount = new int[size];
+			selectedItemDurability = new int[size];
+		}
+		// If arrays exist and are large enough, we reuse them (no allocation!)
+	}
 
 	@Override
 	public int getPacketId() {
@@ -78,32 +120,16 @@ public class PacketEntityUpdate extends ServerPacket {
 	public byte[] encode() {
 		int count = (entityIds != null) ? entityIds.length : 0;
 
-		// Calculate total size
-		int totalSize = 4;  // Entity count
-		for (int i = 0; i < count; i++) {
-			totalSize += 4;  // entityId
-			totalSize += 2 + entityTypes[i].getBytes(StandardCharsets.UTF_8).length;  // entityType
-			totalSize += 2 + entityUUIDs[i].getBytes(StandardCharsets.UTF_8).length;  // entityUUID
-			totalSize += 16;  // 4 floats (x, y, dx, dy)
-			totalSize += 4;  // entityHealth
-			totalSize += 2;  // 2 booleans (facingRight, dead)
-			totalSize += 8;  // ticksAlive (long)
-			totalSize += 4;  // ticksUnderwater (int)
-			String itemId = (itemIds[i] != null) ? itemIds[i] : "";
-			totalSize += 2 + itemId.getBytes(StandardCharsets.UTF_8).length;  // itemId
-			String playerName = (playerNames[i] != null) ? playerNames[i] : "";
-			totalSize += 2 + playerName.getBytes(StandardCharsets.UTF_8).length;  // playerName
-			totalSize += 5;  // 5 booleans (flying, noclip, sneaking, climbing, jumping)
-			totalSize += 4;  // 1 float (speedMultiplier)
-			totalSize += 1;  // 1 boolean (backdropPlacementMode)
-			totalSize += 8;  // 2 ints (handTargetX, handTargetY)
-			totalSize += 4;  // 1 int (hotbarIndex)
-			String selectedItem = (selectedItemId[i] != null) ? selectedItemId[i] : "";
-			totalSize += 2 + selectedItem.getBytes(StandardCharsets.UTF_8).length;  // selectedItemId
-			totalSize += 8;  // 2 ints (selectedItemCount, selectedItemDurability)
-		}
-
-		ByteBuffer buf = ByteBuffer.allocate(totalSize);
+		// PERFORMANCE FIX: Eliminate double iteration by using estimated size
+		// Old code iterated twice: once to calculate size, once to write
+		// New code: Pre-allocate reasonable buffer size to avoid most resizing
+		// For 10 entities: ~150 bytes per entity = ~1500 bytes total
+		int estimatedSize = 4 + (count * 150);  // Entity count + estimated per-entity size
+		ByteBuffer buf = (encodeBuffer != null && encodeBuffer.capacity() >= estimatedSize)
+			? encodeBuffer
+			: ByteBuffer.allocate(Math.max(estimatedSize, 2048));
+		buf.clear();  // Reset position to 0
+		encodeBuffer = buf;  // Cache for next encode()
 
 		// Write entity count
 		buf.putInt(count);
@@ -181,7 +207,16 @@ public class PacketEntityUpdate extends ServerPacket {
 			buf.putInt(selectedItemDurability[i]);
 		}
 
-		return buf.array();
+		// PERFORMANCE: Return right-sized array (buffer may be larger than actual data)
+		int actualSize = buf.position();
+		if (actualSize == buf.capacity()) {
+			return buf.array();  // Perfect fit, no copy needed
+		} else {
+			// Buffer was larger than needed, create right-sized array
+			byte[] result = new byte[actualSize];
+			System.arraycopy(buf.array(), 0, result, 0, actualSize);
+			return result;
+		}
 	}
 
 	public static PacketEntityUpdate decode(ByteBuffer buf) {

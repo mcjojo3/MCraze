@@ -10,10 +10,21 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="36013f05-078b-438b-9291-a28f0a890249" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/items/items.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/items/items.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/Constants.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/Constants.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/item/Tool.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/item/Tool.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/client/Client.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/client/Client.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/LivingEntity.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/LivingEntity.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/Connection.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/Connection.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/NetworkConnection.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/NetworkConnection.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/Packet.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/Packet.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketAuthRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketAuthRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketEntityUpdate.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketEntityUpdate.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/DedicatedServer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/DedicatedServer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/PlayerConnection.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/PlayerConnection.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/Server.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/Server.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/SharedWorld.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/SharedWorld.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/World.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/World.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -44,35 +55,35 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "Application.MCraze - Debug Mode.executor": "Run",
-    "Application.MCraze Server.executor": "Run",
-    "Application.MCraze.executor": "Run",
-    "Application.MCraze2.executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "bazel.project.detector.is.bazel.project": "true",
-    "git-widget-placeholder": "dev",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "G:/Github/MCraze/.idea/runConfigurations",
-    "onboarding.tips.debug.path": "G:/Github/MCraze/src/Main.java",
-    "project.structure.last.edited": "Libraries",
-    "project.structure.proportion": "0.15",
-    "project.structure.side.proportion": "0.2",
-    "settings.editor.selected.configurable": "project.propVCSSupport.DirectoryMappings"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;Application.MCraze - Debug Mode.executor&quot;: &quot;Run&quot;,
+    &quot;Application.MCraze Server.executor&quot;: &quot;Run&quot;,
+    &quot;Application.MCraze.executor&quot;: &quot;Run&quot;,
+    &quot;Application.MCraze2.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;bazel.project.detector.is.bazel.project&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;dev&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;G:/Github/MCraze/.idea/runConfigurations&quot;,
+    &quot;onboarding.tips.debug.path&quot;: &quot;G:/Github/MCraze/src/Main.java&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Libraries&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;project.propVCSSupport.DirectoryMappings&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="G:\Github\MCraze\.idea\runConfigurations" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.MCraze">
+  <component name="RunManager" selected="Application.MCraze2">
     <configuration name="MCraze2" type="Application" factoryName="Application">
       <option name="MAIN_CLASS_NAME" value="mc.sayda.mcraze.Game" />
       <module name="MCraze" />

@@ -536,6 +536,7 @@ public class Server implements PacketHandler {
 					mc.sayda.mcraze.network.packet.PacketAuthResponse response =
 						new mc.sayda.mcraze.network.packet.PacketAuthResponse(false, "Authentication failed");
 					connection.sendPacket(response);
+					connection.flush();  // Flush immediately so client receives auth failure
 					connection.disconnect();
 				} else {
 					// Authentication successful
@@ -543,6 +544,7 @@ public class Server implements PacketHandler {
 					mc.sayda.mcraze.network.packet.PacketAuthResponse response =
 						new mc.sayda.mcraze.network.packet.PacketAuthResponse(true, "");
 					connection.sendPacket(response);
+					connection.flush();  // Flush immediately so client receives auth success
 
 					System.out.println("LAN player " + authPacket.username + " joined the game");
 				}
