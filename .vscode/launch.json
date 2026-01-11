@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "MCraze Client",
+            "request": "launch",
+            "mainClass": "mc.sayda.mcraze.Game",
+            "args": "--username mc_jojo3 --password mcmc123"
+        },
+        {
+            "type": "java",
+            "name": "MCraze Server",
+            "request": "launch",
+            "mainClass": "mc.sayda.mcraze.Game",
+            "args": "--server --port 25565 --world-width 512"
+        },
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        }
+    ]
+}

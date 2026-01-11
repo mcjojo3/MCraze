@@ -11,21 +11,12 @@
   <component name="ChangeListManager">
     <list default="true" id="36013f05-078b-438b-9291-a28f0a890249" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/items/items.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/items/items.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/client/Client.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/client/Client.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/LivingEntity.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/entity/LivingEntity.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/Connection.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/Connection.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/NetworkConnection.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/NetworkConnection.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/Packet.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/Packet.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketAuthRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketAuthRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketEntityUpdate.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/network/packet/PacketEntityUpdate.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/DedicatedServer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/DedicatedServer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/PlayerConnection.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/PlayerConnection.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/Server.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/Server.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/SharedWorld.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/server/SharedWorld.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/World.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/World.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/WorldGenerator.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/WorldGenerator.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/WorldSaveManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/mc/sayda/mcraze/world/WorldSaveManager.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

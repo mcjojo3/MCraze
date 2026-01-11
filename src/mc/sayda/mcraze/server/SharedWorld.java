@@ -30,7 +30,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * SharedWorld manages a single world instance shared by multiple players.
- * Handles world ticking, entity updates, and broadcasting to all connected clients.
+ * Handles world ticking, entity updates, and broadcasting to all connected
+ * clients.
  */
 public class SharedWorld {
 	private World world;
@@ -44,31 +45,35 @@ public class SharedWorld {
 
 	// Per-player breaking state
 	private HashMap<Player, BreakingState> playerBreakingState = new HashMap<>();
+	private final java.util.concurrent.ConcurrentHashMap<String, Long> doorCooldowns = new java.util.concurrent.ConcurrentHashMap<>();
+	private static final long DOOR_COOLDOWN_MS = 250;
 
-	// World entities (items, etc.) not associated with a specific player - thread-safe
+	// World entities (items, etc.) not associated with a specific player -
+	// thread-safe
 	private final EntityManager entityManager = new EntityManager();
 
 	// Performance: Reusable lists to avoid allocation in hot paths
 	private final List<Entity> entitiesToRemoveCache = new ArrayList<>();
 	private final List<Entity> despawnedItemsCache = new ArrayList<>();
-	private final List<Entity> allEntitiesCache = new ArrayList<>();  // Cached for getAllEntities()
+	private final List<Entity> allEntitiesCache = new ArrayList<>(); // Cached for getAllEntities()
 
-	// Performance: Reusable packet to avoid allocating 26 arrays every broadcast (60 Hz)
+	// Performance: Reusable packet to avoid allocating 26 arrays every broadcast
+	// (60 Hz)
 	// Reduces GC pressure from 1560 array allocations/sec to near-zero
-	private final mc.sayda.mcraze.network.packet.PacketEntityUpdate cachedEntityPacket =
-		new mc.sayda.mcraze.network.packet.PacketEntityUpdate();
+	private final mc.sayda.mcraze.network.packet.PacketEntityUpdate cachedEntityPacket = new mc.sayda.mcraze.network.packet.PacketEntityUpdate();
 
 	// Authentication tracking
-	// CRITICAL FIX: Use ConcurrentHashMap for thread-safety (accessed from multiple threads)
+	// CRITICAL FIX: Use ConcurrentHashMap for thread-safety (accessed from multiple
+	// threads)
 	private java.util.concurrent.ConcurrentHashMap<String, PlayerConnection> playersByUsername = new java.util.concurrent.ConcurrentHashMap<>();
 	private String worldName;
-	private java.nio.file.Path worldDirectory;  // null for integrated server, ./world for dedicated server
+	private java.nio.file.Path worldDirectory; // null for integrated server, ./world for dedicated server
 
 	// Command handler (for integrated server only)
 	private mc.sayda.mcraze.ui.CommandHandler commandHandler;
 
 	public SharedWorld(int worldWidth, Random random, String worldName) {
-		this(worldWidth, random, worldName, null);  // Integrated server - no world directory
+		this(worldWidth, random, worldName, null); // Integrated server - no world directory
 	}
 
 	public SharedWorld(int worldWidth, Random random, String worldName, java.nio.file.Path worldDirectory) {
@@ -76,7 +81,7 @@ public class SharedWorld {
 		this.random = random;
 		this.worldName = worldName;
 		this.worldDirectory = worldDirectory;
-		this.players = new CopyOnWriteArrayList<>();  // Thread-safe for concurrent access
+		this.players = new CopyOnWriteArrayList<>(); // Thread-safe for concurrent access
 
 		// Generate world
 		System.out.println("SharedWorld: Generating world '" + worldName + "' (" + worldWidth + " wide)...");
@@ -100,10 +105,12 @@ public class SharedWorld {
 
 	/**
 	 * Constructor for loading an existing world (used by dedicated server)
-	 * @param world Pre-loaded world instance
-	 * @param random Random instance for game logic
-	 * @param worldName Name of the world (for playerdata)
-	 * @param worldDirectory Directory where world is stored (null for integrated server)
+	 * 
+	 * @param world          Pre-loaded world instance
+	 * @param random         Random instance for game logic
+	 * @param worldName      Name of the world (for playerdata)
+	 * @param worldDirectory Directory where world is stored (null for integrated
+	 *                       server)
 	 */
 	public SharedWorld(World world, Random random, String worldName, java.nio.file.Path worldDirectory) {
 		GameLogger logger = GameLogger.get();
@@ -115,8 +122,8 @@ public class SharedWorld {
 		this.worldAccess = new WorldAccess(world);
 
 		// Load chest data from disk
-		java.util.Map<String, mc.sayda.mcraze.world.ChestData> loadedChests =
-			mc.sayda.mcraze.world.WorldSaveManager.loadChests(worldName);
+		java.util.Map<String, mc.sayda.mcraze.world.ChestData> loadedChests = mc.sayda.mcraze.world.WorldSaveManager
+				.loadChests(worldName);
 		if (loadedChests != null && !loadedChests.isEmpty()) {
 			world.setChests(loadedChests);
 			System.out.println("SharedWorld: Loaded " + loadedChests.size() + " chests from disk");
@@ -125,7 +132,8 @@ public class SharedWorld {
 			}
 		}
 
-		System.out.println("SharedWorld: Loaded existing world '" + worldName + "' (" + world.width + "x" + world.height + ")");
+		System.out.println(
+				"SharedWorld: Loaded existing world '" + worldName + "' (" + world.width + "x" + world.height + ")");
 		if (logger != null) {
 			logger.info("SharedWorld: Loaded existing world '" + worldName + "' - " + world.width + "x" + world.height);
 			logger.debug("SharedWorld.<init>: Spawn location: " + world.spawnLocation.x + ", " + world.spawnLocation.y);
@@ -134,28 +142,34 @@ public class SharedWorld {
 	}
 
 	/**
-	 * Constructor for loading an existing world (backward compatibility - integrated server)
+	 * Constructor for loading an existing world (backward compatibility -
+	 * integrated server)
 	 */
 	public SharedWorld(World world, Random random, String worldName) {
-		this(world, random, worldName, null);  // Integrated server - no world directory
+		this(world, random, worldName, null); // Integrated server - no world directory
 	}
 
 	/**
 	 * Add a player to the shared world with authentication
-	 * @return PlayerConnection if successful, null if authentication failed or duplicate username
+	 * 
+	 * @return PlayerConnection if successful, null if authentication failed or
+	 *         duplicate username
 	 */
 	public PlayerConnection addPlayer(Connection connection, String username, String password) {
 		GameLogger logger = GameLogger.get();
-		System.out.println("SharedWorld: Adding player: " + username);
+		if (GameLogger.get() != null)
+			GameLogger.get().info("SharedWorld: Adding player: " + username);
 		if (logger != null) {
 			logger.info("SharedWorld: Adding player: " + username);
-			logger.debug("SharedWorld.addPlayer: Spawn location: " + world.spawnLocation.x + ", " + world.spawnLocation.y);
+			logger.debug(
+					"SharedWorld.addPlayer: Spawn location: " + world.spawnLocation.x + ", " + world.spawnLocation.y);
 		}
 
 		// Check for duplicate username
 		if (playersByUsername.containsKey(username)) {
 			System.err.println("SharedWorld: Player " + username + " is already connected!");
-			if (logger != null) logger.warn("SharedWorld: Rejected duplicate username: " + username);
+			if (logger != null)
+				logger.warn("SharedWorld: Rejected duplicate username: " + username);
 			return null;
 		}
 
@@ -167,7 +181,8 @@ public class SharedWorld {
 			if (playerData == null && mc.sayda.mcraze.world.PlayerDataManager.exists(worldDirectory, username)) {
 				// Wrong password
 				System.err.println("SharedWorld: Wrong password for " + username);
-				if (logger != null) logger.warn("SharedWorld: Authentication failed for " + username);
+				if (logger != null)
+					logger.warn("SharedWorld: Authentication failed for " + username);
 				return null;
 			}
 		} else {
@@ -176,56 +191,68 @@ public class SharedWorld {
 			if (playerData == null && mc.sayda.mcraze.world.PlayerDataManager.exists(worldName, username)) {
 				// Wrong password
 				System.err.println("SharedWorld: Wrong password for " + username);
-				if (logger != null) logger.warn("SharedWorld: Authentication failed for " + username);
+				if (logger != null)
+					logger.warn("SharedWorld: Authentication failed for " + username);
 				return null;
 			}
 		}
 
 		// Create player entity
-		if (logger != null) logger.debug("SharedWorld.addPlayer: Creating player entity...");
+		if (logger != null)
+			logger.debug("SharedWorld.addPlayer: Creating player entity...");
 		Player player = new Player(
-			true,
-			world.spawnLocation.x,
-			world.spawnLocation.y,
-			7 * 4,
-			14 * 4
-		);
-		player.username = username;  // Set player's display name
-		if (logger != null) logger.debug("SharedWorld.addPlayer: Player entity created for " + username);
+				true,
+				world.spawnLocation.x,
+				world.spawnLocation.y,
+				7 * 4,
+				14 * 4);
+		player.username = username; // Set player's display name
+		if (logger != null)
+			logger.debug("SharedWorld.addPlayer: Player entity created for " + username);
 
 		// Load or create playerdata
 		if (playerData == null) {
 			// Auto-register new player
 			playerData = new mc.sayda.mcraze.world.PlayerData(
-				username, password, world.spawnLocation.x, world.spawnLocation.y);
+					username, password, world.spawnLocation.x, world.spawnLocation.y);
 			mc.sayda.mcraze.world.PlayerDataManager.save(worldName, playerData);
 			System.out.println("SharedWorld: Auto-registered new player: " + username);
-			if (logger != null) logger.info("SharedWorld: Auto-registered new player: " + username);
+			if (logger != null)
+				logger.info("SharedWorld: Auto-registered new player: " + username);
 		} else {
 			// Apply existing playerdata
 			mc.sayda.mcraze.world.PlayerDataManager.applyToPlayer(playerData, player);
 			System.out.println("SharedWorld: Loaded playerdata for " + username);
-			if (logger != null) logger.info("SharedWorld: Loaded playerdata for " + username);
+			if (logger != null)
+				logger.info("SharedWorld: Loaded playerdata for " + username);
 		}
 
 		// Create player connection
-		if (logger != null) logger.debug("SharedWorld.addPlayer: Creating PlayerConnection...");
+		if (logger != null)
+			logger.debug("SharedWorld.addPlayer: Creating PlayerConnection...");
 		PlayerConnection playerConnection = new PlayerConnection(connection, player, username, password, this);
-		if (logger != null) logger.debug("SharedWorld.addPlayer: PlayerConnection created");
+		if (logger != null)
+			logger.debug("SharedWorld.addPlayer: PlayerConnection created");
 
 		// Add to tracking maps
-		if (logger != null) logger.debug("SharedWorld.addPlayer: Adding to players list...");
+		if (logger != null)
+			logger.debug("SharedWorld.addPlayer: Adding to players list...");
 		players.add(playerConnection);
 		playersByUsername.put(username, playerConnection);
-		if (logger != null) logger.debug("SharedWorld.addPlayer: Added to players list (size now: " + players.size() + ")");
+		if (logger != null)
+			logger.debug("SharedWorld.addPlayer: Added to players list (size now: " + players.size() + ")");
 
 		// Send initial world state to this player
-		if (logger != null) logger.debug("SharedWorld.addPlayer: Sending initial world state...");
+		if (logger != null)
+			logger.debug("SharedWorld.addPlayer: Sending initial world state...");
 		sendInitialWorldState(playerConnection);
-		if (logger != null) logger.debug("SharedWorld.addPlayer: Initial world state sent");
+		if (logger != null)
+			logger.debug("SharedWorld.addPlayer: Initial world state sent");
 
-		System.out.println("SharedWorld: Player added (" + players.size() + " total players)");
-		if (logger != null) logger.info("SharedWorld: Player " + username + " successfully added (" + players.size() + " total)");
+		if (GameLogger.get() != null)
+			GameLogger.get().info("SharedWorld: Player added (" + players.size() + " total players)");
+		if (logger != null)
+			logger.info("SharedWorld: Player " + username + " successfully added (" + players.size() + " total)");
 		return playerConnection;
 	}
 
@@ -234,8 +261,10 @@ public class SharedWorld {
 	 */
 	public void removePlayer(PlayerConnection playerConnection) {
 		GameLogger logger = GameLogger.get();
-		System.out.println("SharedWorld: Removing player: " + playerConnection.getPlayerName());
-		if (logger != null) logger.info("SharedWorld: Removing player: " + playerConnection.getPlayerName());
+		if (GameLogger.get() != null)
+			GameLogger.get().info("SharedWorld: Removing player: " + playerConnection.getPlayerName());
+		if (logger != null)
+			logger.info("SharedWorld: Removing player: " + playerConnection.getPlayerName());
 
 		// Save playerdata before removing
 		savePlayerData(playerConnection);
@@ -248,37 +277,43 @@ public class SharedWorld {
 			// Clean up per-player breaking state (Fix memory leak)
 			playerBreakingState.remove(playerEntity);
 
-			System.out.println("SharedWorld: Removed player entity for " + playerConnection.getPlayerName());
-			if (logger != null) logger.info("SharedWorld: Removed player entity for " + playerConnection.getPlayerName());
+			if (GameLogger.get() != null)
+				GameLogger.get().info("SharedWorld: Removed player entity for " + playerConnection.getPlayerName());
+			if (logger != null)
+				logger.info("SharedWorld: Removed player entity for " + playerConnection.getPlayerName());
 
 			// Broadcast entity removal to all clients
-			mc.sayda.mcraze.network.packet.PacketEntityRemove removePacket =
-				new mc.sayda.mcraze.network.packet.PacketEntityRemove(playerEntity.getUUID());
+			mc.sayda.mcraze.network.packet.PacketEntityRemove removePacket = new mc.sayda.mcraze.network.packet.PacketEntityRemove(
+					playerEntity.getUUID());
 			broadcastPacket(removePacket);
-			if (logger != null) logger.debug("SharedWorld: Broadcasted entity removal for UUID: " + playerEntity.getUUID());
+			if (logger != null)
+				logger.debug("SharedWorld: Broadcasted entity removal for UUID: " + playerEntity.getUUID());
 		}
 
 		// Remove from tracking
 		players.remove(playerConnection);
 		playersByUsername.remove(playerConnection.getPlayerName());
 
-		System.out.println("SharedWorld: Player removed (" + players.size() + " remaining players)");
-		if (logger != null) logger.info("SharedWorld: Player removed (" + players.size() + " remaining)");
+		if (GameLogger.get() != null)
+			GameLogger.get().info("SharedWorld: Player removed (" + players.size() + " remaining players)");
+		if (logger != null)
+			logger.info("SharedWorld: Player removed (" + players.size() + " remaining)");
 	}
 
 	/**
 	 * Save playerdata for a specific player
 	 */
 	public void savePlayerData(PlayerConnection playerConnection) {
-		if (worldName == null || playerConnection == null) return;
+		if (worldName == null || playerConnection == null)
+			return;
 
 		String username = playerConnection.getPlayerName();
 		String password = playerConnection.getPassword();
 		Player player = playerConnection.getPlayer();
 
 		if (player != null) {
-			mc.sayda.mcraze.world.PlayerData data =
-				mc.sayda.mcraze.world.PlayerDataManager.extractFromPlayer(username, password, player);
+			mc.sayda.mcraze.world.PlayerData data = mc.sayda.mcraze.world.PlayerDataManager.extractFromPlayer(username,
+					password, player);
 
 			boolean saved;
 			if (worldDirectory != null) {
@@ -290,9 +325,11 @@ public class SharedWorld {
 			}
 
 			if (saved) {
-				System.out.println("SharedWorld: Saved playerdata for " + username);
+				if (GameLogger.get() != null)
+					GameLogger.get().info("SharedWorld: Saved playerdata for " + username);
 			} else {
-				System.err.println("SharedWorld: Failed to save playerdata for " + username);
+				if (GameLogger.get() != null)
+					GameLogger.get().error("SharedWorld: Failed to save playerdata for " + username);
 			}
 		}
 	}
@@ -302,7 +339,8 @@ public class SharedWorld {
 	 */
 	private void sendInitialWorldState(PlayerConnection playerConnection) {
 		GameLogger logger = GameLogger.get();
-		System.out.println("SharedWorld: Sending initial world state to " + playerConnection.getPlayerName());
+		if (logger != null)
+			logger.info("SharedWorld: Sending initial world state to " + playerConnection.getPlayerName());
 		if (logger != null) {
 			logger.info("SharedWorld: Sending initial world state to " + playerConnection.getPlayerName());
 			logger.debug("SharedWorld.sendInitialWorldState: World dimensions: " + world.width + "x" + world.height);
@@ -310,7 +348,8 @@ public class SharedWorld {
 
 		// Send all non-air tiles (count first to determine total packets)
 		// Use WorldAccess for thread-safe tile iteration
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Collecting non-air tiles...");
+		if (logger != null)
+			logger.debug("SharedWorld.sendInitialWorldState: Collecting non-air tiles...");
 		ArrayList<Integer> changedX = new ArrayList<>();
 		ArrayList<Integer> changedY = new ArrayList<>();
 		ArrayList<Character> changedTiles = new ArrayList<>();
@@ -333,10 +372,14 @@ public class SharedWorld {
 					tilesAdded++;
 
 					// Track min/max coordinates
-					if (x < minX) minX = x;
-					if (x > maxX) maxX = x;
-					if (y < minY) minY = y;
-					if (y > maxY) maxY = y;
+					if (x < minX)
+						minX = x;
+					if (x > maxX)
+						maxX = x;
+					if (y < minY)
+						minY = y;
+					if (y > maxY)
+						maxY = y;
 				}
 			}
 		}
@@ -347,25 +390,27 @@ public class SharedWorld {
 
 		// Calculate total packets (world update chunks + biome data + entity update)
 		// PERFORMANCE FIX: Increased chunk size from 1000 to 5000 tiles
-		// This reduces packet count from ~65 to ~13 for a 256x256 world, improving load times
+		// This reduces packet count from ~65 to ~13 for a 256x256 world, improving load
+		// times
 		int chunkSize = 5000;
 		int numChunks = (int) Math.ceil((double) changedX.size() / chunkSize);
-		int totalPackets = 1 + numChunks + 1;  // +1 biome, +numChunks world, +1 entity
+		int totalPackets = 1 + numChunks + 1; // +1 biome, +numChunks world, +1 entity
 
 		// Send world initialization packet with dimensions and spawn location
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Sending PacketWorldInit...");
+		if (logger != null)
+			logger.debug("SharedWorld.sendInitialWorldState: Sending PacketWorldInit...");
 
 		// Get this player's UUID
 		String playerUUID = playerConnection.getPlayer().getUUID();
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Player UUID: " + playerUUID);
+		if (logger != null)
+			logger.debug("SharedWorld.sendInitialWorldState: Player UUID: " + playerUUID);
 
 		PacketWorldInit initPacket = new PacketWorldInit(
-			world.width,
-			world.height,
-			0,
-			world.spawnLocation.x,
-			world.spawnLocation.y
-		);
+				world.width,
+				world.height,
+				0,
+				world.spawnLocation.x,
+				world.spawnLocation.y);
 		initPacket.playerUUID = playerUUID;
 		initPacket.totalPacketsExpected = totalPackets;
 		// Set gamerules from world
@@ -373,18 +418,23 @@ public class SharedWorld {
 		initPacket.keepInventory = world.keepInventory;
 		initPacket.daylightCycle = world.daylightCycle;
 		playerConnection.getConnection().sendPacket(initPacket);
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: PacketWorldInit sent with playerUUID=" + playerUUID + ", totalPackets=" + totalPackets);
+		if (logger != null)
+			logger.debug("SharedWorld.sendInitialWorldState: PacketWorldInit sent with playerUUID=" + playerUUID
+					+ ", totalPackets=" + totalPackets);
 
 		// Send biome data immediately after world init
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Sending PacketBiomeData...");
-		mc.sayda.mcraze.network.packet.PacketBiomeData biomePacket =
-			new mc.sayda.mcraze.network.packet.PacketBiomeData(world.getBiomeMap());
+		if (logger != null)
+			logger.debug("SharedWorld.sendInitialWorldState: Sending PacketBiomeData...");
+		mc.sayda.mcraze.network.packet.PacketBiomeData biomePacket = new mc.sayda.mcraze.network.packet.PacketBiomeData(
+				world.getBiomeMap());
 		playerConnection.getConnection().sendPacket(biomePacket);
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: PacketBiomeData sent (" +
-			(world.getBiomeMap() != null ? world.getBiomeMap().length : 0) + " biomes)");
+		if (logger != null)
+			logger.debug("SharedWorld.sendInitialWorldState: PacketBiomeData sent (" +
+					(world.getBiomeMap() != null ? world.getBiomeMap().length : 0) + " biomes)");
 
 		// Send in chunks of 1000 tiles
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Sending " + numChunks + " chunks of world data...");
+		if (logger != null)
+			logger.debug("SharedWorld.sendInitialWorldState: Sending " + numChunks + " chunks of world data...");
 
 		for (int i = 0; i < changedX.size(); i += chunkSize) {
 			int end = Math.min(i + chunkSize, changedX.size());
@@ -403,12 +453,16 @@ public class SharedWorld {
 			}
 
 			playerConnection.getConnection().sendPacket(packet);
-			if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Sent chunk " + chunkNum + "/" + numChunks + " (" + (end - i) + " tiles)");
+			if (logger != null)
+				logger.debug("SharedWorld.sendInitialWorldState: Sent chunk " + chunkNum + "/" + numChunks + " ("
+						+ (end - i) + " tiles)");
 		}
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: All world data chunks sent");
+		if (logger != null)
+			logger.debug("SharedWorld.sendInitialWorldState: All world data chunks sent");
 
 		// Send backdrop tiles
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Collecting backdrop tiles...");
+		if (logger != null)
+			logger.debug("SharedWorld.sendInitialWorldState: Collecting backdrop tiles...");
 		ArrayList<Integer> backdropX = new ArrayList<>();
 		ArrayList<Integer> backdropY = new ArrayList<>();
 		ArrayList<Character> backdropTiles = new ArrayList<>();
@@ -424,19 +478,21 @@ public class SharedWorld {
 			}
 		}
 
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Collected " + backdropX.size() + " backdrop tiles");
+		if (logger != null)
+			logger.debug("SharedWorld.sendInitialWorldState: Collected " + backdropX.size() + " backdrop tiles");
 
 		// Send backdrops in chunks of 1000
 		int backdropChunks = (int) Math.ceil((double) backdropX.size() / chunkSize);
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Sending " + backdropChunks + " chunks of backdrop data...");
+		if (logger != null)
+			logger.debug(
+					"SharedWorld.sendInitialWorldState: Sending " + backdropChunks + " chunks of backdrop data...");
 
 		for (int i = 0; i < backdropX.size(); i += chunkSize) {
 			int end = Math.min(i + chunkSize, backdropX.size());
 			int chunkNum = (i / chunkSize) + 1;
 
 			// Create batched packet (reduces 1000 packets to 1 packet)
-			mc.sayda.mcraze.network.packet.PacketBackdropBatch batchPacket =
-				new mc.sayda.mcraze.network.packet.PacketBackdropBatch();
+			mc.sayda.mcraze.network.packet.PacketBackdropBatch batchPacket = new mc.sayda.mcraze.network.packet.PacketBackdropBatch();
 			batchPacket.x = new int[end - i];
 			batchPacket.y = new int[end - i];
 			batchPacket.backdropTileIds = new char[end - i];
@@ -449,23 +505,32 @@ public class SharedWorld {
 
 			playerConnection.getConnection().sendPacket(batchPacket);
 
-			if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Sent backdrop batch " + chunkNum + "/" + backdropChunks + " (" + (end - i) + " backdrops)");
+			if (logger != null)
+				logger.debug("SharedWorld.sendInitialWorldState: Sent backdrop batch " + chunkNum + "/" + backdropChunks
+						+ " (" + (end - i) + " backdrops)");
 		}
 
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: All backdrop data sent (" + backdropX.size() + " backdrops)");
+		if (logger != null)
+			logger.debug(
+					"SharedWorld.sendInitialWorldState: All backdrop data sent (" + backdropX.size() + " backdrops)");
 
 		// Send initial entity update DIRECTLY to this player (not broadcast)
-		if (logger != null) logger.debug("SharedWorld.sendInitialWorldState: Sending initial entity update directly to " + playerConnection.getPlayerName());
+		if (logger != null)
+			logger.debug("SharedWorld.sendInitialWorldState: Sending initial entity update directly to "
+					+ playerConnection.getPlayerName());
 		sendEntityUpdateToPlayer(playerConnection);
 		if (logger != null) {
-			logger.info("SharedWorld.sendInitialWorldState: Initial entity update sent to " + playerConnection.getPlayerName());
-			logger.info("SharedWorld: Initial world state complete for " + playerConnection.getPlayerName() + " (" + changedX.size() + " tiles)");
+			logger.info("SharedWorld.sendInitialWorldState: Initial entity update sent to "
+					+ playerConnection.getPlayerName());
+			logger.info("SharedWorld: Initial world state complete for " + playerConnection.getPlayerName() + " ("
+					+ changedX.size() + " tiles)");
 		}
 
 		// Mark player as fully loaded - they can now receive live world updates
 		playerConnection.setInitialWorldLoaded(true);
 		if (logger != null) {
-			logger.info("Player " + playerConnection.getPlayerName() + " marked as fully loaded and ready for live updates");
+			logger.info("Player " + playerConnection.getPlayerName()
+					+ " marked as fully loaded and ready for live updates");
 		}
 	}
 
@@ -476,15 +541,18 @@ public class SharedWorld {
 		GameLogger logger = GameLogger.get();
 		List<Entity> allEntities = getAllEntities();
 		if (allEntities.isEmpty()) {
-			if (logger != null) logger.warn("SharedWorld.sendEntityUpdateToPlayer: No entities to send!");
+			if (logger != null)
+				logger.warn("SharedWorld.sendEntityUpdateToPlayer: No entities to send!");
 			return;
 		}
 
 		if (logger != null) {
-			logger.debug("SharedWorld.sendEntityUpdateToPlayer: Sending " + allEntities.size() + " entities to " + playerConnection.getPlayerName());
+			logger.debug("SharedWorld.sendEntityUpdateToPlayer: Sending " + allEntities.size() + " entities to "
+					+ playerConnection.getPlayerName());
 		}
 
-		// PERFORMANCE: Allocate packet with ensureCapacity (called rarely during player join)
+		// PERFORMANCE: Allocate packet with ensureCapacity (called rarely during player
+		// join)
 		PacketEntityUpdate packet = new PacketEntityUpdate();
 		int entityCount = allEntities.size();
 		packet.ensureCapacity(entityCount);
@@ -502,7 +570,7 @@ public class SharedWorld {
 			if (entity instanceof Player) {
 				packet.entityTypes[i] = "Player";
 				packet.itemIds[i] = null;
-				packet.playerNames[i] = ((Player) entity).username;  // Send player name
+				packet.playerNames[i] = ((Player) entity).username; // Send player name
 			} else if (entity instanceof Item) {
 				packet.entityTypes[i] = "Item";
 				packet.itemIds[i] = ((Item) entity).itemId;
@@ -541,7 +609,8 @@ public class SharedWorld {
 						packet.selectedItemId[i] = selectedSlot.getItem().itemId;
 						packet.selectedItemCount[i] = selectedSlot.getCount();
 						if (selectedSlot.getItem() instanceof mc.sayda.mcraze.item.Tool) {
-							packet.selectedItemDurability[i] = ((mc.sayda.mcraze.item.Tool) selectedSlot.getItem()).uses;
+							packet.selectedItemDurability[i] = ((mc.sayda.mcraze.item.Tool) selectedSlot
+									.getItem()).uses;
 						} else {
 							packet.selectedItemDurability[i] = 0;
 						}
@@ -591,7 +660,8 @@ public class SharedWorld {
 		}
 		playerConnection.getConnection().sendPacket(packet);
 		if (logger != null) {
-			logger.info("SharedWorld.sendEntityUpdateToPlayer: Packet sent successfully to " + playerConnection.getPlayerName());
+			logger.info("SharedWorld.sendEntityUpdateToPlayer: Packet sent successfully to "
+					+ playerConnection.getPlayerName());
 		}
 	}
 
@@ -600,7 +670,8 @@ public class SharedWorld {
 	 */
 	public void tick() {
 		GameLogger logger = GameLogger.get();
-		if (!running) return;
+		if (!running)
+			return;
 
 		ticksRunning++;
 
@@ -620,12 +691,15 @@ public class SharedWorld {
 			logger.debug("SharedWorld.tick: Packets processed");
 		}
 
-		// Update world physics (grass growth, sand falling, sapling growth, wheat growth, water spread, etc.)
+		// Update world physics (grass growth, sand falling, sapling growth, wheat
+		// growth, water spread, etc.)
 		if (world != null) {
-			java.util.List<mc.sayda.mcraze.world.World.BlockChange> blockChanges = world.chunkUpdate(world.daylightCycle);
+			java.util.List<mc.sayda.mcraze.world.World.BlockChange> blockChanges = world
+					.chunkUpdate(world.daylightCycle);
 
 			// CRITICAL FIX: Broadcast all world physics changes to multiplayer clients
-			// This syncs falling sand, sapling→tree growth, wheat growth, water spread, etc.
+			// This syncs falling sand, sapling→tree growth, wheat growth, water spread,
+			// etc.
 			if (blockChanges != null && !blockChanges.isEmpty()) {
 				for (mc.sayda.mcraze.world.World.BlockChange change : blockChanges) {
 					broadcastBlockChange(change.x, change.y, change.tileId);
@@ -672,14 +746,16 @@ public class SharedWorld {
 							pickedUp = true;
 							pickupPlayer = pc;
 							if (logger != null && ticksRunning <= 10) {
-								logger.debug("SharedWorld.tick: Player " + pc.getPlayerName() + " picked up " + item.itemId);
+								logger.debug(
+										"SharedWorld.tick: Player " + pc.getPlayerName() + " picked up " + item.itemId);
 							}
 							break;
 						} else {
 							// FIX: Inventory full (leftover > 0) - item stays on ground
 							// Entity is NOT added to entitiesToRemove, so it remains in the world
 							if (logger != null && ticksRunning <= 10) {
-								logger.debug("SharedWorld.tick: Player " + pc.getPlayerName() + " inventory full, item remains on ground");
+								logger.debug("SharedWorld.tick: Player " + pc.getPlayerName()
+										+ " inventory full, item remains on ground");
 							}
 							// Don't break - let other players try to pick it up
 						}
@@ -688,7 +764,7 @@ public class SharedWorld {
 				if (pickedUp) {
 					// Broadcast inventory update immediately after pickup
 					broadcastInventoryUpdates();
-					continue;  // Skip position update for removed item
+					continue; // Skip position update for removed item
 				}
 			}
 
@@ -700,7 +776,8 @@ public class SharedWorld {
 				LivingEntity livingEntity = (LivingEntity) entity;
 				if (livingEntity.hitPoints <= 0 && !livingEntity.dead) {
 					livingEntity.dead = true;
-					if (logger != null) logger.info("SharedWorld.tick: Entity died - type: " + entity.getClass().getSimpleName());
+					if (logger != null)
+						logger.info("SharedWorld.tick: Entity died - type: " + entity.getClass().getSimpleName());
 
 					// Send immediate death packet to the player (ISSUE #13 fix)
 					if (entity instanceof Player) {
@@ -715,7 +792,8 @@ public class SharedWorld {
 									entityManager.add(item);
 								}
 								// PERFORMANCE: Commented out console logging
-								// System.out.println("Player " + deadPlayer.username + " died and dropped " + droppedItems.size() + " items");
+								// System.out.println("Player " + deadPlayer.username + " died and dropped " +
+								// droppedItems.size() + " items");
 
 								// Broadcast empty inventory after death
 								broadcastInventoryUpdates();
@@ -732,8 +810,7 @@ public class SharedWorld {
 		if (!entitiesToRemove.isEmpty()) {
 			// Send entity removal packets immediately to all clients
 			for (Entity entity : entitiesToRemove) {
-				mc.sayda.mcraze.network.packet.PacketEntityRemove removePacket =
-					new mc.sayda.mcraze.network.packet.PacketEntityRemove();
+				mc.sayda.mcraze.network.packet.PacketEntityRemove removePacket = new mc.sayda.mcraze.network.packet.PacketEntityRemove();
 				removePacket.entityUUID = entity.getUUID();
 				broadcastPacket(removePacket);
 
@@ -751,26 +828,34 @@ public class SharedWorld {
 
 		// Broadcast entity updates at reduced rate ONLY for dedicated servers
 		// Integrated server (including LAN): 60 Hz - fast enough for local network
-		// Dedicated server: 10 Hz - prevents client FPS drop from packet processing overhead
+		// Dedicated server: 10 Hz - prevents client FPS drop from packet processing
+		// overhead
 		if (logger != null && ticksRunning <= 15) {
 			logger.debug("SharedWorld.tick: Broadcasting entity update (tick " + ticksRunning + ")");
 		}
 
 		// Entity updates at 60 Hz for both integrated and dedicated servers
-		// Modern networks can easily handle this bandwidth (~30-60 KB/sec for 10 entities)
+		// Modern networks can easily handle this bandwidth (~30-60 KB/sec for 10
+		// entities)
 		// Provides smooth, responsive gameplay without stuttering
 		broadcastEntityUpdate();
-		// NOTE: Inventory updates are NOT broadcast on timer - only when inventory actually changes
-		// This prevents packet spam. Inventory is broadcast via handleBlockChange, handleInventoryAction, etc.
+		// NOTE: Inventory updates are NOT broadcast on timer - only when inventory
+		// actually changes
+		// This prevents packet spam. Inventory is broadcast via handleBlockChange,
+		// handleInventoryAction, etc.
 
-		// PERFORMANCE FIX: Flush all network connections once per tick to batch I/O operations
-		// This reduces I/O syscall overhead from 60-600ms/sec (flush per packet) to 1-10ms/sec (flush per tick)
-		// Critical for dedicated server performance where NetworkConnection uses blocking I/O
+		// PERFORMANCE FIX: Flush all network connections once per tick to batch I/O
+		// operations
+		// This reduces I/O syscall overhead from 60-600ms/sec (flush per packet) to
+		// 1-10ms/sec (flush per tick)
+		// Critical for dedicated server performance where NetworkConnection uses
+		// blocking I/O
 		flushAllConnections();
 
 		// PERFORMANCE FIX: Broadcast world time less frequently to reduce packet spam
 		// Changed from every 20 ticks to every 100 ticks (once per 5 seconds at 20 TPS)
-		// This still ensures clients see daylight changes, but with much less network overhead
+		// This still ensures clients see daylight changes, but with much less network
+		// overhead
 		if (ticksRunning % 100 == 0) {
 			broadcastWorldTime();
 		}
@@ -782,15 +867,25 @@ public class SharedWorld {
 			for (PlayerConnection pc : players) {
 				savePlayerData(pc);
 			}
-			if (logger != null) logger.info("SharedWorld: Auto-saved " + players.size() + " players");
+			if (logger != null)
+				logger.info("SharedWorld: Auto-saved " + players.size() + " players");
 
-			// Auto-save chest data
+			// Auto-save WORLD and CHESTS asynchronously
 			if (worldName != null && world != null) {
-				mc.sayda.mcraze.world.WorldSaveManager.saveChests(worldName, world.getAllChests());
-				int chestCount = world.getAllChests().size();
-				// PERFORMANCE: Commented out console logging (use logger instead)
-				// System.out.println("SharedWorld: Auto-saved " + chestCount + " chests");
-				if (logger != null) logger.info("SharedWorld: Auto-saved " + chestCount + " chests");
+				// Use async full world save which includes chests
+				mc.sayda.mcraze.world.WorldSaveManager
+						.saveWorldAsync(worldName, world, getAllEntities())
+						.thenAccept(success -> {
+							if (success) {
+								if (GameLogger.get() != null && GameLogger.get().isDebugEnabled()) {
+									GameLogger.get().debug("SharedWorld: Async auto-save complete");
+								}
+							}
+						});
+
+				// Deprecated: Old synchronous chest save
+				// mc.sayda.mcraze.world.WorldSaveManager.saveChests(worldName,
+				// world.getAllChests());
 			}
 		}
 
@@ -810,8 +905,7 @@ public class SharedWorld {
 			// BUG FIX: Send removal packets to clients BEFORE removing from server
 			// Otherwise clients will have "phantom" items that were despawned on server
 			for (Entity entity : despawnedItemsCache) {
-				mc.sayda.mcraze.network.packet.PacketEntityRemove removePacket =
-					new mc.sayda.mcraze.network.packet.PacketEntityRemove();
+				mc.sayda.mcraze.network.packet.PacketEntityRemove removePacket = new mc.sayda.mcraze.network.packet.PacketEntityRemove();
 				removePacket.entityUUID = entity.getUUID();
 				broadcastPacket(removePacket);
 
@@ -833,7 +927,8 @@ public class SharedWorld {
 		// CRITICAL FIX: Must return NEW list for thread safety!
 		// Render thread iterates this list while server tick thread modifies entities
 		// Returning cached list causes ConcurrentModificationException
-		// Performance: Pre-allocate with capacity to avoid resizing (better than creating 60 lists/sec with default size)
+		// Performance: Pre-allocate with capacity to avoid resizing (better than
+		// creating 60 lists/sec with default size)
 		int expectedSize = players.size() + entityManager.size();
 		List<Entity> allEntities = new ArrayList<>(expectedSize);
 
@@ -844,7 +939,8 @@ public class SharedWorld {
 				allEntities.add(player);
 			}
 		}
-		// Add world entities (dropped items, etc.) - thread-safe iteration (CopyOnWriteArrayList)
+		// Add world entities (dropped items, etc.) - thread-safe iteration
+		// (CopyOnWriteArrayList)
 		allEntities.addAll(entityManager.getAll());
 		return allEntities;
 	}
@@ -864,11 +960,12 @@ public class SharedWorld {
 			logger.debug("SharedWorld.broadcastEntityUpdate: Broadcasting " + allEntities.size() + " entities");
 		}
 
-		// PERFORMANCE: Reuse cached packet instead of allocating new one + 26 arrays every broadcast
+		// PERFORMANCE: Reuse cached packet instead of allocating new one + 26 arrays
+		// every broadcast
 		// This eliminates 1560 array allocations per second (60 Hz * 26 arrays)
 		PacketEntityUpdate packet = cachedEntityPacket;
 		int entityCount = allEntities.size();
-		packet.ensureCapacity(entityCount);  // Reuses arrays if large enough, allocates if needed
+		packet.ensureCapacity(entityCount); // Reuses arrays if large enough, allocates if needed
 
 		for (int i = 0; i < entityCount; i++) {
 			Entity entity = allEntities.get(i);
@@ -883,7 +980,7 @@ public class SharedWorld {
 			if (entity instanceof Player) {
 				packet.entityTypes[i] = "Player";
 				packet.itemIds[i] = null;
-				packet.playerNames[i] = ((Player) entity).username;  // Send player name
+				packet.playerNames[i] = ((Player) entity).username; // Send player name
 			} else if (entity instanceof Item) {
 				packet.entityTypes[i] = "Item";
 				packet.itemIds[i] = ((Item) entity).itemId;
@@ -922,7 +1019,8 @@ public class SharedWorld {
 						packet.selectedItemId[i] = selectedSlot.getItem().itemId;
 						packet.selectedItemCount[i] = selectedSlot.getCount();
 						if (selectedSlot.getItem() instanceof mc.sayda.mcraze.item.Tool) {
-							packet.selectedItemDurability[i] = ((mc.sayda.mcraze.item.Tool) selectedSlot.getItem()).uses;
+							packet.selectedItemDurability[i] = ((mc.sayda.mcraze.item.Tool) selectedSlot
+									.getItem()).uses;
 						} else {
 							packet.selectedItemDurability[i] = 0;
 						}
@@ -963,7 +1061,8 @@ public class SharedWorld {
 
 			// Log first entity details for first few broadcasts
 			if (logger != null && ticksRunning <= 5 && i == 0) {
-				logger.debug("SharedWorld.broadcastEntityUpdate: Entity 0 pos: " + entity.x + ", " + entity.y + " | vel: " + entity.dx + ", " + entity.dy);
+				logger.debug("SharedWorld.broadcastEntityUpdate: Entity 0 pos: " + entity.x + ", " + entity.y
+						+ " | vel: " + entity.dx + ", " + entity.dy);
 			}
 		}
 
@@ -1087,8 +1186,8 @@ public class SharedWorld {
 	 * Broadcast backdrop change to all connected players
 	 */
 	public void broadcastBackdropChange(int x, int y, Constants.TileID backdropId) {
-		mc.sayda.mcraze.network.packet.PacketBackdropChange packet =
-			new mc.sayda.mcraze.network.packet.PacketBackdropChange(x, y, backdropId);
+		mc.sayda.mcraze.network.packet.PacketBackdropChange packet = new mc.sayda.mcraze.network.packet.PacketBackdropChange(
+				x, y, backdropId);
 		broadcast(packet);
 	}
 
@@ -1096,12 +1195,10 @@ public class SharedWorld {
 	 * Broadcast gamerule changes to all connected players
 	 */
 	public void broadcastGamerules() {
-		mc.sayda.mcraze.network.packet.PacketGameruleUpdate packet =
-			new mc.sayda.mcraze.network.packet.PacketGameruleUpdate(
+		mc.sayda.mcraze.network.packet.PacketGameruleUpdate packet = new mc.sayda.mcraze.network.packet.PacketGameruleUpdate(
 				world.spelunking,
 				world.keepInventory,
-				world.daylightCycle
-			);
+				world.daylightCycle);
 		broadcast(packet);
 	}
 
@@ -1111,7 +1208,7 @@ public class SharedWorld {
 	private void broadcastWorldTime() {
 		PacketWorldUpdate packet = new PacketWorldUpdate();
 		packet.ticksAlive = world.getTicksAlive();
-		packet.changedX = new int[0];  // No block changes
+		packet.changedX = new int[0]; // No block changes
 		packet.changedY = new int[0];
 		packet.changedTiles = new char[0];
 
@@ -1123,7 +1220,8 @@ public class SharedWorld {
 	 */
 	private void broadcast(Object packet) {
 		for (PlayerConnection playerConnection : players) {
-			// Only send to fully loaded players to prevent ghost blocks during initial world load
+			// Only send to fully loaded players to prevent ghost blocks during initial
+			// world load
 			if (playerConnection.isInitialWorldLoaded() && playerConnection.getConnection().isConnected()) {
 				playerConnection.getConnection().sendPacket((mc.sayda.mcraze.network.Packet) packet);
 			}
@@ -1159,8 +1257,10 @@ public class SharedWorld {
 
 	/**
 	 * Break floating unstable blocks when the block below is removed.
-	 * Unstable blocks (plants, torches, etc.) require specific support blocks below them.
-	 * When a supporting block is removed, the unstable block above should break and drop items.
+	 * Unstable blocks (plants, torches, etc.) require specific support blocks below
+	 * them.
+	 * When a supporting block is removed, the unstable block above should break and
+	 * drop items.
 	 */
 	private void breakFloatingPlants(int x, int y) {
 		GameLogger logger = GameLogger.get();
@@ -1170,8 +1270,8 @@ public class SharedWorld {
 
 		// Check if there's an unstable block above that needs support
 		if (aboveY >= 0 && world != null && world.tiles != null &&
-		    x >= 0 && x < world.tiles.length &&
-		    aboveY < world.tiles[0].length) {
+				x >= 0 && x < world.tiles.length &&
+				aboveY < world.tiles[0].length) {
 
 			Tile tileAbove = world.tiles[x][aboveY];
 
@@ -1196,7 +1296,9 @@ public class SharedWorld {
 							item.y = aboveY + random.nextFloat() * 0.5f;
 							item.dy = -0.07f;
 							entityManager.add(item);
-							if (logger != null) logger.debug("SharedWorld: " + blockAbove + " broke at (" + x + ", " + aboveY + "), dropped item");
+							if (logger != null)
+								logger.debug("SharedWorld: " + blockAbove + " broke at (" + x + ", " + aboveY
+										+ "), dropped item");
 						}
 					}
 
@@ -1220,12 +1322,12 @@ public class SharedWorld {
 		}
 
 		// Wheat crops can only be on farmland
-        if (unstableBlock == Constants.TileID.WHEAT_SEEDS || unstableBlock == Constants.TileID.WHEAT) {
-            return support == Constants.TileID.FARMLAND;
-        }
+		if (unstableBlock == Constants.TileID.WHEAT_SEEDS || unstableBlock == Constants.TileID.WHEAT) {
+			return support == Constants.TileID.FARMLAND;
+		}
 
-
-        // Other unstable blocks (flowers, saplings, tall grass, torches) need dirt or grass
+		// Other unstable blocks (flowers, saplings, tall grass, torches) need dirt or
+		// grass
 		return support == Constants.TileID.DIRT || support == Constants.TileID.GRASS;
 	}
 
@@ -1269,7 +1371,7 @@ public class SharedWorld {
 					// Broadcast backdrop removal to all clients
 					broadcastBackdropChange(packet.x, packet.y, null);
 				}
-				return;  // Don't break foreground
+				return; // Don't break foreground
 			}
 
 			// FOREGROUND MODE: Normal block breaking (existing code)
@@ -1300,11 +1402,11 @@ public class SharedWorld {
 
 			// Send breaking progress to this player (ISSUE #3 fix)
 			playerConnection.getConnection().sendPacket(new PacketBreakingProgress(packet.x, packet.y,
-				breakingState.ticks, ticksNeeded));
+					breakingState.ticks, ticksNeeded));
 
 			// Only break when enough ticks have passed
 			if (breakingState.ticks < ticksNeeded) {
-				return;  // Not ready to break yet
+				return; // Not ready to break yet
 			}
 
 			// Block is broken - reset counter and notify client
@@ -1348,7 +1450,8 @@ public class SharedWorld {
 					// Remove chest data from world
 					world.removeChest(packet.x, packet.y);
 					if (logger != null) {
-						logger.debug("SharedWorld: Chest broken at (" + packet.x + ", " + packet.y + "), items dropped");
+						logger.debug(
+								"SharedWorld: Chest broken at (" + packet.x + ", " + packet.y + "), items dropped");
 					}
 				}
 			}
@@ -1360,7 +1463,8 @@ public class SharedWorld {
 				if (topY >= 0) {
 					Tile topTile = worldAccess.getTile(packet.x, topY);
 					if (topTile != null && topTile.type != null &&
-					    (topTile.type.name == Constants.TileID.DOOR_TOP_CLOSED || topTile.type.name == Constants.TileID.DOOR_TOP)) {
+							(topTile.type.name == Constants.TileID.DOOR_TOP_CLOSED
+									|| topTile.type.name == Constants.TileID.DOOR_TOP)) {
 						world.removeTile(packet.x, topY);
 						broadcastBlockChange(packet.x, topY, null);
 						if (logger != null) {
@@ -1374,7 +1478,8 @@ public class SharedWorld {
 				if (botY < world.height) {
 					Tile botTile = worldAccess.getTile(packet.x, botY);
 					if (botTile != null && botTile.type != null &&
-					    (botTile.type.name == Constants.TileID.DOOR_BOT_CLOSED || botTile.type.name == Constants.TileID.DOOR_BOT)) {
+							(botTile.type.name == Constants.TileID.DOOR_BOT_CLOSED
+									|| botTile.type.name == Constants.TileID.DOOR_BOT)) {
 						world.removeTile(packet.x, botY);
 						broadcastBlockChange(packet.x, botY, null);
 						if (logger != null) {
@@ -1408,10 +1513,12 @@ public class SharedWorld {
 						seed.y = packet.y + random.nextFloat() * 0.5f;
 						seed.dy = -0.07f;
 						entityManager.add(seed);
-						if (logger != null) logger.debug("SharedWorld: Tall grass dropped seed at (" + seed.x + ", " + seed.y + ")");
+						if (logger != null)
+							logger.debug("SharedWorld: Tall grass dropped seed at (" + seed.x + ", " + seed.y + ")");
 					}
 				}
-				// Note: 25% chance to drop nothing (matching original BlockInteractionSystem logic)
+				// Note: 25% chance to drop nothing (matching original BlockInteractionSystem
+				// logic)
 			}
 			// Regular drops for blocks with itemDropId
 			else if (dropId != null && dropId.itemDropId != null) {
@@ -1425,19 +1532,21 @@ public class SharedWorld {
 						wheat.y = packet.y + random.nextFloat() * 0.5f;
 						wheat.dy = -0.07f;
 						entityManager.add(wheat);
-						if (logger != null) logger.debug("SharedWorld: Dropped wheat at (" + wheat.x + ", " + wheat.y + ")");
+						if (logger != null)
+							logger.debug("SharedWorld: Dropped wheat at (" + wheat.x + ", " + wheat.y + ")");
 
 						// Drop 1-3 wheat seeds
 						Item seedItem = Constants.itemTypes.get("wheat_seeds");
 						if (seedItem != null) {
-							int seedCount = 1 + random.nextInt(3);  // 1-3 seeds
+							int seedCount = 1 + random.nextInt(3); // 1-3 seeds
 							for (int i = 0; i < seedCount; i++) {
 								Item seed = seedItem.clone();
 								seed.x = packet.x + random.nextFloat() * 0.5f;
 								seed.y = packet.y + random.nextFloat() * 0.5f;
 								seed.dy = -0.07f;
 								entityManager.add(seed);
-								if (logger != null) logger.debug("SharedWorld: Dropped seed at (" + seed.x + ", " + seed.y + ")");
+								if (logger != null)
+									logger.debug("SharedWorld: Dropped seed at (" + seed.x + ", " + seed.y + ")");
 							}
 						}
 					} else {
@@ -1445,9 +1554,11 @@ public class SharedWorld {
 						Item item = droppedItem.clone();
 						item.x = packet.x + random.nextFloat() * 0.5f;
 						item.y = packet.y + random.nextFloat() * 0.5f;
-						item.dy = -0.07f;  // Give it upward velocity
+						item.dy = -0.07f; // Give it upward velocity
 						entityManager.add(item);
-						if (logger != null) logger.debug("SharedWorld: Dropped item " + item.itemId + " at (" + item.x + ", " + item.y + ")");
+						if (logger != null)
+							logger.debug("SharedWorld: Dropped item " + item.itemId + " at (" + item.x + ", " + item.y
+									+ ")");
 					}
 				}
 			}
@@ -1464,14 +1575,14 @@ public class SharedWorld {
 				// Open inventory with 3x3 crafting
 				player.inventory.tableSizeAvailable = 3;
 				player.inventory.setVisible(true);
-				broadcastInventoryUpdates();  // Immediately sync inventory state
+				broadcastInventoryUpdates(); // Immediately sync inventory state
 				return;
 			}
 
 			// Check if clicking on a chest block
 			Tile clickedTile = worldAccess.getTile(packet.x, packet.y);
 			if (clickedTile != null && clickedTile.type != null &&
-			    clickedTile.type.name == Constants.TileID.CHEST) {
+					clickedTile.type.name == Constants.TileID.CHEST) {
 				// Get or create chest data
 				mc.sayda.mcraze.world.ChestData chestData = world.getOrCreateChest(packet.x, packet.y);
 
@@ -1481,7 +1592,7 @@ public class SharedWorld {
 
 				if (logger != null) {
 					logger.info("SharedWorld: Player " + player.username +
-						" opened chest at (" + packet.x + ", " + packet.y + ")");
+							" opened chest at (" + packet.x + ", " + packet.y + ")");
 				}
 				return;
 			}
@@ -1490,10 +1601,20 @@ public class SharedWorld {
 			Tile doorTile = worldAccess.getTile(packet.x, packet.y);
 			if (doorTile != null && doorTile.type != null) {
 				Constants.TileID doorType = doorTile.type.name;
-				boolean isDoorBot = (doorType == Constants.TileID.DOOR_BOT_CLOSED || doorType == Constants.TileID.DOOR_BOT);
-				boolean isDoorTop = (doorType == Constants.TileID.DOOR_TOP_CLOSED || doorType == Constants.TileID.DOOR_TOP);
+				boolean isDoorBot = (doorType == Constants.TileID.DOOR_BOT_CLOSED
+						|| doorType == Constants.TileID.DOOR_BOT);
+				boolean isDoorTop = (doorType == Constants.TileID.DOOR_TOP_CLOSED
+						|| doorType == Constants.TileID.DOOR_TOP);
 
 				if (isDoorBot || isDoorTop) {
+					// DOOR COOLDOWN CHECK
+					long currentTime = System.currentTimeMillis();
+					Long lastInteract = doorCooldowns.get(player.username);
+					if (lastInteract != null && currentTime - lastInteract < DOOR_COOLDOWN_MS) {
+						return; // Too fast!
+					}
+					doorCooldowns.put(player.username, currentTime);
+
 					// Determine the new state (toggle open/closed)
 					Constants.TileID newBotState, newTopState;
 					if (doorType == Constants.TileID.DOOR_BOT_CLOSED) {
@@ -1505,7 +1626,7 @@ public class SharedWorld {
 					} else if (doorType == Constants.TileID.DOOR_TOP_CLOSED) {
 						newBotState = Constants.TileID.DOOR_BOT;
 						newTopState = Constants.TileID.DOOR_TOP;
-					} else {  // DOOR_TOP
+					} else { // DOOR_TOP
 						newBotState = Constants.TileID.DOOR_BOT_CLOSED;
 						newTopState = Constants.TileID.DOOR_TOP_CLOSED;
 					}
@@ -1533,9 +1654,9 @@ public class SharedWorld {
 
 					if (logger != null) {
 						logger.debug("SharedWorld: Player " + player.username +
-							" toggled door at (" + packet.x + ", " + packet.y + ")");
+								" toggled door at (" + packet.x + ", " + packet.y + ")");
 					}
-					return;  // Don't proceed with block placement
+					return; // Don't proceed with block placement
 				}
 			}
 
@@ -1545,7 +1666,8 @@ public class SharedWorld {
 				tileId = Constants.TileID.values()[packet.newTileId];
 			}
 
-			// FARMING: Special handling for hoes and seeds (processed BEFORE block validation)
+			// FARMING: Special handling for hoes and seeds (processed BEFORE block
+			// validation)
 			// Get the item in the player's hand
 			Item selectedItem = player.inventory.selectedItem().getItem();
 			if (selectedItem != null && selectedItem.itemId != null) {
@@ -1566,24 +1688,25 @@ public class SharedWorld {
 								if (hoe.uses >= hoe.totalUses) {
 									// Hoe is broken - remove from inventory
 									player.inventory.selectedItem().setEmpty();
-									logger.debug("Player " + player.username + "'s hoe broke after " + hoe.uses + " uses");
+									logger.debug(
+											"Player " + player.username + "'s hoe broke after " + hoe.uses + " uses");
 								}
 								// Broadcast inventory update to sync tool durability
 								broadcastInventoryUpdates();
 							}
 
-							return;  // Don't proceed with normal placement
+							return; // Don't proceed with normal placement
 						}
 					}
 				}
 				// SEED PLANTING: Place wheat on farmland
 				else if (selectedItem.itemId.equals("wheat_seeds")) {
 					// Check if block below is farmland
-					int belowY = packet.y + 1;  // Y increases downward
+					int belowY = packet.y + 1; // Y increases downward
 					if (belowY < world.height) {
 						Tile belowTile = worldAccess.getTile(packet.x, belowY);
 						if (belowTile != null && belowTile.type != null &&
-						    belowTile.type.name == Constants.TileID.FARMLAND) {
+								belowTile.type.name == Constants.TileID.FARMLAND) {
 							// Can only plant if position is empty
 							if (!world.isBreakable(packet.x, packet.y)) {
 								// Place wheat crop
@@ -1593,7 +1716,7 @@ public class SharedWorld {
 									broadcastBlockChange(packet.x, packet.y, Constants.TileID.WHEAT_SEEDS);
 								}
 							}
-							return;  // Don't proceed with normal placement
+							return; // Don't proceed with normal placement
 						}
 						// If not on farmland, seeds will deny placement
 						return;
@@ -1603,12 +1726,13 @@ public class SharedWorld {
 
 			// Block placing validation - check if tileId is valid for normal placement
 			if (tileId == null || tileId == Constants.TileID.AIR || tileId == Constants.TileID.NONE) {
-				return;  // Cannot place air or invalid tiles
+				return; // Cannot place air or invalid tiles
 			}
 
 			// BACKDROP MODE: Place backdrop instead of foreground
 			if (player.backdropPlacementMode) {
-				// FIXED: Allow backdrop placement anywhere (no restrictions - backdrops are visual only)
+				// FIXED: Allow backdrop placement anywhere (no restrictions - backdrops are
+				// visual only)
 
 				// Place backdrop
 				if (world.setBackdrop(packet.x, packet.y, tileId)) {
@@ -1616,29 +1740,29 @@ public class SharedWorld {
 					broadcastInventoryUpdates();
 					broadcastBackdropChange(packet.x, packet.y, tileId);
 				}
-				return;  // Don't place foreground
+				return; // Don't place foreground
 			}
 
 			// FOREGROUND MODE: Normal block placement (existing code)
 			// Can only place if the target position is empty (not a solid block)
 			if (world.isBreakable(packet.x, packet.y)) {
-				return;  // Cannot place - there's already a block here
+				return; // Cannot place - there's already a block here
 			}
 
 			// Check if there's at least one adjacent block (up, down, left, right)
 			boolean hasAdjacentBlock = world.isBreakable(packet.x - 1, packet.y) || // left
 					world.isBreakable(packet.x + 1, packet.y) || // right
 					world.isBreakable(packet.x, packet.y - 1) || // up
-					world.isBreakable(packet.x, packet.y + 1);   // down
+					world.isBreakable(packet.x, packet.y + 1); // down
 
 			if (!hasAdjacentBlock) {
-				return;  // Cannot place - no adjacent block
+				return; // Cannot place - no adjacent block
 			}
 
 			// Check if the block would collide with the player
 			boolean isPassable = Constants.tileTypes.get(tileId).type.passable;
 			if (!isPassable && player.inBoundingBox(new mc.sayda.mcraze.util.Int2(packet.x, packet.y), tileSize)) {
-				return;  // Cannot place - would collide with player
+				return; // Cannot place - would collide with player
 			}
 
 			// Place the block
@@ -1651,19 +1775,19 @@ public class SharedWorld {
 				// Broadcast change to all players
 				broadcastBlockChange(packet.x, packet.y, tileId);
 
-			// DOOR SYSTEM: Auto-place door top when placing door bottom
-			if (tileId == Constants.TileID.DOOR_BOT_CLOSED) {
-				int topY = packet.y - 1;  // Y increases downward, so door top is above (y-1)
-				// Check if space above is empty and within world bounds
-				if (topY >= 0 && !world.isBreakable(packet.x, topY)) {
-					// Place door top
-					world.addTile(packet.x, topY, Constants.TileID.DOOR_TOP_CLOSED);
-					broadcastBlockChange(packet.x, topY, Constants.TileID.DOOR_TOP_CLOSED);
-					if (logger != null) {
-						logger.debug("SharedWorld: Auto-placed door top at (" + packet.x + ", " + topY + ")");
+				// DOOR SYSTEM: Auto-place door top when placing door bottom
+				if (tileId == Constants.TileID.DOOR_BOT_CLOSED) {
+					int topY = packet.y - 1; // Y increases downward, so door top is above (y-1)
+					// Check if space above is empty and within world bounds
+					if (topY >= 0 && !world.isBreakable(packet.x, topY)) {
+						// Place door top
+						world.addTile(packet.x, topY, Constants.TileID.DOOR_TOP_CLOSED);
+						broadcastBlockChange(packet.x, topY, Constants.TileID.DOOR_TOP_CLOSED);
+						if (logger != null) {
+							logger.debug("SharedWorld: Auto-placed door top at (" + packet.x + ", " + topY + ")");
+						}
 					}
 				}
-			}
 			}
 		}
 	}
@@ -1672,7 +1796,8 @@ public class SharedWorld {
 	 * Handle inventory action from client (slot clicks, crafting)
 	 * Server-authoritative inventory manipulation
 	 */
-	public void handleInventoryAction(PlayerConnection playerConnection, mc.sayda.mcraze.network.packet.PacketInventoryAction packet) {
+	public void handleInventoryAction(PlayerConnection playerConnection,
+			mc.sayda.mcraze.network.packet.PacketInventoryAction packet) {
 		Player player = playerConnection.getPlayer();
 		if (player == null || player.inventory == null) {
 			return;
@@ -1687,27 +1812,29 @@ public class SharedWorld {
 		mc.sayda.mcraze.ui.Inventory inv = player.inventory;
 
 		// DIRECT slot manipulation - packet coords map directly to array indices!
-		// The client's mouseToCoor -1 offset compensates for panel padding, not array indexing
+		// The client's mouseToCoor -1 offset compensates for panel padding, not array
+		// indexing
 		// So: packet(x,y) -> inventoryItems[x][y] directly
 
 		int slotX = packet.slotX;
-		int slotY = packet.slotY;  // Direct mapping - no offset needed!
+		int slotY = packet.slotY; // Direct mapping - no offset needed!
 		int maxCount = 64;
 
 		// DEBUG: Log the coordinate mapping
 		GameLogger.get().info("InventoryAction: packet(" + packet.slotX + "," + packet.slotY +
-			") -> array[" + slotX + "][" + slotY + "] | Array size: [" +
-			inv.inventoryItems.length + "][" + inv.inventoryItems[0].length +
-			"] | craftingHeight=" + inv.craftingHeight + " tableSizeAvailable=" + inv.tableSizeAvailable);
+				") -> array[" + slotX + "][" + slotY + "] | Array size: [" +
+				inv.inventoryItems.length + "][" + inv.inventoryItems[0].length +
+				"] | craftingHeight=" + inv.craftingHeight + " tableSizeAvailable=" + inv.tableSizeAvailable);
 
 		// Validate array bounds
 		if (slotX < 0 || slotX >= inv.inventoryItems.length ||
-			slotY < 0 || slotY >= inv.inventoryItems[0].length) {
+				slotY < 0 || slotY >= inv.inventoryItems[0].length) {
 			GameLogger.get().warn("Invalid inventory slot: [" + slotX + "][" + slotY + "]");
 			return;
 		}
 
-		// Handle craft output click with server-side crafting logic (resolution-independent)
+		// Handle craft output click with server-side crafting logic
+		// (resolution-independent)
 		if (packet.craftClick) {
 			GameLogger.get().info("Processing craft request for player " + playerConnection.getPlayerName());
 
@@ -1721,7 +1848,8 @@ public class SharedWorld {
 
 			for (int i = 0; i < inv.tableSizeAvailable; i++) {
 				for (int j = 0; j < inv.tableSizeAvailable; j++) {
-					mc.sayda.mcraze.item.Item item = inv.inventoryItems[i + inv.inventoryItems.length - inv.tableSizeAvailable][j].item;
+					mc.sayda.mcraze.item.Item item = inv.inventoryItems[i + inv.inventoryItems.length
+							- inv.tableSizeAvailable][j].item;
 					if (item != null) {
 						currentTable[j][i] = item.itemId;
 					} else {
@@ -1753,7 +1881,7 @@ public class SharedWorld {
 			// Step 3: Check if holding is compatible
 			if (!inv.holding.isEmpty()) {
 				boolean isTool = craftedItem.getClass() == mc.sayda.mcraze.item.Tool.class ||
-								 inv.holding.item.getClass() == mc.sayda.mcraze.item.Tool.class;
+						inv.holding.item.getClass() == mc.sayda.mcraze.item.Tool.class;
 				boolean differentItem = !craftedItem.itemId.equals(inv.holding.item.itemId);
 				if (isTool || differentItem) {
 					GameLogger.get().info("  Cannot craft - holding incompatible item");
@@ -1765,7 +1893,7 @@ public class SharedWorld {
 				int maxStack = isTool ? 1 : 64;
 				if (inv.holding.count + craftedCount > maxStack) {
 					GameLogger.get().info("  Cannot craft - would exceed stack limit (" +
-						inv.holding.count + " + " + craftedCount + " > " + maxStack + ")");
+							inv.holding.count + " + " + craftedCount + " > " + maxStack + ")");
 					broadcastInventoryUpdates();
 					return;
 				}
@@ -1791,10 +1919,13 @@ public class SharedWorld {
 			// Direct slot manipulation for regular inventory clicks
 			// This matches the logic from Inventory.updateInventory() lines 145-193
 
-			GameLogger.get().info("  Slot item: " + (inv.inventoryItems[slotX][slotY].item != null ? inv.inventoryItems[slotX][slotY].item.itemId : "null") +
-				" count=" + inv.inventoryItems[slotX][slotY].count);
+			GameLogger.get().info("  Slot item: "
+					+ (inv.inventoryItems[slotX][slotY].item != null ? inv.inventoryItems[slotX][slotY].item.itemId
+							: "null")
+					+
+					" count=" + inv.inventoryItems[slotX][slotY].count);
 			GameLogger.get().info("  Holding: " + (inv.holding.item != null ? inv.holding.item.itemId : "null") +
-				" count=" + inv.holding.count + " isEmpty=" + inv.holding.isEmpty());
+					" count=" + inv.holding.count + " isEmpty=" + inv.holding.isEmpty());
 
 			if (inv.holding.isEmpty()) {
 				// Picking up from slot
@@ -1805,13 +1936,16 @@ public class SharedWorld {
 					inv.holding.count = inv.inventoryItems[slotX][slotY].count;
 					inv.inventoryItems[slotX][slotY].item = null;
 					inv.inventoryItems[slotX][slotY].count = 0;
-					GameLogger.get().info("  Result: Picked up " + (inv.holding.item != null ? inv.holding.item.itemId : "null") + " x" + inv.holding.count);
+					GameLogger.get().info("  Result: Picked up "
+							+ (inv.holding.item != null ? inv.holding.item.itemId : "null") + " x" + inv.holding.count);
 				} else {
 					// Right click with multiple items: split stack
 					inv.holding.item = inv.inventoryItems[slotX][slotY].item;
 					inv.holding.count = (int) Math.ceil((double) inv.inventoryItems[slotX][slotY].count / 2);
-					inv.inventoryItems[slotX][slotY].count = (int) Math.floor((double) inv.inventoryItems[slotX][slotY].count / 2);
-					GameLogger.get().info("  Result: Split stack - holding " + inv.holding.count + ", slot has " + inv.inventoryItems[slotX][slotY].count);
+					inv.inventoryItems[slotX][slotY].count = (int) Math
+							.floor((double) inv.inventoryItems[slotX][slotY].count / 2);
+					GameLogger.get().info("  Result: Split stack - holding " + inv.holding.count + ", slot has "
+							+ inv.inventoryItems[slotX][slotY].count);
 				}
 			} else if (inv.inventoryItems[slotX][slotY].item == null) {
 				// Placing into empty slot
@@ -1892,7 +2026,8 @@ public class SharedWorld {
 
 		for (int i = 0; i < inv.tableSizeAvailable; i++) {
 			for (int j = 0; j < inv.tableSizeAvailable; j++) {
-				mc.sayda.mcraze.item.Item item = inv.inventoryItems[i + inv.inventoryItems.length - inv.tableSizeAvailable][j].item;
+				mc.sayda.mcraze.item.Item item = inv.inventoryItems[i + inv.inventoryItems.length
+						- inv.tableSizeAvailable][j].item;
 				if (item != null) {
 					currentTable[j][i] = item.itemId;
 				} else {
@@ -1944,7 +2079,7 @@ public class SharedWorld {
 
 		// Get the tile being interacted with - use thread-safe WorldAccess
 		if (packet.blockX < 0 || packet.blockY < 0 ||
-		    packet.blockX >= worldAccess.getWidth() || packet.blockY >= worldAccess.getHeight()) {
+				packet.blockX >= worldAccess.getWidth() || packet.blockY >= worldAccess.getHeight()) {
 			return;
 		}
 
@@ -1976,7 +2111,8 @@ public class SharedWorld {
 	 * Handle chest inventory actions (server-authoritative)
 	 * Implements basic item transfer between chest and player inventory
 	 */
-	public void handleChestAction(PlayerConnection playerConnection, mc.sayda.mcraze.network.packet.PacketChestAction packet) {
+	public void handleChestAction(PlayerConnection playerConnection,
+			mc.sayda.mcraze.network.packet.PacketChestAction packet) {
 		Player player = playerConnection.getPlayer();
 		if (player == null || player.inventory == null) {
 			return;
@@ -1990,9 +2126,9 @@ public class SharedWorld {
 		GameLogger logger = GameLogger.get();
 		if (logger != null && logger.isDebugEnabled()) {
 			logger.debug("SharedWorld.handleChestAction: Player " + player.username +
-				" clicked chest at (" + packet.chestX + ", " + packet.chestY + ") slot (" +
-				packet.slotX + ", " + packet.slotY + ") isChest=" + packet.isChestSlot +
-				" rightClick=" + packet.isRightClick);
+					" clicked chest at (" + packet.chestX + ", " + packet.chestY + ") slot (" +
+					packet.slotX + ", " + packet.slotY + ") isChest=" + packet.isChestSlot +
+					" rightClick=" + packet.isRightClick);
 		}
 
 		// Get the chest data
@@ -2082,7 +2218,8 @@ public class SharedWorld {
 		}
 
 		// Send chest update only to the acting player (not all players)
-		// This prevents all players' chest UIs from opening when one player opens a chest
+		// This prevents all players' chest UIs from opening when one player opens a
+		// chest
 		PacketChestOpen refreshPacket = new PacketChestOpen(packet.chestX, packet.chestY, chestData.items);
 		playerConnection.getConnection().sendPacket(refreshPacket);
 
@@ -2091,10 +2228,11 @@ public class SharedWorld {
 	}
 
 	/**
-	 * Handle inventory slot interaction (shared between chest UI and regular inventory)
+	 * Handle inventory slot interaction (shared between chest UI and regular
+	 * inventory)
 	 */
 	private void handleInventorySlotInteraction(mc.sayda.mcraze.ui.Inventory inv, int slotX, int slotY,
-	                                             boolean rightClick, GameLogger logger) {
+			boolean rightClick, GameLogger logger) {
 		int maxCount = 64;
 		mc.sayda.mcraze.item.InventoryItem slot = inv.inventoryItems[slotX][slotY];
 
@@ -2133,7 +2271,7 @@ public class SharedWorld {
 		} else if (inv.holding.getItem().itemId.equals(slot.getItem().itemId) && slot.getCount() < maxCount) {
 			// Merging stacks of same item
 			boolean isTool = (inv.holding.getItem() instanceof mc.sayda.mcraze.item.Tool) ||
-			                 (slot.getItem() instanceof mc.sayda.mcraze.item.Tool);
+					(slot.getItem() instanceof mc.sayda.mcraze.item.Tool);
 			if (!isTool) {
 				if (rightClick) {
 					// FIXED: Right click: add one item
@@ -2161,7 +2299,8 @@ public class SharedWorld {
 	/**
 	 * Handle item tossing from a player (server-authoritative)
 	 */
-	public void handleItemToss(PlayerConnection playerConnection, mc.sayda.mcraze.network.packet.PacketItemToss packet) {
+	public void handleItemToss(PlayerConnection playerConnection,
+			mc.sayda.mcraze.network.packet.PacketItemToss packet) {
 		Player player = playerConnection.getPlayer();
 		if (player == null || player.inventory == null) {
 			return;
@@ -2190,16 +2329,18 @@ public class SharedWorld {
 	 * Handle entity attack from a player (server-authoritative)
 	 * Applies damage from player's held item to the target entity
 	 */
-	public void handleEntityAttack(PlayerConnection playerConnection, mc.sayda.mcraze.network.packet.PacketEntityAttack packet) {
+	public void handleEntityAttack(PlayerConnection playerConnection,
+			mc.sayda.mcraze.network.packet.PacketEntityAttack packet) {
 		Player attacker = playerConnection.getPlayer();
 		if (attacker == null || attacker.dead) {
-			return;  // Dead players can't attack
+			return; // Dead players can't attack
 		}
 
 		// Find the target entity by ID (index in getAllEntities list)
 		java.util.List<mc.sayda.mcraze.entity.Entity> entities = getAllEntities();
 		if (packet.entityId < 0 || packet.entityId >= entities.size()) {
-			GameLogger.get().warn("Player " + playerConnection.getPlayerName() + " tried to attack invalid entity ID " + packet.entityId);
+			GameLogger.get().warn("Player " + playerConnection.getPlayerName() + " tried to attack invalid entity ID "
+					+ packet.entityId);
 			return;
 		}
 
@@ -2213,7 +2354,7 @@ public class SharedWorld {
 		mc.sayda.mcraze.entity.LivingEntity livingTarget = (mc.sayda.mcraze.entity.LivingEntity) target;
 
 		// Calculate damage from held item
-		int damage = 1;  // Base damage (fist)
+		int damage = 1; // Base damage (fist)
 		mc.sayda.mcraze.item.InventoryItem heldItem = attacker.inventory.selectedItem();
 		if (heldItem != null && !heldItem.isEmpty() && heldItem.getItem() instanceof mc.sayda.mcraze.item.Tool) {
 			mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) heldItem.getItem();
@@ -2234,7 +2375,7 @@ public class SharedWorld {
 		livingTarget.takeDamage(damage);
 
 		GameLogger.get().info("Player " + playerConnection.getPlayerName() + " attacked " +
-			target.getClass().getSimpleName() + " for " + damage + " damage");
+				target.getClass().getSimpleName() + " for " + damage + " damage");
 
 		// Broadcast entity update to show health change
 		broadcastEntityUpdate();
@@ -2257,7 +2398,7 @@ public class SharedWorld {
 		if (player == null || !player.dead) {
 			if (logger != null) {
 				logger.warn("SharedWorld.respawnPlayer: Cannot respawn " + playerConn.getPlayerName() +
-					" (player null: " + (player == null) + ", dead: " + (player != null && player.dead) + ")");
+						" (player null: " + (player == null) + ", dead: " + (player != null && player.dead) + ")");
 			}
 			return;
 		}
@@ -2268,16 +2409,16 @@ public class SharedWorld {
 
 		if (logger != null) {
 			logger.info("SharedWorld.respawnPlayer: Respawning " + playerConn.getPlayerName() +
-				" at (" + spawnX + ", " + spawnY + ")");
+					" at (" + spawnX + ", " + spawnY + ")");
 		}
 
 		// Respawn the player on the server
 		player.respawn(spawnX, spawnY);
 
 		// Broadcast immediate respawn state to all clients
-		// This ensures all clients see respawn instantly (symmetric with PacketPlayerDeath)
-		mc.sayda.mcraze.network.packet.PacketPlayerRespawn respawnPacket =
-			new mc.sayda.mcraze.network.packet.PacketPlayerRespawn();
+		// This ensures all clients see respawn instantly (symmetric with
+		// PacketPlayerDeath)
+		mc.sayda.mcraze.network.packet.PacketPlayerRespawn respawnPacket = new mc.sayda.mcraze.network.packet.PacketPlayerRespawn();
 		broadcastPacket(respawnPacket);
 
 		if (logger != null) {
@@ -2285,7 +2426,8 @@ public class SharedWorld {
 		}
 
 		// PERFORMANCE: Commented out console logging (use logger instead)
-		// System.out.println("Player " + playerConn.getPlayerName() + " respawned at spawn point");
+		// System.out.println("Player " + playerConn.getPlayerName() + " respawned at
+		// spawn point");
 	}
 
 	// Getters

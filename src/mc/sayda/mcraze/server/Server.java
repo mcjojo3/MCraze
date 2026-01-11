@@ -40,29 +40,31 @@ import mc.sayda.mcraze.world.World;
 public class Server implements PacketHandler {
 	// NEW: Multiplayer architecture (wraps SharedWorld)
 	private SharedWorld sharedWorld;
-	private PlayerConnection hostPlayerConnection;  // The integrated client's connection
-	private mc.sayda.mcraze.network.LocalConnection hostClientConnection;  // Client end of connection
+	private PlayerConnection hostPlayerConnection; // The integrated client's connection
+	private mc.sayda.mcraze.network.LocalConnection hostClientConnection; // Client end of connection
 	private String hostUsername;
 	private String hostPassword;
 
 	// Delegates to SharedWorld for backwards compatibility
-	public World world;  // -> sharedWorld.getWorld()
-	public Player player;  // -> hostPlayerConnection.getPlayer()
-	public ArrayList<Entity> entities = new ArrayList<>();  // -> sharedWorld.getAllEntities() (updated in tick())
+	public World world; // -> sharedWorld.getWorld()
+	public Player player; // -> hostPlayerConnection.getPlayer()
+	public ArrayList<Entity> entities = new ArrayList<>(); // -> sharedWorld.getAllEntities() (updated in tick())
 
 	// OLD: Removed single-player fields
-	// private Connection connection;  // DELETED - now use hostPlayerConnection.getConnection()
+	// private Connection connection; // DELETED - now use
+	// hostPlayerConnection.getConnection()
 
 	// Game settings
 	private int worldWidth = 512;
 	private int worldHeight = 256;
-	// Gamerules moved to World class (world.keepInventory, world.daylightCycle, world.spelunking)
+	// Gamerules moved to World class (world.keepInventory, world.daylightCycle,
+	// world.spelunking)
 	private float spawnX = 0;
 	private float spawnY = 0;
 
 	// Systems
 	private mc.sayda.mcraze.ui.CommandHandler commandHandler;
-	private mc.sayda.mcraze.ui.Chat chat;  // Reference to client's chat for command output
+	private mc.sayda.mcraze.ui.Chat chat; // Reference to client's chat for command output
 	private Random random = new Random();
 	private int tileSize = Constants.TILE_SIZE;
 
@@ -85,12 +87,13 @@ public class Server implements PacketHandler {
 	// private HashMap<Player, BreakingState> playerBreakingState = new HashMap<>();
 
 	// OLD: Authentication fields moved to hostUsername/hostPassword
-	// private String authenticatedUsername;  // DELETED - now use hostUsername
-	// private String authenticatedPassword;  // DELETED - now use hostPassword
+	// private String authenticatedUsername; // DELETED - now use hostUsername
+	// private String authenticatedPassword; // DELETED - now use hostPassword
 
 	/**
 	 * Constructor for integrated server (singleplayer/LAN)
-	 * The connection parameter is kept for backwards compatibility but not used directly.
+	 * The connection parameter is kept for backwards compatibility but not used
+	 * directly.
 	 * Instead, we'll create a LocalConnection when startGame() is called.
 	 */
 	public Server(Connection connection) {
@@ -122,10 +125,12 @@ public class Server implements PacketHandler {
 		World gameWorld;
 		if (loadedWorld != null) {
 			gameWorld = loadedWorld;
-			System.out.println("Using loaded world: " + worldName);
+			if (GameLogger.get() != null)
+				GameLogger.get().info("Using loaded world: " + worldName);
 		} else {
 			gameWorld = new World(worldWidth, worldHeight, random);
-			System.out.println("Generated new world: " + worldName);
+			if (GameLogger.get() != null)
+				GameLogger.get().info("Generated new world: " + worldName);
 		}
 
 		spawnX = gameWorld.spawnLocation.x;
@@ -138,15 +143,16 @@ public class Server implements PacketHandler {
 		// Set command handler for integrated server commands
 		if (commandHandler != null) {
 			sharedWorld.setCommandHandler(commandHandler);
-			commandHandler.setSharedWorld(sharedWorld);  // Give CommandHandler reference to SharedWorld
+			commandHandler.setSharedWorld(sharedWorld); // Give CommandHandler reference to SharedWorld
 		}
 
 		// Create LocalConnection pair for host player
 		mc.sayda.mcraze.network.LocalConnection[] connectionPair = mc.sayda.mcraze.network.LocalConnection.createPair();
-		hostClientConnection = connectionPair[0];  // Client end - for Game.java to give to Client
-		mc.sayda.mcraze.network.LocalConnection serverConnection = connectionPair[1];  // Server end
+		hostClientConnection = connectionPair[0]; // Client end - for Game.java to give to Client
+		mc.sayda.mcraze.network.LocalConnection serverConnection = connectionPair[1]; // Server end
 
-		// Add host player to SharedWorld (handles authentication, playerdata, entity creation)
+		// Add host player to SharedWorld (handles authentication, playerdata, entity
+		// creation)
 		hostPlayerConnection = sharedWorld.addPlayer(serverConnection, username, password);
 
 		if (hostPlayerConnection == null) {
@@ -156,7 +162,8 @@ public class Server implements PacketHandler {
 		// Set backwards compatibility delegates
 		player = hostPlayerConnection.getPlayer();
 
-		System.out.println("Integrated server started for " + username + " in world " + worldName);
+		if (GameLogger.get() != null)
+			GameLogger.get().info("Integrated server started for " + username + " in world " + worldName);
 
 		// Debug items (apply to the player from SharedWorld)
 		if (Constants.DEBUG) {
@@ -187,6 +194,7 @@ public class Server implements PacketHandler {
 
 	/**
 	 * Legacy method for backward compatibility
+	 * 
 	 * @deprecated Use startGame(int, String, String, String) instead
 	 */
 	@Deprecated
@@ -204,11 +212,13 @@ public class Server implements PacketHandler {
 	 * Now delegates to SharedWorld which handles all the multiplayer logic.
 	 */
 	public void tick() {
-		if (!running || sharedWorld == null) return;
+		if (!running || sharedWorld == null)
+			return;
 
 		ticksRunning++;
 
-		// CRITICAL FIX: Check for disconnected players ALWAYS (not just when LAN enabled)
+		// CRITICAL FIX: Check for disconnected players ALWAYS (not just when LAN
+		// enabled)
 		// This fixes ghost players and E key inconsistency
 		java.util.List<mc.sayda.mcraze.server.PlayerConnection> disconnectedPlayers = new java.util.ArrayList<>();
 
@@ -224,6 +234,7 @@ public class Server implements PacketHandler {
 				if (logger != null) {
 					logger.info("Detected disconnected player: " + pc.getPlayerName());
 				} else {
+					// Fallback if logger not initialized
 					System.out.println("Player " + pc.getPlayerName() + " disconnected");
 				}
 				disconnectedPlayers.add(pc);
@@ -263,25 +274,31 @@ public class Server implements PacketHandler {
 	/**
 	 * REMOVED: Update methods are now handled by SharedWorld
 	 * - sendWorldUpdate() - SharedWorld.tick() handles world time broadcasts
-	 * - sendInventoryUpdate() - SharedWorld.broadcastInventoryUpdates() handles this
+	 * - sendInventoryUpdate() - SharedWorld.broadcastInventoryUpdates() handles
+	 * this
 	 * - sendEntityUpdate() - SharedWorld.broadcastEntityUpdate() handles this
 	 *
-	 * All updates are automatically broadcast to all connected players (including LAN clients)
+	 * All updates are automatically broadcast to all connected players (including
+	 * LAN clients)
 	 */
 
 	/**
 	 * REMOVED: handlePlayerDeath() is now handled by SharedWorld.tick()
-	 * Player death detection and item dropping is managed by SharedWorld automatically.
+	 * Player death detection and item dropping is managed by SharedWorld
+	 * automatically.
 	 */
 
 	/**
 	 * Respawn the player (REFACTORED to use hostUsername)
 	 *
 	 * @deprecated This method should NOT be used. All respawns must go through
-	 * the packet system (PacketRespawn → SharedWorld.respawnPlayer) to ensure
-	 * consistent behavior whether LAN is enabled or not. This maintains the
-	 * architecture principle that there is no "singleplayer" - only integrated
-	 * servers with LAN disabled. ALL player actions must use packets.
+	 *             the packet system (PacketRespawn → SharedWorld.respawnPlayer) to
+	 *             ensure
+	 *             consistent behavior whether LAN is enabled or not. This maintains
+	 *             the
+	 *             architecture principle that there is no "singleplayer" - only
+	 *             integrated
+	 *             servers with LAN disabled. ALL player actions must use packets.
 	 */
 	@Deprecated
 	public void respawnPlayer() {
@@ -292,7 +309,8 @@ public class Server implements PacketHandler {
 		if (player != null && hostUsername != null && currentWorldName != null) {
 			// Reload playerdata (reset to spawn with full health)
 			try {
-				mc.sayda.mcraze.world.PlayerData playerData = mc.sayda.mcraze.world.PlayerDataManager.load(currentWorldName, hostUsername);
+				mc.sayda.mcraze.world.PlayerData playerData = mc.sayda.mcraze.world.PlayerDataManager
+						.load(currentWorldName, hostUsername);
 				if (playerData != null) {
 					// Reset to spawn location (not saved position)
 					playerData.x = spawnX;
@@ -321,12 +339,12 @@ public class Server implements PacketHandler {
 	public void savePlayerData() {
 		if (player != null && hostUsername != null && hostPassword != null && currentWorldName != null) {
 			mc.sayda.mcraze.world.PlayerData playerData = mc.sayda.mcraze.world.PlayerDataManager.extractFromPlayer(
-				hostUsername,
-				hostPassword,
-				player
-			);
+					hostUsername,
+					hostPassword,
+					player);
 			mc.sayda.mcraze.world.PlayerDataManager.save(currentWorldName, playerData);
-			System.out.println("Saved playerdata for " + hostUsername);
+			if (GameLogger.get() != null)
+				GameLogger.get().info("Saved playerdata for " + hostUsername);
 		}
 	}
 
@@ -341,18 +359,21 @@ public class Server implements PacketHandler {
 
 		if (player != null) {
 			// Try to load playerdata
-			mc.sayda.mcraze.world.PlayerData playerData = mc.sayda.mcraze.world.PlayerDataManager.authenticate(worldName, username, password);
+			mc.sayda.mcraze.world.PlayerData playerData = mc.sayda.mcraze.world.PlayerDataManager
+					.authenticate(worldName, username, password);
 
 			if (playerData == null) {
 				// Auto-register: Create new playerdata
 				playerData = new mc.sayda.mcraze.world.PlayerData(username, password, spawnX, spawnY);
 				mc.sayda.mcraze.world.PlayerDataManager.save(worldName, playerData);
-				System.out.println("Auto-registered new player: " + username + " in loaded world");
+				if (GameLogger.get() != null)
+					GameLogger.get().info("Auto-registered new player: " + username + " in loaded world");
 			}
 
 			// Apply playerdata to existing player
 			mc.sayda.mcraze.world.PlayerDataManager.applyToPlayer(playerData, player);
-			System.out.println("Loaded playerdata for " + username + " in world " + worldName);
+			if (GameLogger.get() != null)
+				GameLogger.get().info("Loaded playerdata for " + username + " in world " + worldName);
 		}
 	}
 
@@ -385,7 +406,8 @@ public class Server implements PacketHandler {
 	 */
 	public boolean enableLAN(int port) {
 		if (lanEnabled) {
-			System.out.println("LAN server already running on port " + lanPort);
+			if (GameLogger.get() != null)
+				GameLogger.get().info("LAN server already running on port " + lanPort);
 			return true;
 		}
 
@@ -399,10 +421,12 @@ public class Server implements PacketHandler {
 			lanPort = port;
 			lanEnabled = true;
 			startLANAcceptThread();
-			System.out.println("LAN server started on port " + port);
+			if (GameLogger.get() != null)
+				GameLogger.get().info("LAN server started on port " + port);
 			return true;
 		} catch (java.io.IOException e) {
-			System.err.println("Failed to start LAN server: " + e.getMessage());
+			if (GameLogger.get() != null)
+				GameLogger.get().error("Failed to start LAN server: " + e.getMessage());
 			return false;
 		}
 	}
@@ -473,18 +497,21 @@ public class Server implements PacketHandler {
 			while (lanEnabled && running) {
 				try {
 					java.net.Socket clientSocket = lanServerSocket.accept();
-					System.out.println("LAN client connected from: " + clientSocket.getRemoteSocketAddress());
+					if (GameLogger.get() != null)
+						GameLogger.get().info("LAN client connected from: " + clientSocket.getRemoteSocketAddress());
 
 					// Handle connection in a separate thread
 					handleLANConnection(clientSocket);
 
 				} catch (java.io.IOException e) {
 					if (lanEnabled) {
-						System.err.println("Error accepting LAN client: " + e.getMessage());
+						if (GameLogger.get() != null)
+							GameLogger.get().error("Error accepting LAN client: " + e.getMessage());
 					}
 				}
 			}
-			System.out.println("LAN accept thread stopped");
+			if (GameLogger.get() != null)
+				GameLogger.get().info("LAN accept thread stopped");
 		}, "LANAccept");
 		lanAcceptThread.setDaemon(true);
 		lanAcceptThread.start();
@@ -497,11 +524,12 @@ public class Server implements PacketHandler {
 		new Thread(() -> {
 			try {
 				// Create network connection
-				mc.sayda.mcraze.network.NetworkConnection connection =
-					new mc.sayda.mcraze.network.NetworkConnection(clientSocket);
+				mc.sayda.mcraze.network.NetworkConnection connection = new mc.sayda.mcraze.network.NetworkConnection(
+						clientSocket);
 
 				// Wait for authentication packet (timeout after 5 seconds)
-				System.out.println("Waiting for authentication from LAN client...");
+				if (GameLogger.get() != null)
+					GameLogger.get().info("Waiting for authentication from LAN client...");
 				long authStart = System.currentTimeMillis();
 				mc.sayda.mcraze.network.packet.PacketAuthRequest authPacket = null;
 
@@ -519,38 +547,44 @@ public class Server implements PacketHandler {
 				}
 
 				if (authPacket == null) {
-					System.err.println("LAN client did not send authentication packet - disconnecting");
+					if (GameLogger.get() != null)
+						GameLogger.get().error("LAN client did not send authentication packet - disconnecting");
 					connection.disconnect();
 					return;
 				}
 
-				System.out.println("LAN authentication request from: " + authPacket.username);
+				if (GameLogger.get() != null)
+					GameLogger.get().info("LAN authentication request from: " + authPacket.username);
 
 				// Try to add player with authentication
 				PlayerConnection playerConnection = sharedWorld.addPlayer(
-					connection, authPacket.username, authPacket.password);
+						connection, authPacket.username, authPacket.password);
 
 				if (playerConnection == null) {
 					// Authentication failed
-					System.err.println("LAN authentication failed for " + authPacket.username);
-					mc.sayda.mcraze.network.packet.PacketAuthResponse response =
-						new mc.sayda.mcraze.network.packet.PacketAuthResponse(false, "Authentication failed");
+					if (GameLogger.get() != null)
+						GameLogger.get().error("LAN authentication failed for " + authPacket.username);
+					mc.sayda.mcraze.network.packet.PacketAuthResponse response = new mc.sayda.mcraze.network.packet.PacketAuthResponse(
+							false, "Authentication failed");
 					connection.sendPacket(response);
-					connection.flush();  // Flush immediately so client receives auth failure
+					connection.flush(); // Flush immediately so client receives auth failure
 					connection.disconnect();
 				} else {
 					// Authentication successful
-					System.out.println("LAN player " + authPacket.username + " authenticated successfully");
-					mc.sayda.mcraze.network.packet.PacketAuthResponse response =
-						new mc.sayda.mcraze.network.packet.PacketAuthResponse(true, "");
+					if (GameLogger.get() != null)
+						GameLogger.get().info("LAN player " + authPacket.username + " authenticated successfully");
+					mc.sayda.mcraze.network.packet.PacketAuthResponse response = new mc.sayda.mcraze.network.packet.PacketAuthResponse(
+							true, "");
 					connection.sendPacket(response);
-					connection.flush();  // Flush immediately so client receives auth success
+					connection.flush(); // Flush immediately so client receives auth success
 
-					System.out.println("LAN player " + authPacket.username + " joined the game");
+					if (GameLogger.get() != null)
+						GameLogger.get().info("LAN player " + authPacket.username + " joined the game");
 				}
 
 			} catch (Exception e) {
-				System.err.println("Error handling LAN connection: " + e.getMessage());
+				if (GameLogger.get() != null)
+					GameLogger.get().error("Error handling LAN connection: " + e.getMessage());
 				e.printStackTrace();
 			}
 		}, "LANConnectionHandler").start();
@@ -632,7 +666,8 @@ public class Server implements PacketHandler {
 
 	@Override
 	public void handleChatSend(PacketChatSend packet) {
-		// Delegate ALL chat/commands to PlayerConnection (integrated server host's connection)
+		// Delegate ALL chat/commands to PlayerConnection (integrated server host's
+		// connection)
 		// This ensures consistent behavior - host is treated like any other player
 		if (hostPlayerConnection != null) {
 			hostPlayerConnection.handleChatSend(packet);
@@ -641,29 +676,37 @@ public class Server implements PacketHandler {
 
 	// Client-bound packet handlers (server doesn't handle these)
 	@Override
-	public void handleWorldUpdate(PacketWorldUpdate packet) {}
+	public void handleWorldUpdate(PacketWorldUpdate packet) {
+	}
 
 	@Override
-	public void handleEntityUpdate(PacketEntityUpdate packet) {}
+	public void handleEntityUpdate(PacketEntityUpdate packet) {
+	}
 
 	@Override
-	public void handleEntityRemove(mc.sayda.mcraze.network.packet.PacketEntityRemove packet) {}
+	public void handleEntityRemove(mc.sayda.mcraze.network.packet.PacketEntityRemove packet) {
+	}
 
 	@Override
-	public void handleInventoryUpdate(PacketInventoryUpdate packet) {}
+	public void handleInventoryUpdate(PacketInventoryUpdate packet) {
+	}
 
 	@Override
-	public void handleChatMessage(PacketChatMessage packet) {}
+	public void handleChatMessage(PacketChatMessage packet) {
+	}
 
 	@Override
-	public void handlePlayerDeath(PacketPlayerDeath packet) {}
+	public void handlePlayerDeath(PacketPlayerDeath packet) {
+	}
 
 	@Override
-	public void handleBreakingProgress(PacketBreakingProgress packet) {}
+	public void handleBreakingProgress(PacketBreakingProgress packet) {
+	}
 
 	@Override
 	public void handleAuthRequest(mc.sayda.mcraze.network.packet.PacketAuthRequest packet) {
-		// Server doesn't handle auth requests in singleplayer (only DedicatedServer does)
+		// Server doesn't handle auth requests in singleplayer (only DedicatedServer
+		// does)
 	}
 
 	@Override

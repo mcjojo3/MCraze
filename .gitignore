@@ -9,7 +9,6 @@ classes/
 /out
 /world
 nul
-code_audit.md
 code_audit_archived_2025-12-17.md
 /build
 /installer
@@ -19,3 +18,5 @@ SPRITES_TODO.md
 PERFORMANCE_ANALYSIS.md
 *.tmp
 code_audit_archived_2026-01-09.md
+code_audit_archived_2026-01-11.md
+code_audit.md

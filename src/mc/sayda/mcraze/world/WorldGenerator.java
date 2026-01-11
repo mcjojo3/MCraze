@@ -12,6 +12,8 @@
 
 package mc.sayda.mcraze.world;
 
+import mc.sayda.mcraze.logging.GameLogger;
+
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -24,20 +26,20 @@ public class WorldGenerator {
 
 	public static boolean[][] visibility;
 	public static Int2 playerLocation;
-	public static TileID[][] backdrops;  // Track backdrops during generation
+	public static TileID[][] backdrops; // Track backdrops during generation
 
 	/**
 	 * Biome-specific terrain generation parameters
 	 */
 	private static class BiomeParams {
-		final int surfaceOffset;        // Height adjustment from median
-		final double surfaceVariation;  // Multiplier for height changes
-		final TileID surfaceBlock;      // Top layer block
-		final TileID subSurfaceBlock;   // Subsurface block (2-5 deep)
-		final double treeDensity;       // Tree spawn probability
+		final int surfaceOffset; // Height adjustment from median
+		final double surfaceVariation; // Multiplier for height changes
+		final TileID surfaceBlock; // Top layer block
+		final TileID subSurfaceBlock; // Subsurface block (2-5 deep)
+		final double treeDensity; // Tree spawn probability
 
 		BiomeParams(int surfaceOffset, double surfaceVariation, TileID surfaceBlock,
-					TileID subSurfaceBlock, double treeDensity) {
+				TileID subSurfaceBlock, double treeDensity) {
 			this.surfaceOffset = surfaceOffset;
 			this.surfaceVariation = surfaceVariation;
 			this.surfaceBlock = surfaceBlock;
@@ -52,26 +54,34 @@ public class WorldGenerator {
 	private static BiomeParams getBiomeParams(Biome biome) {
 		// Sea level is at median height (typically 128)
 		// NOTE: Y increases DOWNWARD (Y=0 is sky, Y=256 is bedrock)
-		// Offsets are relative to median - NEGATIVE = above water (lower Y), POSITIVE = below water (higher Y)
+		// Offsets are relative to median - NEGATIVE = above water (lower Y), POSITIVE =
+		// below water (higher Y)
 		switch (biome) {
 			case DESERT:
 				// Deserts: above sea level (NEGATIVE offset = higher up), very flat, no trees
 				return new BiomeParams(-5, 0.3, TileID.SAND, TileID.SAND, 0.0);
 			case FOREST:
-				// Forests: above sea level (NEGATIVE offset = higher up), varied terrain, many trees
-				// Reduced variation from 0.7 to 0.5 and increased offset to -7 to keep above water
+				// Forests: above sea level (NEGATIVE offset = higher up), varied terrain, many
+				// trees
+				// Reduced variation from 0.7 to 0.5 and increased offset to -7 to keep above
+				// water
 				return new BiomeParams(-7, 0.5, TileID.GRASS, TileID.DIRT, 0.35);
-            case MOUNTAIN:
-                // Mountains: above sea level (NEGATIVE offset = higher up), varied terrain, many trees
-                // Reduced variation from 0.7 to 0.5 and increased offset to -7 to keep above water
-                return new BiomeParams(-21, 2.0, TileID.STONE, TileID.STONE, 0.0);
+			case MOUNTAIN:
+				// Mountains: above sea level (NEGATIVE offset = higher up), varied terrain,
+				// many trees
+				// Reduced variation from 0.7 to 0.5 and increased offset to -7 to keep above
+				// water
+				return new BiomeParams(-21, 2.0, TileID.STONE, TileID.STONE, 0.0);
 			case OCEAN:
-				// Oceans: BELOW sea level (POSITIVE offset = deeper down), sandy ocean floor with water above
+				// Oceans: BELOW sea level (POSITIVE offset = deeper down), sandy ocean floor
+				// with water above
 				return new BiomeParams(8, 0.4, TileID.SAND, TileID.SAND, 0.0);
 			case PLAINS:
 			default:
-				// Plains: above sea level (NEGATIVE offset = higher up), moderate variation, no trees
-				// Reduced variation from 0.6 to 0.45 and increased offset to -6 to keep above water
+				// Plains: above sea level (NEGATIVE offset = higher up), moderate variation, no
+				// trees
+				// Reduced variation from 0.6 to 0.45 and increased offset to -6 to keep above
+				// water
 				return new BiomeParams(-6, 0.45, TileID.GRASS, TileID.DIRT, 0.02);
 		}
 	}
@@ -133,11 +143,13 @@ public class WorldGenerator {
 	 * Fractional Brownian Motion (fBm) - Multiple octaves of Perlin noise
 	 * Creates natural terrain with large features and fine detail
 	 *
-	 * @param x Position
-	 * @param seed Random seed
-	 * @param octaves Number of noise layers (more = more detail)
-	 * @param persistence How much each octave contributes (0.5 = each octave is half as strong)
-	 * @param lacunarity Frequency multiplier between octaves (2.0 = each octave is twice the frequency)
+	 * @param x           Position
+	 * @param seed        Random seed
+	 * @param octaves     Number of noise layers (more = more detail)
+	 * @param persistence How much each octave contributes (0.5 = each octave is
+	 *                    half as strong)
+	 * @param lacunarity  Frequency multiplier between octaves (2.0 = each octave is
+	 *                    twice the frequency)
 	 */
 	private static double perlinFBM(double x, long seed, int octaves, double persistence, double lacunarity) {
 		double total = 0;
@@ -152,7 +164,7 @@ public class WorldGenerator {
 			frequency *= lacunarity;
 		}
 
-		return total / maxValue;  // Normalize to [-1, 1]
+		return total / maxValue; // Normalize to [-1, 1]
 	}
 
 	/**
@@ -185,17 +197,16 @@ public class WorldGenerator {
 
 		// Blend parameters (smooth interpolation using fade curve to prevent spikes)
 		double linearFactor = (double) distanceFromBoundary / transitionRange;
-		double blendFactor = fade(linearFactor);  // Use smooth curve instead of linear
+		double blendFactor = fade(linearFactor); // Use smooth curve instead of linear
 		BiomeParams center = getBiomeParams(centerBiome);
 		BiomeParams adjacent = getBiomeParams(adjacentBiome);
 
 		return new BiomeParams(
-			(int) Math.round(adjacent.surfaceOffset * (1 - blendFactor) + center.surfaceOffset * blendFactor),
-			adjacent.surfaceVariation * (1 - blendFactor) + center.surfaceVariation * blendFactor,
-			center.surfaceBlock,
-			center.subSurfaceBlock,
-			adjacent.treeDensity * (1 - blendFactor) + center.treeDensity * blendFactor
-		);
+				(int) Math.round(adjacent.surfaceOffset * (1 - blendFactor) + center.surfaceOffset * blendFactor),
+				adjacent.surfaceVariation * (1 - blendFactor) + center.surfaceVariation * blendFactor,
+				center.surfaceBlock,
+				center.subSurfaceBlock,
+				adjacent.treeDensity * (1 - blendFactor) + center.treeDensity * blendFactor);
 	}
 
 	/**
@@ -209,15 +220,16 @@ public class WorldGenerator {
 		Biome[] biomes = new Biome[width];
 
 		// Calculate biome sizes based on world width
-		int oceanWidth = Math.max(60, width / 12);  // Ocean is ~8.3% of world width (min 60 blocks) - REDUCED from width/8
-		int minLandBiomeWidth = Math.max(60, width / 16);  // Min land biome width scales with world
-		int maxLandBiomeWidth = Math.max(150, width / 6);  // Max land biome width scales with world
+		int oceanWidth = Math.max(60, width / 12); // Ocean is ~8.3% of world width (min 60 blocks) - REDUCED from
+													// width/8
+		int minLandBiomeWidth = Math.max(60, width / 16); // Min land biome width scales with world
+		int maxLandBiomeWidth = Math.max(150, width / 6); // Max land biome width scales with world
 
 		// Get all non-ocean biomes for guaranteed placement
-		Biome[] landBiomes = {Biome.PLAINS, Biome.FOREST, Biome.DESERT, Biome.MOUNTAIN};
+		Biome[] landBiomes = { Biome.PLAINS, Biome.FOREST, Biome.DESERT, Biome.MOUNTAIN };
 
 		// PHASE 1: Place ocean at left edge
-		int leftOceanWidth = oceanWidth + random.nextInt(oceanWidth / 2);  // Vary ocean size
+		int leftOceanWidth = oceanWidth + random.nextInt(oceanWidth / 2); // Vary ocean size
 		for (int x = 0; x < leftOceanWidth && x < width; x++) {
 			biomes[x] = Biome.OCEAN;
 		}
@@ -242,18 +254,18 @@ public class WorldGenerator {
 			// Add guaranteed biomes (one of each land biome)
 			// CRITICAL FIX: Scale guaranteed biome widths to fit available space
 			int guaranteedCount = landBiomes.length;
-			int maxTotalGuaranteedWidth = (int) (middleWidth * 0.8);  // Use 80% of space for guaranteed biomes
+			int maxTotalGuaranteedWidth = (int) (middleWidth * 0.8); // Use 80% of space for guaranteed biomes
 			int avgGuaranteedWidth = maxTotalGuaranteedWidth / guaranteedCount;
 
 			for (Biome biome : landBiomes) {
 				// Vary width but ensure total doesn't exceed available space
 				int variance = Math.min(
-					random.nextInt(maxLandBiomeWidth - minLandBiomeWidth),
-					avgGuaranteedWidth / 2  // Limit variance to half of average
+						random.nextInt(maxLandBiomeWidth - minLandBiomeWidth),
+						avgGuaranteedWidth / 2 // Limit variance to half of average
 				);
 				int segmentWidth = Math.min(
-					minLandBiomeWidth + variance,
-					avgGuaranteedWidth + avgGuaranteedWidth / 2  // Max = 1.5x average
+						minLandBiomeWidth + variance,
+						avgGuaranteedWidth + avgGuaranteedWidth / 2 // Max = 1.5x average
 				);
 				segments.add(new BiomeSegment(biome, segmentWidth));
 			}
@@ -263,9 +275,8 @@ public class WorldGenerator {
 			while (usedWidth < middleWidth) {
 				Biome randomBiome = landBiomes[random.nextInt(landBiomes.length)];
 				int segmentWidth = Math.min(
-					minLandBiomeWidth + random.nextInt(maxLandBiomeWidth - minLandBiomeWidth),
-					middleWidth - usedWidth
-				);
+						minLandBiomeWidth + random.nextInt(maxLandBiomeWidth - minLandBiomeWidth),
+						middleWidth - usedWidth);
 				segments.add(new BiomeSegment(randomBiome, segmentWidth));
 				usedWidth += segmentWidth;
 			}
@@ -281,7 +292,7 @@ public class WorldGenerator {
 			}
 			java.util.Collections.shuffle(segments, random);
 			if (firstPlains != null) {
-				segments.add(0, firstPlains);  // Ensure plains at start for spawn
+				segments.add(0, firstPlains); // Ensure plains at start for spawn
 			}
 
 			// Place segments in the middle section
@@ -300,7 +311,8 @@ public class WorldGenerator {
 			}
 		}
 
-		System.out.println("WorldGenerator: Generated biome map with " + width + " columns (ocean edges, all biomes guaranteed)");
+		System.out.println(
+				"WorldGenerator: Generated biome map with " + width + " columns (ocean edges, all biomes guaranteed)");
 		return biomes;
 	}
 
@@ -324,59 +336,84 @@ public class WorldGenerator {
 		double chance = random.nextDouble();
 
 		// Define natural biome transitions
-        switch (current) {
-            case OCEAN:
-                // Ocean -> stay Ocean (35%), Plains (40%), Forest (15%), Desert (7%), Mountain (3%)
-                if (chance < 0.35) return Biome.OCEAN;
-                if (chance < 0.75) return Biome.PLAINS;
-                if (chance < 0.90) return Biome.FOREST;
-                if (chance < 0.97) return Biome.DESERT;
-                return Biome.MOUNTAIN;
+		switch (current) {
+			case OCEAN:
+				// Ocean -> stay Ocean (35%), Plains (40%), Forest (15%), Desert (7%), Mountain
+				// (3%)
+				if (chance < 0.35)
+					return Biome.OCEAN;
+				if (chance < 0.75)
+					return Biome.PLAINS;
+				if (chance < 0.90)
+					return Biome.FOREST;
+				if (chance < 0.97)
+					return Biome.DESERT;
+				return Biome.MOUNTAIN;
 
-            case DESERT:
-                // Desert -> stay Desert (30%), Plains (45%), Forest (12%), Ocean (8%), Mountain (5%)
-                if (chance < 0.30) return Biome.DESERT;
-                if (chance < 0.75) return Biome.PLAINS;
-                if (chance < 0.87) return Biome.FOREST;
-                if (chance < 0.95) return Biome.OCEAN;
-                return Biome.MOUNTAIN;
+			case DESERT:
+				// Desert -> stay Desert (30%), Plains (45%), Forest (12%), Ocean (8%), Mountain
+				// (5%)
+				if (chance < 0.30)
+					return Biome.DESERT;
+				if (chance < 0.75)
+					return Biome.PLAINS;
+				if (chance < 0.87)
+					return Biome.FOREST;
+				if (chance < 0.95)
+					return Biome.OCEAN;
+				return Biome.MOUNTAIN;
 
-            case FOREST:
-                // Forest -> stay Forest (30%), Plains (45%), Desert (12%), Ocean (8%), Mountain (5%)
-                if (chance < 0.30) return Biome.FOREST;
-                if (chance < 0.75) return Biome.PLAINS;
-                if (chance < 0.87) return Biome.DESERT;
-                if (chance < 0.95) return Biome.OCEAN;
-                return Biome.MOUNTAIN;
+			case FOREST:
+				// Forest -> stay Forest (30%), Plains (45%), Desert (12%), Ocean (8%), Mountain
+				// (5%)
+				if (chance < 0.30)
+					return Biome.FOREST;
+				if (chance < 0.75)
+					return Biome.PLAINS;
+				if (chance < 0.87)
+					return Biome.DESERT;
+				if (chance < 0.95)
+					return Biome.OCEAN;
+				return Biome.MOUNTAIN;
 
-            case MOUNTAIN:
-                // Mountain -> Plains (55%), Forest (25%), Desert (10%), Ocean (7%), stay Mountain (3%)
-                if (chance < 0.55) return Biome.PLAINS;
-                if (chance < 0.80) return Biome.FOREST;
-                if (chance < 0.90) return Biome.DESERT;
-                if (chance < 0.97) return Biome.OCEAN;
-                return Biome.MOUNTAIN;
+			case MOUNTAIN:
+				// Mountain -> Plains (55%), Forest (25%), Desert (10%), Ocean (7%), stay
+				// Mountain (3%)
+				if (chance < 0.55)
+					return Biome.PLAINS;
+				if (chance < 0.80)
+					return Biome.FOREST;
+				if (chance < 0.90)
+					return Biome.DESERT;
+				if (chance < 0.97)
+					return Biome.OCEAN;
+				return Biome.MOUNTAIN;
 
-            case PLAINS:
-            default:
-                // Plains -> stay Plains (40%), Forest (30%), Desert (15%), Ocean (7%), Mountain (8%)
-                if (chance < 0.40) return Biome.PLAINS;
-                if (chance < 0.70) return Biome.FOREST;
-                if (chance < 0.85) return Biome.DESERT;
-                if (chance < 0.92) return Biome.OCEAN;
-                return Biome.MOUNTAIN;
-        }
-    }
+			case PLAINS:
+			default:
+				// Plains -> stay Plains (40%), Forest (30%), Desert (15%), Ocean (7%), Mountain
+				// (8%)
+				if (chance < 0.40)
+					return Biome.PLAINS;
+				if (chance < 0.70)
+					return Biome.FOREST;
+				if (chance < 0.85)
+					return Biome.DESERT;
+				if (chance < 0.92)
+					return Biome.OCEAN;
+				return Biome.MOUNTAIN;
+		}
+	}
 
 	public static TileID[][] generate(int width, int height, Random random, Biome[] biomeMap, World worldObj) {
 		TileID[][] world = new TileID[width][height];
 		visibility = new boolean[width][height];
-		backdrops = new TileID[width][height];  // Initialize backdrop tracking
+		backdrops = new TileID[width][height]; // Initialize backdrop tracking
 		for (int i = 0; i < visibility.length; i++) {
 			for (int j = 0; j < visibility[0].length; j++) {
 				visibility[i][j] = true;
 				world[i][j] = TileID.NONE;
-				backdrops[i][j] = null;  // No backdrop by default
+				backdrops[i][j] = null; // No backdrop by default
 			}
 		}
 
@@ -423,7 +460,8 @@ public class WorldGenerator {
 			double randomNoise = (terrainRandom.nextDouble() - 0.5) * biomeParams.surfaceVariation * 2;
 
 			// Combine all layers (total amplitude: ~12.5x surfaceVariation)
-			// Add +0.1 bias then round upward (0.5+ rounds up) - keeps terrain slightly higher
+			// Add +0.1 bias then round upward (0.5+ rounds up) - keeps terrain slightly
+			// higher
 			int heightVariation = (int) Math.round(wave1 + wave2 + wave3 + randomNoise + 0.1);
 
 			// Calculate final surface height
@@ -451,7 +489,7 @@ public class WorldGenerator {
 
 		// PHASE 1.5: Smooth ocean-to-land transitions to create beaches/slopes
 		// This prevents sharp cliffs between ocean and land biomes
-		int transitionWidth = 12;  // Width of transition zone in blocks
+		int transitionWidth = 12; // Width of transition zone in blocks
 		for (int i = 0; i < width; i++) {
 			Biome currentBiome = (biomeMap != null && i < biomeMap.length) ? biomeMap[i] : Biome.PLAINS;
 
@@ -527,7 +565,8 @@ public class WorldGenerator {
 				BiomeParams params = getBlendedBiomeParams(biomeMap, i, width);
 				Biome biome = (biomeMap != null && i < biomeMap.length) ? biomeMap[i] : Biome.PLAINS;
 				System.out.println("Col " + i + ": biome=" + biome + ", offset=" + params.surfaceOffset +
-				                   ", surface=" + surfaceHeights[i] + " (above sea: " + (surfaceHeights[i] < median ? "YES" : "NO") + ")");
+						", surface=" + surfaceHeights[i] + " (above sea: " + (surfaceHeights[i] < median ? "YES" : "NO")
+						+ ")");
 			}
 		}
 
@@ -570,15 +609,16 @@ public class WorldGenerator {
 		System.out.println("=== Before Water Filling (first 10 columns) ===");
 		for (int i = 0; i < Math.min(10, width); i++) {
 			System.out.println("Col " + i + ": world[" + i + "][" + median + "]=" + world[i][median] +
-			                   ", surfaceHeight=" + surfaceHeights[i]);
+					", surfaceHeight=" + surfaceHeights[i]);
 		}
 
-		// water - FIXED: Check if terrain surface is above sea level, not just if block exists at sea level
+		// water - FIXED: Check if terrain surface is above sea level, not just if block
+		// exists at sea level
 		for (int i = 0; i < width; i++) {
 			// NEW: Skip water filling if terrain surface is above sea level
 			// NOTE: Lower Y values = higher altitude (Y=0 is sky, Y=128 is sea level)
 			if (surfaceHeights[i] < median) {
-				continue;  // Terrain is above water (lower Y), don't flood this column
+				continue; // Terrain is above water (lower Y), don't flood this column
 			}
 
 			// flood fill down
@@ -602,11 +642,12 @@ public class WorldGenerator {
 		for (int i = 0; i < Math.min(10, width); i++) {
 			System.out.println("Col " + i + ": world[" + i + "][" + median + "]=" + world[i][median]);
 		}
-		
+
 		uniformlyAddMinerals(world, TileID.COAL_ORE, .01f, (int) (height * .4),
 				(int) (height * .9), new TileID[] { TileID.DIRT, TileID.SAND, TileID.WATER,
-						TileID.NONE }, random);
-		
+						TileID.NONE },
+				random);
+
 		// Iron ore: Common, deeper underground (60% to 95%)
 		uniformlyAddMinerals(world, TileID.IRON_ORE, .005f, (int) (height * .6), (int) (height * .95),
 				new TileID[] { TileID.DIRT, TileID.SAND, TileID.WATER, TileID.NONE }, random);
@@ -614,7 +655,7 @@ public class WorldGenerator {
 		// Gold ore: Rare, deep underground only (75% to 95%)
 		uniformlyAddMinerals(world, TileID.GOLD_ORE, .005f, (int) (height * .75), (int) (height * .95),
 				new TileID[] { TileID.DIRT, TileID.SAND, TileID.WATER, TileID.NONE }, random);
-		
+
 		// Diamond ore: Very rare, deepest layers only (90% to 100%)
 		uniformlyAddMinerals(world, TileID.DIAMOND_ORE, .001f, (int) (height * .9), height,
 				new TileID[] { TileID.DIRT, TileID.SAND, TileID.WATER, TileID.NONE }, random);
@@ -655,12 +696,12 @@ public class WorldGenerator {
 		}
 
 		// Generate dungeons underground (somewhat rare but common - ~5-10 per world)
-		int dungeonCount = 5 + random.nextInt(6);  // 5-10 dungeons
+		int dungeonCount = 5 + random.nextInt(6); // 5-10 dungeons
 		for (int i = 0; i < dungeonCount; i++) {
 			// Find a spot underground near stone
 			for (int attempt = 0; attempt < 50; attempt++) {
 				int dungeonX = random.nextInt(width);
-				int dungeonY = median + random.nextInt(height - median - 10);  // Below sea level
+				int dungeonY = median + random.nextInt(height - median - 10); // Below sea level
 
 				// Check if this spot is next to stone (cave wall)
 				boolean nextToStone = false;
@@ -675,7 +716,8 @@ public class WorldGenerator {
 							}
 						}
 					}
-					if (nextToStone) break;
+					if (nextToStone)
+						break;
 				}
 
 				// Check if area is mostly empty (cave)
@@ -709,14 +751,16 @@ public class WorldGenerator {
 										world[x][y] = TileID.MOSSY_COBBLE;
 									}
 									// Also apply to backdrops
-									if (backdrops != null && backdrops[x][y] == TileID.COBBLE && random.nextDouble() < 0.15) {
+									if (backdrops != null && backdrops[x][y] == TileID.COBBLE
+											&& random.nextDouble() < 0.15) {
 										backdrops[x][y] = TileID.MOSSY_COBBLE;
 									}
 								}
 							}
 						}
 
-						// Populate dungeon chests with loot (chests are at template positions [1][4] and [5][4])
+						// Populate dungeon chests with loot (chests are at template positions [1][4]
+						// and [5][4])
 						if (worldObj != null) {
 							int chest1X = dungeonX + 1;
 							int chest1Y = dungeonY + 4;
@@ -724,14 +768,17 @@ public class WorldGenerator {
 							int chest2Y = dungeonY + 4;
 
 							// Generate loot for both chests using DUNGEON loot table
-							java.util.List<mc.sayda.mcraze.item.InventoryItem> loot1 = LootTable.DUNGEON.generate(random);
-							java.util.List<mc.sayda.mcraze.item.InventoryItem> loot2 = LootTable.DUNGEON.generate(random);
+							java.util.List<mc.sayda.mcraze.item.InventoryItem> loot1 = LootTable.DUNGEON
+									.generate(random);
+							java.util.List<mc.sayda.mcraze.item.InventoryItem> loot2 = LootTable.DUNGEON
+									.generate(random);
 
 							// Fill chest 1
 							ChestData chest1 = worldObj.getOrCreateChest(chest1X, chest1Y);
 							int slot = 0;
 							for (mc.sayda.mcraze.item.InventoryItem item : loot1) {
-								if (slot >= 27) break;  // 9x3 = 27 slots max
+								if (slot >= 27)
+									break; // 9x3 = 27 slots max
 								int slotX = slot % 9;
 								int slotY = slot / 9;
 								chest1.setInventoryItem(slotX, slotY, item);
@@ -742,18 +789,27 @@ public class WorldGenerator {
 							ChestData chest2 = worldObj.getOrCreateChest(chest2X, chest2Y);
 							slot = 0;
 							for (mc.sayda.mcraze.item.InventoryItem item : loot2) {
-								if (slot >= 27) break;  // 9x3 = 27 slots max
+								if (slot >= 27)
+									break; // 9x3 = 27 slots max
 								int slotX = slot % 9;
 								int slotY = slot / 9;
 								chest2.setInventoryItem(slotX, slotY, item);
 								slot++;
 							}
 
-							System.out.println("WorldGenerator: Placed dungeon with loot at (" + dungeonX + ", " + dungeonY + ") - " + loot1.size() + " items in chest 1, " + loot2.size() + " items in chest 2");
+							if (GameLogger.get() != null && GameLogger.get().isDebugEnabled()) {
+								GameLogger.get().debug("WorldGenerator: Placed dungeon with loot at (" + dungeonX + ", "
+										+ dungeonY + ") - " + loot1.size() + " items in chest 1, " + loot2.size()
+										+ " items in chest 2");
+							}
 						} else {
-							System.out.println("WorldGenerator: Placed dungeon at (" + dungeonX + ", " + dungeonY + ")");
+							if (GameLogger.get() != null && GameLogger.get().isDebugEnabled()) {
+								GameLogger.get()
+										.debug("WorldGenerator: Placed dungeon at (" + dungeonX + ", " + dungeonY
+												+ ")");
+							}
 						}
-						break;  // Successfully placed, move to next dungeon
+						break; // Successfully placed, move to next dungeon
 					}
 				}
 			}
@@ -766,7 +822,7 @@ public class WorldGenerator {
 		}
 
 		// Add flowers and tall grass decorations based on biome
-		TileID[] flowers = new TileID[] { TileID.ROSE, TileID.DANDELION };  // Flower array for easy expansion
+		TileID[] flowers = new TileID[] { TileID.ROSE, TileID.DANDELION }; // Flower array for easy expansion
 
 		for (int i = 0; i < width; i++) {
 			Biome biome = biomeMap[i];
@@ -818,7 +874,7 @@ public class WorldGenerator {
 								world[i][stackY] = TileID.CACTUS;
 								stackY--;
 							} else {
-								break;  // Can't stack if space is occupied
+								break; // Can't stack if space is occupied
 							}
 						}
 					}
@@ -828,7 +884,7 @@ public class WorldGenerator {
 
 		return world;
 	}
-	
+
 	// Density [0,1]
 	private static void uniformlyAddMinerals(TileID[][] world, TileID mineral, float density,
 			int minDepth, int maxDepth, TileID[] ignoreTypes, Random random) {
@@ -854,14 +910,14 @@ public class WorldGenerator {
 			iterations++;
 		}
 	}
-	
+
 	private static void setVisible(int x, int y) {
 		if (x < 0 || x >= visibility.length || y < 0 || y >= visibility[0].length) {
 			return;
 		}
 		visibility[x][y] = true;
 	}
-	
+
 	private static void carve(TileID[][] world, int x, int y, double distance, TileID type,
 			TileID[] ignoreTypes, boolean left) {
 		for (int i = -(int) distance; (!left && i <= (int) distance) || (left && i <= 0); i++) {
@@ -884,7 +940,8 @@ public class WorldGenerator {
 					continue;
 				}
 				if (Math.sqrt(i * i + j * j) <= distance) {
-					// If carving out stone for a cave (type == NONE), set backdrop to what was there
+					// If carving out stone for a cave (type == NONE), set backdrop to what was
+					// there
 					if (type == TileID.NONE && world[currentX][currentY] == TileID.STONE) {
 						backdrops[currentX][currentY] = TileID.STONE;
 					}
@@ -893,7 +950,7 @@ public class WorldGenerator {
 			}
 		}
 	}
-	
+
 	private static void addTemplate(TileID[][] world, TileTemplate tileTemplate, Int2 position) {
 		// Place foreground tiles
 		for (int i = 0; i < tileTemplate.template.length; i++) {
