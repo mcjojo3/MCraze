@@ -89,4 +89,31 @@ public class EntitySheep extends LivingEntity {
     public int getMaxHP() {
         return 10;
     }
+
+    @Override
+    public void draw(mc.sayda.mcraze.GraphicsHandler g, float cameraX, float cameraY, int screenWidth,
+            int screenHeight, int tileSize) {
+        mc.sayda.mcraze.util.Int2 pos = mc.sayda.mcraze.util.StockMethods.computeDrawLocationInPlace(cameraX, cameraY,
+                screenWidth,
+                screenHeight, tileSize, x, y);
+        if (mc.sayda.mcraze.util.StockMethods.onScreen) {
+            // Apply red tint for damage indication
+            if (damageFlashTicks > 0) {
+                if (facingRight) {
+                    g.drawImage(sprite, pos.x, pos.y, widthPX, heightPX, new mc.sayda.mcraze.Color(255, 0, 0, 128));
+                } else {
+                    // Flip horizontally
+                    g.drawImage(sprite, pos.x + widthPX, pos.y, -widthPX, heightPX,
+                            new mc.sayda.mcraze.Color(255, 0, 0, 128));
+                }
+            } else {
+                if (facingRight) {
+                    sprite.draw(g, pos.x, pos.y, widthPX, heightPX);
+                } else {
+                    // Flip horizontally
+                    sprite.draw(g, pos.x + widthPX, pos.y, -widthPX, heightPX);
+                }
+            }
+        }
+    }
 }

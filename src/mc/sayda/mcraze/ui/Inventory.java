@@ -173,16 +173,6 @@ public class Inventory implements java.io.Serializable, Cloneable {
 		return true;
 	}
 
-	// relative x/y in px
-	private Int2 mouseToCoor(int x, int y, int seperation, int tileSize) {
-		// Use SlotCoordinateHelper for precision gap-aware click detection
-		return mc.sayda.mcraze.util.SlotCoordinateHelper.getSlotAt(
-				x, y,
-				16, 15,
-				15, 15,
-				inventoryItems.length, inventoryItems[0].length);
-	}
-
 	public void setVisible(boolean visible) {
 		if (visible == false) {
 			tableSizeAvailable = 2;

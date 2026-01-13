@@ -42,7 +42,8 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 		container = new JFrame("MCraze");
 
 		try {
-			ImageIcon ii = new ImageIcon(new URL("file:sprites/other/mouse.png"));
+			// Fix deprecated URL constructor
+			ImageIcon ii = new ImageIcon(java.net.URI.create("file:sprites/other/mouse.png").toURL());
 			Image im = ii.getImage();
 			Toolkit tk = canvas.getToolkit();
 			myCursor = tk.createCustomCursor(im, new Point(8, 8), "MyCursor");
@@ -154,10 +155,10 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 
 	@Override
 	public void drawImage(Sprite sprite, int x, int y) {
-		// TODO: This is inefficient, and serialization should be done more neatly
+		// Optimize: Use getSprite() to check cache first
 		AwtSprite awtSprite = (AwtSprite) sprite;
 		if (awtSprite.image == null) {
-			AwtSprite other = (AwtSprite) SpriteStore.get().loadSprite(awtSprite.ref);
+			AwtSprite other = (AwtSprite) SpriteStore.get().getSprite(awtSprite.ref);
 			awtSprite.image = other.image;
 		}
 		g.drawImage(awtSprite.image, x, y, null);
@@ -174,7 +175,7 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 	public void drawImage(Sprite sprite, int x, int y, int width, int height) {
 		AwtSprite awtSprite = (AwtSprite) sprite;
 		if (awtSprite.image == null) {
-			AwtSprite other = (AwtSprite) SpriteStore.get().loadSprite(awtSprite.ref);
+			AwtSprite other = (AwtSprite) SpriteStore.get().getSprite(awtSprite.ref);
 			awtSprite.image = other.image;
 		}
 		g.drawImage(awtSprite.image, x, y, width, height, null);

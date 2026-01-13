@@ -72,6 +72,9 @@ public class PacketEntityUpdate extends ServerPacket {
 	// Invalidated when packet is modified (via ensureCapacity/reuse)
 	private byte[] cachedData = null;
 
+	// Count of active entities in the arrays
+	public int count = 0;
+
 	public PacketEntityUpdate() {
 	}
 
@@ -82,6 +85,9 @@ public class PacketEntityUpdate extends ServerPacket {
 	 * arrays/sec)
 	 */
 	public void ensureCapacity(int size) {
+		// Update the active count
+		this.count = size;
+
 		// Reuse arrays if they exist and are large enough, otherwise allocate new ones
 		if (entityIds == null || entityIds.length < size) {
 			entityIds = new int[size];
@@ -136,7 +142,9 @@ public class PacketEntityUpdate extends ServerPacket {
 			return cachedData;
 		}
 
-		int count = (entityIds != null) ? entityIds.length : 0;
+		// Use the explicit count, not the array length (which may be larger due to
+		// reuse)
+		int count = this.count;
 
 		// PERFORMANCE FIX: Eliminate double iteration by using estimated size
 		// Old code iterated twice: once to calculate size, once to write
@@ -247,6 +255,7 @@ public class PacketEntityUpdate extends ServerPacket {
 
 		// Read entity count
 		int count = buf.getInt();
+		packet.count = count;
 		packet.entityIds = new int[count];
 		packet.entityTypes = new String[count];
 		packet.entityUUIDs = new String[count];

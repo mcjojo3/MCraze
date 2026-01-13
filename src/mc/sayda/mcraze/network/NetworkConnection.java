@@ -16,7 +16,7 @@ public class NetworkConnection implements Connection {
 	private DataOutputStream out;
 	private DataInputStream in;
 	private List<Packet> receivedPackets = new ArrayList<>();
-	private static final int MAX_PACKET_QUEUE_SIZE = 5000; // Increased for large world support (was 1000)
+	private static final int MAX_PACKET_QUEUE_SIZE = 50000; // Increased for HUGE world support (was 5000)
 	private long lastOverflowWarning = 0; // Rate limit overflow warnings
 	private static final long OVERFLOW_WARNING_INTERVAL = 1000; // 1 second between warnings
 	private int droppedPacketCount = 0; // Track dropped packets for rate-limited warning

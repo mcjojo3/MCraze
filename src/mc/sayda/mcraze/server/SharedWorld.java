@@ -739,6 +739,69 @@ public class SharedWorld {
 			logger.debug("SharedWorld.tick: Packets processed");
 		}
 
+		// PROCESS BLOCK BREAKING (Auto-increment for continuous breaking)
+		// This fixes issues with VNC/High Latency where packets arrive irregularly
+		for (java.util.Map.Entry<Player, BreakingState> entry : playerBreakingState.entrySet()) {
+			Player player = entry.getKey();
+			BreakingState state = entry.getValue();
+
+			// Skip if not currently breaking
+			if (state.ticks <= 0)
+				continue;
+
+			// Check for timeout (player stopped breaking or disconnected)
+			long timeoutTicks = (worldDirectory == null) ? 60 : 10; // 1 second timeout
+			if (ticksRunning - state.lastUpdateTick > timeoutTicks) {
+				if (state.ticks > 0) {
+					// Timed out - reset
+					state.reset();
+					// Notify client to stop animation
+					for (PlayerConnection pc : players) {
+						if (pc.getPlayer() == player) {
+							pc.getConnection().sendPacket(new PacketBreakingProgress(state.x, state.y, 0, 0));
+							break;
+						}
+					}
+				}
+				continue;
+			}
+
+			// Normalize speed to 20 ticks/second standard
+			int increment = 1;
+			if (worldDirectory == null) {
+				// Integrated Server (60Hz): Throttle to 20Hz
+				if (ticksRunning % 3 != 0)
+					continue;
+			} else {
+				// Dedicated Server (10Hz): Boost to 20Hz equivalent
+				increment = 2;
+			}
+
+			// Increment progress
+			state.ticks += increment;
+
+			// Check if broken
+			Item currentItem = player.inventory.selectedItem().getItem();
+			int ticksNeeded = world.breakTicks(state.x, state.y, currentItem); // Calibrated for 20Hz
+
+			if (player.debugMode)
+				ticksNeeded = 1;
+
+			// Send progress update (to keep animation smooth)
+			for (PlayerConnection pc : players) {
+				if (pc.getPlayer() == player) {
+					pc.getConnection().sendPacket(new PacketBreakingProgress(state.x, state.y,
+							state.ticks, ticksNeeded));
+					break;
+				}
+			}
+
+			if (state.ticks >= ticksNeeded) {
+				// Block broken!
+				finishBreakingBlock(player, state.x, state.y);
+			}
+		}
+
 		// Update world physics (grass growth, sand falling, sapling growth, wheat
 		// growth, water spread, etc.)
 		if (world != null) {
@@ -1479,6 +1542,7 @@ public class SharedWorld {
 			}
 
 			// Track breaking progress
+			breakingState.lastUpdateTick = ticksRunning;
 			if (breakingState.isBreaking(packet.x, packet.y)) {
 				breakingState.ticks++;
 			} else {
@@ -1507,197 +1571,13 @@ public class SharedWorld {
 			}
 
 			// Block is broken - reset counter and notify client
-			breakingState.reset();
-			playerConnection.getConnection().sendPacket(new PacketBreakingProgress(packet.x, packet.y, 0, 0));
-
-			// Handle tool durability
-			if (currentItem != null && currentItem instanceof Tool) {
-				Tool tool = (Tool) currentItem;
-				tool.uses++;
-				if (tool.uses >= tool.totalUses) {
-					player.inventory.selectedItem().setEmpty();
-					// Immediately sync inventory after tool breaks (ISSUE #10 fix)
-					broadcastInventoryUpdates();
-				}
-			}
-
-			// Remove the tile
-			Constants.TileID broken = world.removeTile(packet.x, packet.y);
-
-			// Handle chest breaking - drop all items inside
-			if (broken == Constants.TileID.CHEST) {
-				mc.sayda.mcraze.world.ChestData chestData = world.getChest(packet.x, packet.y);
-				if (chestData != null) {
-					// Drop all items from the chest
-					for (int cx = 0; cx < 9; cx++) {
-						for (int cy = 0; cy < 3; cy++) {
-							mc.sayda.mcraze.item.InventoryItem invItem = chestData.items[cx][cy];
-							if (invItem != null && !invItem.isEmpty()) {
-								// Drop all items from this stack
-								for (int i = 0; i < invItem.getCount(); i++) {
-									Item droppedItem = invItem.getItem().clone();
-									droppedItem.x = packet.x + random.nextFloat() * 0.8f + 0.1f;
-									droppedItem.y = packet.y + random.nextFloat() * 0.8f + 0.1f;
-									droppedItem.dy = -0.05f - random.nextFloat() * 0.05f;
-									entityManager.add(droppedItem);
-								}
-							}
-						}
-					}
-					// Remove chest data from world
-					world.removeChest(packet.x, packet.y);
-					if (logger != null) {
-						logger.debug(
-								"SharedWorld: Chest broken at (" + packet.x + ", " + packet.y + "), items dropped");
-					}
-				}
-			}
-
-			// DOOR SYSTEM: When breaking a door part, also break the other part
-			if (broken == Constants.TileID.DOOR_BOT_CLOSED || broken == Constants.TileID.DOOR_BOT) {
-				// Breaking door bottom - also break door top
-				int topY = packet.y - 1;
-				if (topY >= 0) {
-					Tile topTile = worldAccess.getTile(packet.x, topY);
-					if (topTile != null && topTile.type != null &&
-							(topTile.type.name == Constants.TileID.DOOR_TOP_CLOSED
-									|| topTile.type.name == Constants.TileID.DOOR_TOP)) {
-						world.removeTile(packet.x, topY);
-						broadcastBlockChange(packet.x, topY, null);
-						if (logger != null) {
-							logger.debug("SharedWorld: Auto-removed door top at (" + packet.x + ", " + topY + ")");
-						}
-					}
-				}
-			} else if (broken == Constants.TileID.DOOR_TOP_CLOSED || broken == Constants.TileID.DOOR_TOP) {
-				// Breaking door top - also break door bottom
-				int botY = packet.y + 1;
-				if (botY < world.height) {
-					Tile botTile = worldAccess.getTile(packet.x, botY);
-					if (botTile != null && botTile.type != null &&
-							(botTile.type.name == Constants.TileID.DOOR_BOT_CLOSED
-									|| botTile.type.name == Constants.TileID.DOOR_BOT)) {
-						world.removeTile(packet.x, botY);
-						broadcastBlockChange(packet.x, botY, null);
-						if (logger != null) {
-							logger.debug("SharedWorld: Auto-removed door bottom at (" + packet.x + ", " + botY + ")");
-						}
-					}
-				}
-			}
-
-			// BED SYSTEM: When breaking a bed part, also break the other part
-			if (broken == Constants.TileID.BED_LEFT) {
-				// Breaking bed left - also break bed right
-				int rightX = packet.x + 1;
-				if (rightX < world.width) {
-					Tile rightTile = worldAccess.getTile(rightX, packet.y);
-					if (rightTile != null && rightTile.type != null &&
-							rightTile.type.name == Constants.TileID.BED_RIGHT) {
-						world.removeTile(rightX, packet.y);
-						broadcastBlockChange(rightX, packet.y, null);
-						if (logger != null) {
-							logger.debug("SharedWorld: Auto-removed bed right at (" + rightX + ", " + packet.y + ")");
-						}
-					}
-				}
-			} else if (broken == Constants.TileID.BED_RIGHT) {
-				// Breaking bed right - also break bed left
-				int leftX = packet.x - 1;
-				if (leftX >= 0) {
-					Tile leftTile = worldAccess.getTile(leftX, packet.y);
-					if (leftTile != null && leftTile.type != null &&
-							leftTile.type.name == Constants.TileID.BED_LEFT) {
-						world.removeTile(leftX, packet.y);
-						broadcastBlockChange(leftX, packet.y, null);
-						if (logger != null) {
-							logger.debug("SharedWorld: Auto-removed bed left at (" + leftX + ", " + packet.y + ")");
-						}
-					}
-				}
-			}
-
-			// Convert certain blocks when broken (grass->dirt, stone->cobble, etc.)
-			Constants.TileID dropId = broken;
-			if (broken == Constants.TileID.GRASS) {
-				dropId = Constants.TileID.DIRT;
-			}
-			if (broken == Constants.TileID.STONE) {
-				dropId = Constants.TileID.COBBLE;
-			}
-			if (broken == Constants.TileID.LEAVES && random.nextDouble() < 0.1) {
-				dropId = Constants.TileID.SAPLING;
-			}
-
-			// Drop items if block was broken - use thread-safe EntityManager
-
-			// Special case: Tall grass has 75% chance to drop wheat seeds (no self-drop)
-			if (broken == Constants.TileID.TALL_GRASS) {
-				if (random.nextDouble() < 0.75) {
-					Item seedItem = Constants.itemTypes.get("wheat_seeds");
-					if (seedItem != null) {
-						Item seed = seedItem.clone();
-						seed.x = packet.x + random.nextFloat() * 0.5f;
-						seed.y = packet.y + random.nextFloat() * 0.5f;
-						seed.dy = -0.07f;
-						entityManager.add(seed);
-						if (logger != null)
-							logger.debug("SharedWorld: Tall grass dropped seed at (" + seed.x + ", " + seed.y + ")");
-					}
-				}
-				// Note: 25% chance to drop nothing (matching original BlockInteractionSystem
-				// logic)
-			}
-			// Regular drops for blocks with itemDropId
-			else if (dropId != null && dropId.itemDropId != null) {
-				Item droppedItem = Constants.itemTypes.get(dropId.itemDropId);
-				if (droppedItem != null) {
-					// Special case: Wheat crops drop 1 wheat + 1-3 seeds
-					if (broken == Constants.TileID.WHEAT) {
-						// Drop 1 wheat item
-						Item wheat = droppedItem.clone();
-						wheat.x = packet.x + random.nextFloat() * 0.5f;
-						wheat.y = packet.y + random.nextFloat() * 0.5f;
-						wheat.dy = -0.07f;
-						entityManager.add(wheat);
-						if (logger != null)
-							logger.debug("SharedWorld: Dropped wheat at (" + wheat.x + ", " + wheat.y + ")");
-
-						// Drop 1-3 wheat seeds
-						Item seedItem = Constants.itemTypes.get("wheat_seeds");
-						if (seedItem != null) {
-							int seedCount = 1 + random.nextInt(3); // 1-3 seeds
-							for (int i = 0; i < seedCount; i++) {
-								Item seed = seedItem.clone();
-								seed.x = packet.x + random.nextFloat() * 0.5f;
-								seed.y = packet.y + random.nextFloat() * 0.5f;
-								seed.dy = -0.07f;
-								entityManager.add(seed);
-								if (logger != null)
-									logger.debug("SharedWorld: Dropped seed at (" + seed.x + ", " + seed.y + ")");
-							}
-						}
-					} else {
-						// Normal drop for other blocks
-						Item item = droppedItem.clone();
-						item.x = packet.x + random.nextFloat() * 0.5f;
-						item.y = packet.y + random.nextFloat() * 0.5f;
-						item.dy = -0.07f; // Give it upward velocity
-						entityManager.add(item);
-						if (logger != null)
-							logger.debug("SharedWorld: Dropped item " + item.itemId + " at (" + item.x + ", " + item.y
-									+ ")");
-					}
-				}
-			}
-
-			// Broadcast change to all players
-			broadcastBlockChange(packet.x, packet.y, null);
-
-			// PLANT PHYSICS: Check if breaking this block causes plants above to break
-			breakFloatingPlants(packet.x, packet.y);
+			// Block is broken - finalize
+			finishBreakingBlock(player, packet.x, packet.y);
 
 		} else {
+			// CRITICAL FIX: Explicitly stop breaking when isBreak=false (or on release)
+			breakingState.reset();
+
 			// Check if clicking on a crafting table FIRST (before parsing packet data)
 			if (world.isCraft(packet.x, packet.y)) {
 				// INTERACTION COOLDOWN CHECK
@@ -2581,6 +2461,24 @@ public class SharedWorld {
 			return;
 		}
 
+		// RANGE VALIDATION: Prevent infinite reach
+		// Using 5.0 tiles as a generous melee range (adjust as needed)
+		float maxReach = 5.0f;
+		float dx = attacker.x - target.x;
+		float dy = attacker.y - target.y;
+		float distSq = dx * dx + dy * dy;
+
+		// Convert pixel coordinates to tiles?
+		// Entity coords are typically in tiles or normalized units.
+		// World tiles are ints, Entity x/y are floats.
+		// Player.java uses 28/56 pixels which implies x/y might be in tiles.
+		// Assuming x,y are in tile units (based on other code like World.addTile(x,y)).
+		if (distSq > maxReach * maxReach) {
+			GameLogger.get().warn("Player " + playerConnection.getPlayerName()
+					+ " attack rejected: target too far (dist^2=" + distSq + ", max^2=" + (maxReach * maxReach) + ")");
+			return;
+		}
+
 		// SELF-ATTACK RESTRICTION: Do not allow attacking yourself
 		if (attacker.getUUID() != null && target.getUUID() != null &&
 				attacker.getUUID().equals(target.getUUID())) {
@@ -2748,5 +2646,189 @@ public class SharedWorld {
 	 */
 	public WorldAccess getWorldAccess() {
 		return worldAccess;
+	}
+
+	/**
+	 * Finalize block breaking (called by handleBlockChange or tick)
+	 */
+	private void finishBreakingBlock(Player player, int x, int y) {
+		GameLogger logger = GameLogger.get();
+		BreakingState breakingState = getBreakingState(player);
+
+		// Reset state first
+		breakingState.reset();
+
+		// Notify client to stop animation
+		for (PlayerConnection pc : players) {
+			if (pc.getPlayer() == player) {
+				pc.getConnection().sendPacket(new PacketBreakingProgress(x, y, 0, 0));
+				break;
+			}
+		}
+
+		// Handle tool durability
+		Item currentItem = player.inventory.selectedItem().getItem();
+		if (currentItem != null && currentItem instanceof Tool) {
+			Tool tool = (Tool) currentItem;
+			tool.uses++;
+			if (tool.uses >= tool.totalUses) {
+				player.inventory.selectedItem().setEmpty();
+				broadcastInventoryUpdates();
+			}
+		}
+
+		// Special handling for backdrop mode
+		if (player.backdropPlacementMode) {
+			if (world.hasBackdrop(x, y)) {
+				Constants.TileID backdropId = world.removeBackdrop(x, y);
+				if (backdropId != null && backdropId.itemDropId != null) {
+					Item droppedItem = Constants.itemTypes.get(backdropId.itemDropId);
+					if (droppedItem != null) {
+						Item item = droppedItem.clone();
+						item.x = x + random.nextFloat() * 0.5f;
+						item.y = y + random.nextFloat() * 0.5f;
+						item.dy = -0.07f;
+						entityManager.add(item);
+					}
+				}
+				broadcastBackdropChange(x, y, null);
+			}
+			return;
+		}
+
+		// Remove the tile
+		Constants.TileID broken = world.removeTile(x, y);
+
+		// Handle chest breaking
+		if (broken == Constants.TileID.CHEST) {
+			mc.sayda.mcraze.world.ChestData chestData = world.getChest(x, y);
+			if (chestData != null) {
+				for (int cx = 0; cx < 9; cx++) {
+					for (int cy = 0; cy < 3; cy++) {
+						mc.sayda.mcraze.item.InventoryItem invItem = chestData.items[cx][cy];
+						if (invItem != null && !invItem.isEmpty()) {
+							for (int i = 0; i < invItem.getCount(); i++) {
+								Item droppedItem = invItem.getItem().clone();
+								droppedItem.x = x + random.nextFloat() * 0.8f + 0.1f;
+								droppedItem.y = y + random.nextFloat() * 0.8f + 0.1f;
+								droppedItem.dy = -0.05f - random.nextFloat() * 0.05f;
+								entityManager.add(droppedItem);
+							}
+						}
+					}
+				}
+				world.removeChest(x, y);
+				if (logger != null) {
+					logger.debug("SharedWorld: Chest broken at (" + x + ", " + y + "), items dropped");
+				}
+			}
+		}
+
+		// Door Breaking (Bot)
+		if (broken == Constants.TileID.DOOR_BOT_CLOSED || broken == Constants.TileID.DOOR_BOT) {
+			int topY = y - 1;
+			if (topY >= 0) {
+				Tile topTile = worldAccess.getTile(x, topY);
+				if (topTile != null && topTile.type != null &&
+						(topTile.type.name == Constants.TileID.DOOR_TOP_CLOSED
+								|| topTile.type.name == Constants.TileID.DOOR_TOP)) {
+					world.removeTile(x, topY);
+					broadcastBlockChange(x, topY, null);
+				}
+			}
+		} else if (broken == Constants.TileID.DOOR_TOP_CLOSED || broken == Constants.TileID.DOOR_TOP) {
+			int botY = y + 1;
+			if (botY < world.height) {
+				Tile botTile = worldAccess.getTile(x, botY);
+				if (botTile != null && botTile.type != null &&
+						(botTile.type.name == Constants.TileID.DOOR_BOT_CLOSED
+								|| botTile.type.name == Constants.TileID.DOOR_BOT)) {
+					world.removeTile(x, botY);
+					broadcastBlockChange(x, botY, null);
+				}
+			}
+		}
+
+		// Bed Breaking
+		if (broken == Constants.TileID.BED_LEFT) {
+			int rightX = x + 1;
+			if (rightX < world.width) {
+				Tile rightTile = worldAccess.getTile(rightX, y);
+				if (rightTile != null && rightTile.type != null &&
+						rightTile.type.name == Constants.TileID.BED_RIGHT) {
+					world.removeTile(rightX, y);
+					broadcastBlockChange(rightX, y, null);
+				}
+			}
+		} else if (broken == Constants.TileID.BED_RIGHT) {
+			int leftX = x - 1;
+			if (leftX >= 0) {
+				Tile leftTile = worldAccess.getTile(leftX, y);
+				if (leftTile != null && leftTile.type != null &&
+						leftTile.type.name == Constants.TileID.BED_LEFT) {
+					world.removeTile(leftX, y);
+					broadcastBlockChange(leftX, y, null);
+				}
+			}
+		}
+
+		// Item Drops
+		Constants.TileID dropId = broken;
+		if (broken == Constants.TileID.GRASS)
+			dropId = Constants.TileID.DIRT;
+		if (broken == Constants.TileID.STONE)
+			dropId = Constants.TileID.COBBLE;
+		if (broken == Constants.TileID.LEAVES && random.nextDouble() < 0.1)
+			dropId = Constants.TileID.SAPLING;
+
+		if (broken == Constants.TileID.TALL_GRASS) {
+			if (random.nextDouble() < 0.75) {
+				Item seedItem = Constants.itemTypes.get("wheat_seeds");
+				if (seedItem != null) {
+					Item seed = seedItem.clone();
+					seed.x = x + random.nextFloat() * 0.5f;
+					seed.y = y + random.nextFloat() * 0.5f;
+					seed.dy = -0.07f;
+					entityManager.add(seed);
+				}
+			}
+		} else if (dropId != null && dropId.itemDropId != null) {
+			Item droppedItem = Constants.itemTypes.get(dropId.itemDropId);
+			if (droppedItem != null) {
+				if (broken == Constants.TileID.WHEAT) {
+					// Wheat drops (1 wheat + 1-3 seeds)
+					Item wheat = droppedItem.clone();
+					wheat.x = x + random.nextFloat() * 0.5f;
+					wheat.y = y + random.nextFloat() * 0.5f;
+					wheat.dy = -0.07f;
+					entityManager.add(wheat);
+
+					Item seedItem = Constants.itemTypes.get("wheat_seeds");
+					if (seedItem != null) {
+						int seedCount = 1 + random.nextInt(3);
+						for (int i = 0; i < seedCount; i++) {
+							Item seed = seedItem.clone();
+							seed.x = x + random.nextFloat() * 0.5f;
+							seed.y = y + random.nextFloat() * 0.5f;
+							seed.dy = -0.07f;
+							entityManager.add(seed);
+						}
+					}
+				} else {
+					// Standard drop
+					Item item = droppedItem.clone();
+					item.x = x + random.nextFloat() * 0.5f;
+					item.y = y + random.nextFloat() * 0.5f;
+					item.dy = -0.07f;
+					entityManager.add(item);
+				}
+			}
+		}
+
+		// Broadcast removal
+		broadcastBlockChange(x, y, null);
+
+		// Plant Physics
+		breakFloatingPlants(x, y);
 	}
 }

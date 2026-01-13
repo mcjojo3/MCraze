@@ -52,7 +52,7 @@ public class ChestView {
 		int playerY = chestY + chestPanelHeight + SEPARATION;
 
 		// 1. Render Chest Panel
-		g.setColor(new Color(120, 90, 70));
+		g.setColor(Color.brown);
 		g.fillRect(chestX, chestY, chestPanelWidth, chestPanelHeight);
 
 		for (int i = 0; i < 3; i++) {

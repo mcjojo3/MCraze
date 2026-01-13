@@ -50,10 +50,6 @@ public class Server implements PacketHandler {
 	public Player player; // -> hostPlayerConnection.getPlayer()
 	public ArrayList<Entity> entities = new ArrayList<>(); // -> sharedWorld.getAllEntities() (updated in tick())
 
-	// OLD: Removed single-player fields
-	// private Connection connection; // DELETED - now use
-	// hostPlayerConnection.getConnection()
-
 	// Game settings
 	private int worldWidth = 512;
 	private int worldHeight = 256;
@@ -82,13 +78,7 @@ public class Server implements PacketHandler {
 	private boolean lanEnabled = false;
 	private int lanPort = 25565;
 
-	// OLD: Removed single-player breaking state
-	// Block breaking is now handled by SharedWorld per-player
-	// private HashMap<Player, BreakingState> playerBreakingState = new HashMap<>();
-
 	// OLD: Authentication fields moved to hostUsername/hostPassword
-	// private String authenticatedUsername; // DELETED - now use hostUsername
-	// private String authenticatedPassword; // DELETED - now use hostPassword
 
 	/**
 	 * Constructor for integrated server (singleplayer/LAN)

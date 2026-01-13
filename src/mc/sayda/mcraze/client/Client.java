@@ -136,6 +136,9 @@ public class Client implements ClientPacketHandler {
 	 * Client rendering loop
 	 */
 	private long lastRenderLog = 0;
+	private long lastBreakPacketTime = 0; // Track last break packet for continuous breaking
+	private int lastTargetBlockX = -1;
+	private int lastTargetBlockY = -1;
 
 	public void render() {
 		GameLogger logger = GameLogger.get();
@@ -370,6 +373,25 @@ public class Client implements ClientPacketHandler {
 				sendBlockChangePacket(true);
 				// Server will send PacketBreakingProgress with authoritative breaking animation
 				// No client-side tracking needed - eliminates duplicate state and visual jitter
+				lastBreakPacketTime = currentTime;
+			}
+		} else if (leftClick && connection != null && !chestFocus) {
+			// CRITICAL FIX: Continuous breaking for VNC/High Latency
+			// Send "break" packet periodically while holding button to prevent server
+			// timeout
+			// OR if target block changes (fixes "delay" when mowing lawn/plants)
+
+			// Calculate current target block (same logic as sendInput)
+			int tileX = (int) Math.floor(worldMouseX);
+			int tileY = (int) Math.floor(worldMouseY);
+
+			boolean targetChanged = (tileX != lastTargetBlockX || tileY != lastTargetBlockY);
+
+			if (currentTime - lastBreakPacketTime >= 500 || targetChanged) {
+				sendBlockChangePacket(true);
+				lastBreakPacketTime = currentTime;
+				lastTargetBlockX = tileX;
+				lastTargetBlockY = tileY;
 			}
 		}
 
@@ -486,11 +508,26 @@ public class Client implements ClientPacketHandler {
 		// Movement keys are tracked and sent in AwtEventsHandler.sendInputPacket()
 		// This packet sending here is for click events only
 
+		// CRITICAL FIX: Convert screen coordinates to world coordinates
+		// PacketPlayerInput expects WORLD coordinates (floats), not screen pixels
+		int effectiveTileSize = getEffectiveTileSize();
+		mc.sayda.mcraze.GraphicsHandler g = mc.sayda.mcraze.GraphicsHandler.get();
+		int screenWidth = g.getScreenWidth();
+		int screenHeight = g.getScreenHeight();
+
+		// Calculate camera position (same as render)
+		mc.sayda.mcraze.entity.Player localPlayer = getLocalPlayer();
+		float cameraX = localPlayer.x - screenWidth / effectiveTileSize / 2f;
+		float cameraY = localPlayer.y - screenHeight / effectiveTileSize / 2f;
+
+		float worldMouseX = (cameraX * effectiveTileSize + screenMousePos.x) / effectiveTileSize;
+		float worldMouseY = (cameraY * effectiveTileSize + screenMousePos.y) / effectiveTileSize;
+
 		// Send player input (clicks and mouse position)
 		PacketPlayerInput inputPacket = new PacketPlayerInput(
 				false, false, false, false, // Movement keys (and sneak) handled by AwtEventsHandler
 				leftClick, rightClick,
-				screenMousePos.x, screenMousePos.y,
+				worldMouseX, worldMouseY,
 				getLocalPlayer().inventory.hotbarIdx);
 		connection.sendPacket(inputPacket);
 	}
@@ -698,19 +735,9 @@ public class Client implements ClientPacketHandler {
 				continue;
 			}
 
-			// Use standardized hitboxes (requested by user)
-			float entityWidth = 1.0f;
-			float entityHeight = 1.0f;
-
-			if (entity instanceof mc.sayda.mcraze.entity.Player) {
-				entityHeight = 2.0f; // Players are 2 blocks tall
-			} else if (entity instanceof mc.sayda.mcraze.entity.EntitySheep) {
-				entityHeight = 1.0f; // Sheep are 1 block tall
-			} else {
-				// Fallback to actual dimensions for items, etc.
-				entityWidth = (float) entity.widthPX / effectiveTileSize;
-				entityHeight = (float) entity.heightPX / effectiveTileSize;
-			}
+			// Use actual visual dimensions for hitbox to match what user sees
+			float entityWidth = (float) entity.widthPX / effectiveTileSize;
+			float entityHeight = (float) entity.heightPX / effectiveTileSize;
 
 			if (worldX >= entity.x && worldX <= entity.x + entityWidth &&
 					worldY >= entity.y && worldY <= entity.y + entityHeight) {
