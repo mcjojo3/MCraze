@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -23,12 +23,13 @@ import java.nio.ByteBuffer;
  * Binary protocol: 4 ints = 16 bytes
  */
 public class PacketBreakingProgress extends ServerPacket {
-	public int x;  // Block X position
-	public int y;  // Block Y position
-	public int progress;  // Breaking progress (0 = not breaking, 1-9 = breaking stages)
-	public int ticksNeeded;  // Total ticks needed to break
+	public int x; // Block X position
+	public int y; // Block Y position
+	public int progress; // Breaking progress (0 = not breaking, 1-9 = breaking stages)
+	public int ticksNeeded; // Total ticks needed to break
 
-	public PacketBreakingProgress() {}
+	public PacketBreakingProgress() {
+	}
 
 	public PacketBreakingProgress(int x, int y, int progress, int ticksNeeded) {
 		this.x = x;

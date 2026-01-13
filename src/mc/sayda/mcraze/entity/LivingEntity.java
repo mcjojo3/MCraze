@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -25,19 +25,18 @@ public abstract class LivingEntity extends Entity {
 	public boolean climbing = false;
 	public boolean facingRight = true;
 	public Inventory inventory;
-	public boolean dead = false;
-	public boolean flying = false;  // Flying mode (no gravity, free movement)
-	public boolean noclip = false;  // Noclip mode (ghost through blocks when flying)
-	public boolean sneaking = false;  // Sneaking mode (prevents falling off edges, lowers in fly mode)
-	public float speedMultiplier = 1.0f;  // Speed multiplier (1.0 = normal speed)
+	public boolean flying = false; // Flying mode (no gravity, free movement)
+	public boolean noclip = false; // Noclip mode (ghost through blocks when flying)
+	public boolean sneaking = false; // Sneaking mode (prevents falling off edges, lowers in fly mode)
+	public float speedMultiplier = 1.0f; // Speed multiplier (1.0 = normal speed)
 
 	protected final float walkSpeed = .1f;
 	protected final float swimSpeed = .04f;
 	protected float armLength = Constants.ARM_LENGTH;
 	protected float moveDirection = 0;
-	protected long ticksAlive = 0;
-	public int ticksUnderwater = 0;  // PUBLIC for network sync
-	public boolean jumping = false;  // PUBLIC for network sync
+	public int ticksUnderwater = 0; // PUBLIC for network sync
+	public boolean jumping = false; // PUBLIC for network sync
+	public int invulnerabilityTicks = 0; // Cooldown between taking damage (approx 0.5s at 20fps)
 
 	public LivingEntity(boolean gravityApplies, float x, float y, int width, int height) {
 		super(null, gravityApplies, x, y, width, height);
@@ -47,42 +46,26 @@ public abstract class LivingEntity extends Entity {
 
 	/**
 	 * Give items to this entity's inventory.
-	 * @param item Item to give
+	 * 
+	 * @param item  Item to give
 	 * @param count Number of items
 	 * @return Number of items that couldn't fit (0 if all added successfully)
 	 */
 	public int giveItem(Item item, int count) {
 
-        return inventory.addItem(item, count);
+		return inventory.addItem(item, count);
 	}
 
 	public int airRemaining() {
 
-        return Math.max(10 - (ticksUnderwater / 50), 0);
+		return Math.max(10 - (ticksUnderwater / 50), 0);
 	}
 
-	/**
-	 * Get the number of ticks this entity has been alive (for animation timing)
-	 */
-	public long getTicksAlive() {
-
-        return ticksAlive;
+	public int getMaxHP() {
+		return maxHP;
 	}
 
-	/**
-	 * Set the number of ticks this entity has been alive (used by client for animation sync)
-	 */
-	public void setTicksAlive(long ticksAlive) {
-
-        this.ticksAlive = ticksAlive;
-	}
-
-    public int getMaxHP() {
-        return maxHP;
-    }
-
-
-    public void jump(World world, int tileSize) {
+	public void jump(World world, int tileSize) {
 		if (dead || jumping) {
 			return;
 		}
@@ -99,6 +82,12 @@ public abstract class LivingEntity extends Entity {
 	public void updatePosition(World world, int tileSize) {
 		ticksAlive++;
 
+		// Decrement timers
+		if (invulnerabilityTicks > 0)
+			invulnerabilityTicks--;
+		if (damageFlashTicks > 0)
+			damageFlashTicks--;
+
 		// Stop all movement when dead
 		if (dead) {
 			moveDirection = 0;
@@ -112,11 +101,11 @@ public abstract class LivingEntity extends Entity {
 		if (flying) {
 			dx = moveDirection * walkSpeed * speedMultiplier;
 			if (climbing) {
-				dy = -walkSpeed * speedMultiplier * 2;  // Upward movement
+				dy = -walkSpeed * speedMultiplier * 2; // Upward movement
 			} else if (sneaking) {
-				dy = walkSpeed * speedMultiplier * 2;  // Downward movement when sneaking
+				dy = walkSpeed * speedMultiplier * 2; // Downward movement when sneaking
 			} else {
-				dy = 0;  // No gravity when flying
+				dy = 0; // No gravity when flying
 			}
 			jumping = false;
 
@@ -151,13 +140,13 @@ public abstract class LivingEntity extends Entity {
 				float nextRight = nextX + (float) widthPX / tileSize;
 
 				// Check one tile below the next position
-				int checkY = (int) (nextBottom + 0.1f);  // Slightly below feet
+				int checkY = (int) (nextBottom + 0.1f); // Slightly below feet
 				boolean hasGroundLeft = !world.passable((int) nextLeft, checkY);
 				boolean hasGroundRight = !world.passable((int) nextRight, checkY);
 
 				// If moving would cause player to walk off edge, prevent it
 				if (!hasGroundLeft && !hasGroundRight) {
-					dx = 0;  // Cancel horizontal movement
+					dx = 0; // Cancel horizontal movement
 				}
 			}
 
@@ -183,7 +172,8 @@ public abstract class LivingEntity extends Entity {
 	}
 
 	public void startLeft(boolean slow) {
-		if (dead) return;  // Prevent movement when dead
+		if (dead)
+			return; // Prevent movement when dead
 		facingRight = false;
 		if (slow) {
 			moveDirection = -.2f;
@@ -199,7 +189,8 @@ public abstract class LivingEntity extends Entity {
 	}
 
 	public void startRight(boolean slow) {
-		if (dead) return;  // Prevent movement when dead
+		if (dead)
+			return; // Prevent movement when dead
 		facingRight = true;
 		if (slow) {
 			moveDirection = .2f;
@@ -215,7 +206,8 @@ public abstract class LivingEntity extends Entity {
 	}
 
 	public void startClimb() {
-		if (dead) return;  // Prevent climbing when dead
+		if (dead)
+			return; // Prevent climbing when dead
 		climbing = true;
 	}
 
@@ -246,25 +238,34 @@ public abstract class LivingEntity extends Entity {
 
 	@Override
 	public void takeDamage(int amount) {
+		// Respect invulnerability frames (cooldown)
+		if (invulnerabilityTicks > 0) {
+			return;
+		}
+
 		this.hitPoints -= amount;
+
+		// Trigger red flash and invulnerability cooldown
+		if (amount > 0) {
+			this.damageFlashTicks = 10;
+			this.invulnerabilityTicks = 10; // 0.5s cooldown at 20tps
+		}
 
 		// Clamp health to 0 minimum (don't go below 0)
 		if (this.hitPoints < 0) {
 			this.hitPoints = 0;
 		}
 
-		// TODO: Add sound effect when sound system is implemented
-		// Example: SoundPlayer.play("hit");
-
 		// Trigger death immediately when health reaches exactly 0
 		if (this.hitPoints == 0 && !dead) {
-			dead = true;  // Mark as dead before calling onDeath
+			dead = true; // Mark as dead before calling onDeath
 			onDeath();
 		}
 	}
 
 	/**
 	 * Check if this entity is dead (health <= 0)
+	 * 
 	 * @return true if dead
 	 */
 	public boolean isDead() {
@@ -272,7 +273,8 @@ public abstract class LivingEntity extends Entity {
 	}
 
 	/**
-	 * Called when the entity dies. Subclasses can override for specific death behavior.
+	 * Called when the entity dies. Subclasses can override for specific death
+	 * behavior.
 	 */
 	protected void onDeath() {
 		// PERFORMANCE: Commented out console logging
@@ -281,21 +283,21 @@ public abstract class LivingEntity extends Entity {
 		// Example: SoundPlayer.play("death");
 	}
 
-    @Override
-    public void heal(int amount) {
-        if (amount <= 0 || dead) {
-            return;
-        }
+	@Override
+	public void heal(int amount) {
+		if (amount <= 0 || dead) {
+			return;
+		}
 
-        // Clamp healing to avoid overflow
-        int healAmount = Math.min(amount, maxHP - this.hitPoints);
-        if (healAmount <= 0) {
-            return;
-        }
-        this.hitPoints += healAmount;
-        // PERFORMANCE: Commented out console logging
-        // System.out.println(
-        //         "Healed " + healAmount + ". Current health = " + this.hitPoints
-        // );
-    }
+		// Clamp healing to avoid overflow
+		int healAmount = Math.min(amount, maxHP - this.hitPoints);
+		if (healAmount <= 0) {
+			return;
+		}
+		this.hitPoints += healAmount;
+		// PERFORMANCE: Commented out console logging
+		// System.out.println(
+		// "Healed " + healAmount + ". Current health = " + this.hitPoints
+		// );
+	}
 }

@@ -13,14 +13,17 @@ import java.nio.ByteBuffer;
 public class PacketChestOpen extends ServerPacket {
 	public int chestX;
 	public int chestY;
-	public String[] itemIds;  // Flattened 9x3 array (27 items)
-	public int[] itemCounts;  // Flattened 9x3 array (27 counts)
+	public String[] itemIds; // Flattened 9x3 array (27 items)
+	public int[] itemCounts; // Flattened 9x3 array (27 counts)
+	public String targetPlayerUUID; // Fix for broadcasting issue
 
-	public PacketChestOpen() {}
+	public PacketChestOpen() {
+	}
 
-	public PacketChestOpen(int x, int y, InventoryItem[][] items) {
+	public PacketChestOpen(int x, int y, InventoryItem[][] items, String targetPlayerUUID) {
 		this.chestX = x;
 		this.chestY = y;
+		this.targetPlayerUUID = targetPlayerUUID;
 
 		// Flatten 9x3 array into 27-element arrays
 		this.itemIds = new String[27];
@@ -55,11 +58,15 @@ public class PacketChestOpen extends ServerPacket {
 	@Override
 	public byte[] encode() {
 		// Calculate size: 4 (x) + 4 (y) + itemIds encoding + itemCounts (4 bytes each)
+		// + UUID field
 		int size = 8;
 		for (String id : itemIds) {
-			size += 2 + (id != null ? id.length() : 0);  // 2 bytes length + string
+			size += 2 + (id != null ? id.length() : 0); // 2 bytes length + string
 		}
-		size += 27 * 4;  // 27 counts, 4 bytes each
+		size += 27 * 4; // 27 counts, 4 bytes each
+
+		// Add size for UUID
+		size += 2 + (targetPlayerUUID != null ? targetPlayerUUID.length() : 0);
 
 		ByteBuffer buf = ByteBuffer.allocate(size);
 		buf.putInt(chestX);
@@ -78,6 +85,14 @@ public class PacketChestOpen extends ServerPacket {
 		// Encode item counts
 		for (int count : itemCounts) {
 			buf.putInt(count);
+		}
+
+		// Encode UUID
+		if (targetPlayerUUID != null) {
+			buf.putShort((short) targetPlayerUUID.length());
+			buf.put(targetPlayerUUID.getBytes());
+		} else {
+			buf.putShort((short) 0);
 		}
 
 		return buf.array();
@@ -106,6 +121,16 @@ public class PacketChestOpen extends ServerPacket {
 		packet.itemCounts = new int[27];
 		for (int i = 0; i < 27; i++) {
 			packet.itemCounts[i] = buf.getInt();
+		}
+
+		// Decode UUID
+		short uuidLen = buf.getShort();
+		if (uuidLen > 0) {
+			byte[] bytes = new byte[uuidLen];
+			buf.get(bytes);
+			packet.targetPlayerUUID = new String(bytes);
+		} else {
+			packet.targetPlayerUUID = null;
 		}
 
 		return packet;

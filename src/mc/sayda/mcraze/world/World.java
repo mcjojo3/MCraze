@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  * 
  * This file is part of MCraze
  * 
@@ -540,8 +540,15 @@ public class World implements java.io.Serializable {
 		}
 		if (tile.type.lightBlocking > 0) {
 			lightingEngineSun.addedTile(x, y);
+			lightingEngineSourceBlocks.addedTile(x, y);
 		} else {
 			lightingEngineSun.removedTile(x, y);
+			// For source blocks, we need to check if it emits light too
+			if (tile.type.lightEmitting > 0) {
+				lightingEngineSourceBlocks.addedTile(x, y);
+			} else {
+				lightingEngineSourceBlocks.removedTile(x, y);
+			}
 		}
 	}
 
@@ -606,7 +613,8 @@ public class World implements java.io.Serializable {
 
 	private TileID[] breakWood = new TileID[] {
 			TileID.WOOD, TileID.PLANK, TileID.WORKBENCH, TileID.CHEST,
-			TileID.DOOR_TOP_CLOSED, TileID.DOOR_TOP, TileID.DOOR_BOT_CLOSED, TileID.DOOR_BOT
+			TileID.DOOR_TOP_CLOSED, TileID.DOOR_TOP, TileID.DOOR_BOT_CLOSED, TileID.DOOR_BOT,
+			TileID.BED_LEFT, TileID.BED_RIGHT
 	};
 
 	private TileID[] breakStone = new TileID[] {

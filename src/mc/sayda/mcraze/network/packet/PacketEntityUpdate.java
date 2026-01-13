@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -25,19 +25,20 @@ import java.nio.charset.StandardCharsets;
  */
 public class PacketEntityUpdate extends ServerPacket {
 	public int[] entityIds;
-	public String[] entityTypes;  // Entity type: "Player", "Item", etc.
-	public String[] entityUUIDs;  // Entity UUIDs for stable tracking across disconnects
+	public String[] entityTypes; // Entity type: "Player", "Item", etc.
+	public String[] entityUUIDs; // Entity UUIDs for stable tracking across disconnects
 	public float[] entityX;
 	public float[] entityY;
 	public float[] entityDX;
 	public float[] entityDY;
 	public int[] entityHealth;
-	public boolean[] facingRight;  // Entity facing direction
-	public boolean[] dead;  // Entity death state
-	public long[] ticksAlive;  // Entity animation timing
-	public int[] ticksUnderwater;  // Oxygen/drowning state (for LivingEntity)
-	public String[] itemIds;  // Item ID (for Item entities only, null for others)
-	public String[] playerNames;  // Player username (for Player entities only, null for others)
+	public boolean[] facingRight; // Entity facing direction
+	public boolean[] dead; // Entity death state
+	public long[] ticksAlive; // Entity animation timing
+	public int[] ticksUnderwater; // Oxygen/drowning state (for LivingEntity)
+	public String[] itemIds; // Item ID (for Item entities only, null for others)
+	public String[] playerNames; // Player username (for Player entities only, null for others)
+	public int[] damageFlashTicks; // Red flash duration (sync for all entities)
 
 	// Movement states (LivingEntity fields)
 	public boolean[] flying;
@@ -57,20 +58,28 @@ public class PacketEntityUpdate extends ServerPacket {
 	public int[] handTargetY;
 
 	// Held item synchronization (Player fields) - FIX for invisible held items
-	public int[] hotbarIndex;              // Selected hotbar slot (0-8)
-	public String[] selectedItemId;        // Item ID of held item (null if empty)
-	public int[] selectedItemCount;        // Stack count
-	public int[] selectedItemDurability;   // Tool uses (0 if not a tool)
+	public int[] hotbarIndex; // Selected hotbar slot (0-8)
+	public String[] selectedItemId; // Item ID of held item (null if empty)
+	public int[] selectedItemCount; // Stack count
+	public int[] selectedItemDurability; // Tool uses (0 if not a tool)
 
 	// PERFORMANCE: Reusable ByteBuffer to avoid allocation in encode()
-	// This is thread-safe because each SharedWorld instance has its own cachedEntityPacket
+	// This is thread-safe because each SharedWorld instance has its own
+	// cachedEntityPacket
 	private ByteBuffer encodeBuffer = null;
 
-	public PacketEntityUpdate() {}
+	// CACHE: Cached encoded byte array to reuse across multiple connection sends
+	// Invalidated when packet is modified (via ensureCapacity/reuse)
+	private byte[] cachedData = null;
+
+	public PacketEntityUpdate() {
+	}
 
 	/**
-	 * PERFORMANCE: Ensure arrays have sufficient capacity, reusing existing arrays when possible
-	 * This avoids allocating new arrays on every broadcast (60 Hz = 1560 arrays/sec)
+	 * PERFORMANCE: Ensure arrays have sufficient capacity, reusing existing arrays
+	 * when possible
+	 * This avoids allocating new arrays on every broadcast (60 Hz = 1560
+	 * arrays/sec)
 	 */
 	public void ensureCapacity(int size) {
 		// Reuse arrays if they exist and are large enough, otherwise allocate new ones
@@ -102,8 +111,12 @@ public class PacketEntityUpdate extends ServerPacket {
 			selectedItemId = new String[size];
 			selectedItemCount = new int[size];
 			selectedItemDurability = new int[size];
+			damageFlashTicks = new int[size];
 		}
 		// If arrays exist and are large enough, we reuse them (no allocation!)
+
+		// Invalidate cache since we're about to modify the packet
+		cachedData = null;
 	}
 
 	@Override
@@ -118,18 +131,23 @@ public class PacketEntityUpdate extends ServerPacket {
 
 	@Override
 	public byte[] encode() {
+		// Return cached data if available (avoid re-encoding for every client)
+		if (cachedData != null) {
+			return cachedData;
+		}
+
 		int count = (entityIds != null) ? entityIds.length : 0;
 
 		// PERFORMANCE FIX: Eliminate double iteration by using estimated size
 		// Old code iterated twice: once to calculate size, once to write
 		// New code: Pre-allocate reasonable buffer size to avoid most resizing
 		// For 10 entities: ~150 bytes per entity = ~1500 bytes total
-		int estimatedSize = 4 + (count * 150);  // Entity count + estimated per-entity size
+		int estimatedSize = 4 + (count * 150); // Entity count + estimated per-entity size
 		ByteBuffer buf = (encodeBuffer != null && encodeBuffer.capacity() >= estimatedSize)
-			? encodeBuffer
-			: ByteBuffer.allocate(Math.max(estimatedSize, 2048));
-		buf.clear();  // Reset position to 0
-		encodeBuffer = buf;  // Cache for next encode()
+				? encodeBuffer
+				: ByteBuffer.allocate(Math.max(estimatedSize, 2048));
+		buf.clear(); // Reset position to 0
+		encodeBuffer = buf; // Cache for next encode()
 
 		// Write entity count
 		buf.putInt(count);
@@ -205,16 +223,21 @@ public class PacketEntityUpdate extends ServerPacket {
 			buf.put(selectedItemBytes);
 			buf.putInt(selectedItemCount[i]);
 			buf.putInt(selectedItemDurability[i]);
+			buf.putInt(damageFlashTicks[i]);
 		}
 
 		// PERFORMANCE: Return right-sized array (buffer may be larger than actual data)
 		int actualSize = buf.position();
 		if (actualSize == buf.capacity()) {
-			return buf.array();  // Perfect fit, no copy needed
+			byte[] result = buf.array(); // Perfect fit, no copy needed
+			cachedData = result; // Cache the result
+			return result;
 		} else {
 			// Buffer was larger than needed, create right-sized array
 			byte[] result = new byte[actualSize];
 			System.arraycopy(buf.array(), 0, result, 0, actualSize);
+			System.arraycopy(buf.array(), 0, result, 0, actualSize);
+			cachedData = result; // Cache the result
 			return result;
 		}
 	}
@@ -251,6 +274,7 @@ public class PacketEntityUpdate extends ServerPacket {
 		packet.selectedItemId = new String[count];
 		packet.selectedItemCount = new int[count];
 		packet.selectedItemDurability = new int[count];
+		packet.damageFlashTicks = new int[count];
 
 		// Read each entity
 		for (int i = 0; i < count; i++) {
@@ -328,6 +352,7 @@ public class PacketEntityUpdate extends ServerPacket {
 			packet.selectedItemId[i] = selectedItem.isEmpty() ? null : selectedItem;
 			packet.selectedItemCount[i] = buf.getInt();
 			packet.selectedItemDurability[i] = buf.getInt();
+			packet.damageFlashTicks[i] = buf.getInt();
 		}
 
 		return packet;

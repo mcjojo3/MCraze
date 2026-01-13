@@ -39,7 +39,7 @@ REM Create Windows EXE and MSI installer
     --app-version %VERSION% ^
     --vendor "SaydaGames" ^
     --description "A Minecraft-inspired 2D sandbox game" ^
-    --copyright "Copyright 2025 SaydaGames (mc_jojo3)" ^
+    --copyright "Copyright 2026 SaydaGames (mc_jojo3)" ^
     --win-dir-chooser ^
     --win-menu ^
     --win-shortcut ^

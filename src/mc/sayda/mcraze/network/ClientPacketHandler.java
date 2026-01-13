@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -21,19 +21,34 @@ import mc.sayda.mcraze.network.packet.*;
 public interface ClientPacketHandler {
     // Server → Client packets
     void handleWorldInit(PacketWorldInit packet);
+
     void handleWorldUpdate(PacketWorldUpdate packet);
+
     void handleEntityUpdate(PacketEntityUpdate packet);
+
     void handleEntityRemove(PacketEntityRemove packet);
+
     void handleInventoryUpdate(PacketInventoryUpdate packet);
+
     void handleChatMessage(PacketChatMessage packet);
+
     void handlePlayerDeath(PacketPlayerDeath packet);
+
     void handlePlayerRespawn(PacketPlayerRespawn packet);
+
     void handleBreakingProgress(PacketBreakingProgress packet);
+
     void handleAuthResponse(PacketAuthResponse packet);
+
     void handleBiomeData(PacketBiomeData packet);
-    void handleBackdropChange(PacketBackdropChange packet);  // NEW: For backdrop sync
-    void handleBackdropBatch(PacketBackdropBatch packet);  // NEW: For batched backdrop sync
-    void handleChestOpen(PacketChestOpen packet);  // NEW: For opening chest UI
-    void handleGameruleUpdate(PacketGameruleUpdate packet);  // NEW: For syncing gamerule changes
-    void handlePong(PacketPong packet);  // NEW: For latency measurement
+
+    void handleBackdropChange(PacketBackdropChange packet); // NEW: For backdrop sync
+
+    void handleBackdropBatch(PacketBackdropBatch packet); // NEW: For batched backdrop sync
+
+    void handleChestOpen(PacketChestOpen packet); // NEW: For opening chest UI
+
+    void handleGameruleUpdate(PacketGameruleUpdate packet); // NEW: For syncing gamerule changes
+
+    void handlePong(PacketPong packet); // NEW: For latency measurement
 }

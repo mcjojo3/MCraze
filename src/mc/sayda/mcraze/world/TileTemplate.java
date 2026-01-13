@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  * 
  * This file is part of MCraze
  * 
@@ -19,30 +19,31 @@ import java.util.Map;
 public final class TileTemplate implements java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 
-    public static final Map<String, TileTemplate> REGISTRY = new HashMap<>();
+	public static final Map<String, TileTemplate> REGISTRY = new HashMap<>();
 
-    private static TileTemplate register(String name, TileTemplate t) {
-        REGISTRY.put(name.toLowerCase(), t);
-        return t;
-    }
+	private static TileTemplate register(String name, TileTemplate t) {
+		REGISTRY.put(name.toLowerCase(), t);
+		return t;
+	}
 
-    public static TileTemplate get(String name) {
-        return REGISTRY.get(name.toLowerCase());
-    }
+	public static TileTemplate get(String name) {
+		return REGISTRY.get(name.toLowerCase());
+	}
 
-    public static final TileTemplate tree = register("tree",
-            new TileTemplate(
-			new TileID[][] {
-					{ TileID.NONE, TileID.LEAVES, TileID.LEAVES, TileID.NONE, TileID.NONE,
-							TileID.NONE },
-					{ TileID.LEAVES, TileID.LEAVES, TileID.LEAVES, TileID.LEAVES, TileID.NONE,
-							TileID.NONE },
-					{ TileID.LEAVES, TileID.LEAVES, TileID.LEAVES, TileID.WOOD, TileID.WOOD,
-							TileID.WOOD },
-					{ TileID.LEAVES, TileID.LEAVES, TileID.LEAVES, TileID.LEAVES, TileID.NONE,
-							TileID.NONE },
-					{ TileID.NONE, TileID.LEAVES, TileID.LEAVES, TileID.NONE, TileID.NONE,
-							TileID.NONE } }, null, 5, 2));
+	public static final TileTemplate tree = register("tree",
+			new TileTemplate(
+					new TileID[][] {
+							{ TileID.NONE, TileID.LEAVES, TileID.LEAVES, TileID.NONE, TileID.NONE,
+									TileID.NONE },
+							{ TileID.LEAVES, TileID.LEAVES, TileID.LEAVES, TileID.LEAVES, TileID.NONE,
+									TileID.NONE },
+							{ TileID.LEAVES, TileID.LEAVES, TileID.LEAVES, TileID.WOOD, TileID.WOOD,
+									TileID.WOOD },
+							{ TileID.LEAVES, TileID.LEAVES, TileID.LEAVES, TileID.LEAVES, TileID.NONE,
+									TileID.NONE },
+							{ TileID.NONE, TileID.LEAVES, TileID.LEAVES, TileID.NONE, TileID.NONE,
+									TileID.NONE } },
+					null, 5, 2));
 
 	// Dungeon template (6 tall, 7 wide) - TRANSPOSED for correct orientation
 	// BBBBBBB - Roof
@@ -51,28 +52,34 @@ public final class TileTemplate implements java.io.Serializable {
 	// BbbbbbB
 	// BCbMbCB - Chests, Spawner in middle
 	// BBBBBBB - Floor
-    public static final TileTemplate dungeon = register("dungeon",
-            new TileTemplate(
-			new TileID[][] {
-					{ TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE },  // Left wall
-					{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.CHEST, TileID.COBBLE },
-					{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.COBBLE },
-					{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.SPAWNER, TileID.COBBLE },
-					{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.COBBLE },
-					{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.CHEST, TileID.COBBLE },
-					{ TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE }   // Right wall
-			},
-			new TileID[][] {
-					{ TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE },  // Left wall backdrop
-					{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE, TileID.NONE },
-					{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE },
-					{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE, TileID.NONE },
-					{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE },
-					{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE, TileID.NONE },
-					{ TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE }   // Right wall backdrop
-			}, 0, 0));
+	public static final TileTemplate dungeon = register("dungeon",
+			new TileTemplate(
+					new TileID[][] {
+							{ TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE,
+									TileID.COBBLE }, // Left wall
+							{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.CHEST, TileID.COBBLE },
+							{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.COBBLE },
+							{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.SPAWNER, TileID.COBBLE },
+							{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.COBBLE },
+							{ TileID.COBBLE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.CHEST, TileID.COBBLE },
+							{ TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE } // Right
+																															// wall
+					},
+					new TileID[][] {
+							{ TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE }, // Left
+																												// wall
+																												// backdrop
+							{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE, TileID.NONE },
+							{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE },
+							{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE, TileID.NONE },
+							{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE },
+							{ TileID.NONE, TileID.COBBLE, TileID.COBBLE, TileID.COBBLE, TileID.NONE, TileID.NONE },
+							{ TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE, TileID.NONE } // Right
+																												// wall
+																												// backdrop
+					}, 0, 0));
 
-	public TileID[][] template;        // Foreground tiles
+	public TileID[][] template; // Foreground tiles
 	public TileID[][] backdropTemplate; // Backdrop tiles (can be null)
 	public int spawnX;
 	public int spawnY;

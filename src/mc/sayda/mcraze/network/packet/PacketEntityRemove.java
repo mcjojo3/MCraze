@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -19,13 +19,15 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Server → Client: Remove entity from client's entity list (e.g., when player disconnects)
+ * Server → Client: Remove entity from client's entity list (e.g., when player
+ * disconnects)
  * Binary protocol: 2-byte length + UTF-8 UUID string
  */
 public class PacketEntityRemove extends ServerPacket {
-	public String entityUUID;  // UUID of entity to remove
+	public String entityUUID; // UUID of entity to remove
 
-	public PacketEntityRemove() {}
+	public PacketEntityRemove() {
+	}
 
 	public PacketEntityRemove(String entityUUID) {
 		this.entityUUID = entityUUID;

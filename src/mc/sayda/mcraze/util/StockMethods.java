@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -50,6 +50,7 @@ public final class StockMethods {
 	 * Smoothly interpolates between edge0 and edge1 by x
 	 *
 	 * This function plays like a sigmoid but is easier to compute
+	 * 
 	 * @param edge0
 	 * @param edge1
 	 * @param x
@@ -61,6 +62,7 @@ public final class StockMethods {
 
 	/**
 	 * Clamps x to values [a,b]
+	 * 
 	 * @param x
 	 * @param a
 	 * @param b

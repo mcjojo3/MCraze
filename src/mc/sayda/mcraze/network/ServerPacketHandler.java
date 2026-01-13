@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -16,20 +16,32 @@ import mc.sayda.mcraze.network.packet.*;
 
 /**
  * Handler for packets received by the SERVER (from client).
- * Server/PlayerConnection implements this interface to handle client-bound packets.
+ * Server/PlayerConnection implements this interface to handle client-bound
+ * packets.
  */
 public interface ServerPacketHandler {
     // Client → Server packets
     void handlePlayerInput(PacketPlayerInput packet);
+
     void handleBlockChange(PacketBlockChange packet);
+
     void handleInventoryAction(PacketInventoryAction packet);
+
     void handleChatSend(PacketChatSend packet);
+
     void handleAuthRequest(PacketAuthRequest packet);
-    void handleInteract(PacketInteract packet);  // NEW: For crafting table interaction
-    void handleItemToss(PacketItemToss packet);  // NEW: For item tossing
-    void handleRespawn(PacketRespawn packet);    // NEW: For player respawning
-    void handleToggleBackdropMode(PacketToggleBackdropMode packet);  // NEW: For backdrop mode toggle
-    void handleChestAction(PacketChestAction packet);  // NEW: For chest inventory actions
-    void handleEntityAttack(PacketEntityAttack packet);  // NEW: For entity attacks (combat)
-    void handlePing(PacketPing packet);  // NEW: For latency measurement
+
+    void handleInteract(PacketInteract packet); // NEW: For crafting table interaction
+
+    void handleItemToss(PacketItemToss packet); // NEW: For item tossing
+
+    void handleRespawn(PacketRespawn packet); // NEW: For player respawning
+
+    void handleToggleBackdropMode(PacketToggleBackdropMode packet); // NEW: For backdrop mode toggle
+
+    void handleChestAction(PacketChestAction packet); // NEW: For chest inventory actions
+
+    void handleEntityAttack(PacketEntityAttack packet); // NEW: For entity attacks (combat)
+
+    void handlePing(PacketPing packet); // NEW: For latency measurement
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -24,9 +24,10 @@ import java.nio.charset.StandardCharsets;
  */
 public class PacketAuthResponse extends ServerPacket {
 	public boolean success;
-	public String message;  // Error message if failed, empty if success
+	public String message; // Error message if failed, empty if success
 
-	public PacketAuthResponse() {}
+	public PacketAuthResponse() {
+	}
 
 	public PacketAuthResponse(boolean success, String message) {
 		this.success = success;

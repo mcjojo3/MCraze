@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -26,7 +26,8 @@ public class PacketGameruleUpdate extends ServerPacket {
 	public boolean keepInventory = false;
 	public boolean daylightCycle = true;
 
-	public PacketGameruleUpdate() {}
+	public PacketGameruleUpdate() {
+	}
 
 	public PacketGameruleUpdate(boolean spelunking, boolean keepInventory, boolean daylightCycle) {
 		this.spelunking = spelunking;

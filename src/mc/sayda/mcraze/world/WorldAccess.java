@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -17,7 +17,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Thread-safe wrapper for World that uses ReadWriteLock for tile access.
- * Allows concurrent reads (multiple threads can render) while ensuring exclusive writes (only server tick modifies).
+ * Allows concurrent reads (multiple threads can render) while ensuring
+ * exclusive writes (only server tick modifies).
  */
 public class WorldAccess {
 	private final World world;
@@ -90,7 +91,8 @@ public class WorldAccess {
 	}
 
 	/**
-	 * Thread-safe world update operation - holds write lock for packet-based updates.
+	 * Thread-safe world update operation - holds write lock for packet-based
+	 * updates.
 	 * Ensures no rendering happens during world modifications from network packets.
 	 */
 	public void updateWithLock(UpdateCallback callback) {

@@ -55,7 +55,9 @@ public class Constants {
 	    DOOR_BOT_CLOSED("door"),
 	    DOOR_TOP_CLOSED("door"),
 	    DOOR_BOT("door"),
-	    DOOR_TOP("door");
+	    DOOR_TOP("door"),
+	    BED_LEFT("bed"),      // Left side of bed (bed_top in sprites)
+	    BED_RIGHT("bed");     // Right side of bed (bed_bot in sprites)
 
 		// The string ID of the item this tile drops when broken (null = no drop)
 		public final String itemDropId;
@@ -189,6 +191,10 @@ public class Constants {
                 TileID.DOOR_BOT, true, false, 0)));  // Passable when open
         tileTypes.put(TileID.DOOR_TOP, new Tile(new TileType("sprites/tiles/door_top.png",
                 TileID.DOOR_TOP, true, false, 0)));  // Passable when open
+        tileTypes.put(TileID.BED_LEFT, new Tile(new TileType("sprites/tiles/bed_top.png",
+                TileID.BED_LEFT, true, false, 0)));  // Passable - left side of bed
+        tileTypes.put(TileID.BED_RIGHT, new Tile(new TileType("sprites/tiles/bed_bot.png",
+                TileID.BED_RIGHT, true, false, 0)));  // Passable - right side of bed
 	}
 
 	public static Map<String, Item> itemTypes;

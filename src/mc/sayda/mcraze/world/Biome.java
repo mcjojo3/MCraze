@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -16,15 +16,15 @@ package mc.sayda.mcraze.world;
  * Biome types with temperature and humidity properties
  */
 public enum Biome {
-	PLAINS("Plains", 0.5f, 0.5f),      // Temperate, moderate humidity
-	FOREST("Forest", 0.6f, 0.7f),      // Warm, high humidity
-	DESERT("Desert", 0.9f, 0.1f),      // Hot, dry
-    MOUNTAIN("Mountain", 0.2f, 0.3f),  // Cold, moderately dry
-    OCEAN("Ocean", 0.5f, 1.0f);        // Temperate, very wet
+	PLAINS("Plains", 0.5f, 0.5f), // Temperate, moderate humidity
+	FOREST("Forest", 0.6f, 0.7f), // Warm, high humidity
+	DESERT("Desert", 0.9f, 0.1f), // Hot, dry
+	MOUNTAIN("Mountain", 0.2f, 0.3f), // Cold, moderately dry
+	OCEAN("Ocean", 0.5f, 1.0f); // Temperate, very wet
 
 	private final String displayName;
-	private final float temperature;   // 0.0 = cold, 1.0 = hot
-	private final float humidity;      // 0.0 = dry, 1.0 = wet
+	private final float temperature; // 0.0 = cold, 1.0 = hot
+	private final float humidity; // 0.0 = dry, 1.0 = wet
 
 	Biome(String displayName, float temperature, float humidity) {
 		this.displayName = displayName;

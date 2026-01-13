@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -25,7 +25,8 @@ import java.nio.charset.StandardCharsets;
 public class PacketChatSend extends ClientPacket {
 	public String message;
 
-	public PacketChatSend() {}
+	public PacketChatSend() {
+	}
 
 	public PacketChatSend(String message) {
 		this.message = message;

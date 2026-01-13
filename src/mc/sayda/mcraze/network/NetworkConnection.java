@@ -16,10 +16,10 @@ public class NetworkConnection implements Connection {
 	private DataOutputStream out;
 	private DataInputStream in;
 	private List<Packet> receivedPackets = new ArrayList<>();
-	private static final int MAX_PACKET_QUEUE_SIZE = 5000;  // Increased for large world support (was 1000)
-	private long lastOverflowWarning = 0;  // Rate limit overflow warnings
-	private static final long OVERFLOW_WARNING_INTERVAL = 1000;  // 1 second between warnings
-	private int droppedPacketCount = 0;  // Track dropped packets for rate-limited warning
+	private static final int MAX_PACKET_QUEUE_SIZE = 5000; // Increased for large world support (was 1000)
+	private long lastOverflowWarning = 0; // Rate limit overflow warnings
+	private static final long OVERFLOW_WARNING_INTERVAL = 1000; // 1 second between warnings
+	private int droppedPacketCount = 0; // Track dropped packets for rate-limited warning
 	private Thread receiveThread;
 	private boolean connected = true;
 
@@ -27,7 +27,8 @@ public class NetworkConnection implements Connection {
 		this.socket = socket;
 
 		// PERFORMANCE FIX: Disable Nagle's algorithm to prevent packet batching delays
-		// This ensures packets are sent immediately without waiting for TCP buffer to fill
+		// This ensures packets are sent immediately without waiting for TCP buffer to
+		// fill
 		// Critical for low-latency multiplayer (auth packets, entity updates)
 		socket.setTcpNoDelay(true);
 
@@ -47,8 +48,8 @@ public class NetworkConnection implements Connection {
 	public static NetworkConnection connect(String host, int port) throws IOException {
 		System.out.println("NetworkConnection: Connecting to " + host + ":" + port);
 		Socket socket = new Socket(host, port);
-		socket.setSoTimeout(30000);  // 30 second read timeout
-		socket.setTcpNoDelay(true);  // Disable Nagle's algorithm for low latency
+		socket.setSoTimeout(30000); // 30 second read timeout
+		socket.setTcpNoDelay(true); // Disable Nagle's algorithm for low latency
 		return new NetworkConnection(socket);
 	}
 
@@ -75,16 +76,18 @@ public class NetworkConnection implements Connection {
 					GameLogger logger = GameLogger.get();
 					if (logger != null && logger.isDebugEnabled()) {
 						String packetType = packet.getClass().getSimpleName();
-						logger.debug("NetworkConnection: Received " + packetType + " (ID: " + packetId + ", " + packetLength + " bytes)");
+						logger.debug("NetworkConnection: Received " + packetType + " (ID: " + packetId + ", "
+								+ packetLength + " bytes)");
 					}
 
 					synchronized (receivedPackets) {
 						// Prevent unbounded growth - drop oldest packets if queue is full
 						if (receivedPackets.size() >= MAX_PACKET_QUEUE_SIZE) {
-							receivedPackets.remove(0);  // Drop oldest (FIFO)
+							receivedPackets.remove(0); // Drop oldest (FIFO)
 							GameLogger queueLogger = GameLogger.get();
 							if (queueLogger != null) {
-								queueLogger.warn("NetworkConnection: Packet queue overflow! Dropped oldest packet. Client may be lagging.");
+								queueLogger.warn(
+										"NetworkConnection: Packet queue overflow! Dropped oldest packet. Client may be lagging.");
 							}
 						}
 						receivedPackets.add(packet);
@@ -134,18 +137,19 @@ public class NetworkConnection implements Connection {
 				// Write packet data
 				out.write(packetData);
 
-				// PERFORMANCE FIX: Don't flush after every packet - batch flushes instead
-				// flush() is a blocking I/O syscall (1-10ms on Windows) that kills server performance
-				// With 60 packets/sec, individual flushes = 60-600ms of I/O blocking per second!
-				// Instead, flush() should be called periodically (once per tick) to batch I/O
-				// BufferedOutputStream (8KB) provides automatic flushing when full
-				// Caller should call connection.flush() once per tick for low latency
+				// CRITICAL: Flush immediately for networked connections (LAN/multiplayer)
+				// BufferedOutputStream has 8KB buffer - without flush, packets can sit for
+				// SECONDS
+				// This is essential for low-latency gameplay over network
+				// Note: LocalConnection doesn't need this (packets go directly to queue)
+				out.flush();
 
 				// Only log in debug mode (reduces console spam from 240+/sec to near zero)
 				GameLogger logger = GameLogger.get();
 				if (logger != null && logger.isDebugEnabled()) {
 					String packetType = packet.getClass().getSimpleName();
-					logger.debug("NetworkConnection: Sent " + packetType + " (ID: " + packetId + ", " + packetData.length + " bytes)");
+					logger.debug("NetworkConnection: Sent " + packetType + " (ID: " + packetId + ", "
+							+ packetData.length + " bytes)");
 				}
 			}
 		} catch (IOException e) {
@@ -172,7 +176,8 @@ public class NetworkConnection implements Connection {
 	/**
 	 * Flush pending packets to the network socket.
 	 * This should be called once per server tick (60 Hz) to batch I/O operations.
-	 * Batching flushes reduces I/O syscall overhead from 60-600ms/sec to 1-10ms/sec.
+	 * Batching flushes reduces I/O syscall overhead from 60-600ms/sec to
+	 * 1-10ms/sec.
 	 */
 	public void flush() {
 		if (!connected) {

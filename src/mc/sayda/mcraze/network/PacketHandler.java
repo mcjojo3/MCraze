@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -16,24 +16,36 @@ import mc.sayda.mcraze.network.packet.*;
 
 /**
  * Handler interface for processing received packets.
- * Implemented by both Client and Server to handle their respective packet types.
+ * Implemented by both Client and Server to handle their respective packet
+ * types.
  */
 public interface PacketHandler {
 	// Client-bound packets (sent by server, handled by client)
 	void handleWorldInit(PacketWorldInit packet);
+
 	void handleWorldUpdate(PacketWorldUpdate packet);
+
 	void handleEntityUpdate(PacketEntityUpdate packet);
+
 	void handleEntityRemove(PacketEntityRemove packet);
+
 	void handleInventoryUpdate(PacketInventoryUpdate packet);
+
 	void handleChatMessage(PacketChatMessage packet);
+
 	void handlePlayerDeath(PacketPlayerDeath packet);
+
 	void handleBreakingProgress(PacketBreakingProgress packet);
 
 	// Server-bound packets (sent by client, handled by server)
 	void handlePlayerInput(PacketPlayerInput packet);
+
 	void handleBlockChange(PacketBlockChange packet);
+
 	void handleInventoryAction(PacketInventoryAction packet);
+
 	void handleChatSend(PacketChatSend packet);
+
 	void handleAuthRequest(PacketAuthRequest packet);
 
 	// Bidirectional packets

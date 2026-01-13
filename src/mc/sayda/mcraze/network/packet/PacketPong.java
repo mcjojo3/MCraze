@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -22,9 +22,10 @@ import java.nio.ByteBuffer;
  * Binary protocol: 8-byte timestamp (original client timestamp)
  */
 public class PacketPong extends ServerPacket {
-	public long timestamp;  // Original client timestamp (echoed back)
+	public long timestamp; // Original client timestamp (echoed back)
 
-	public PacketPong() {}
+	public PacketPong() {
+	}
 
 	public PacketPong(long timestamp) {
 		this.timestamp = timestamp;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -22,7 +22,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * Allows concurrent iteration (rendering) while server tick modifies the list.
  *
  * How it works:
- * - getAll() returns the internal list which is safe to iterate (snapshot semantics)
+ * - getAll() returns the internal list which is safe to iterate (snapshot
+ * semantics)
  * - Modifications (add/remove) only copy when needed
  * - Read operations are lock-free and very fast
  * - Write operations are slightly slower but infrequent (entity spawn/despawn)

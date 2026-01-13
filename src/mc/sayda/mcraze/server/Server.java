@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -235,7 +235,7 @@ public class Server implements PacketHandler {
 					logger.info("Detected disconnected player: " + pc.getPlayerName());
 				} else {
 					// Fallback if logger not initialized
-					System.out.println("Player " + pc.getPlayerName() + " disconnected");
+					// System.out.println("Player " + pc.getPlayerName() + " disconnected");
 				}
 				disconnectedPlayers.add(pc);
 			}
@@ -248,7 +248,7 @@ public class Server implements PacketHandler {
 			if (logger != null) {
 				logger.info("Removed player connection: " + pc.getPlayerName());
 			} else {
-				System.out.println("Removed player: " + pc.getPlayerName());
+				// System.out.println("Removed player: " + pc.getPlayerName());
 			}
 		}
 
@@ -268,7 +268,25 @@ public class Server implements PacketHandler {
 
 		// Update entities list for backwards compatibility
 		entities.clear();
-		entities.addAll(sharedWorld.getAllEntities());
+		// CRITICAL FIX: Deep clone entities for integrated server
+		// This prevents the client from modifying live server objects (Host Shortcut
+		// fix)
+		// prev: for(mc.sayda.mcraze.entity.Entity e : sharedWorld.getAllEntities()) {
+		for (mc.sayda.mcraze.entity.Entity e : sharedWorld.getAllEntities()) {
+			try {
+				Entity cloned = e.clone();
+				// CRITICAL: Legay entities list (clones) should maintain the same UUID
+				// so my new UUID-based entity tracking can correctly match them.
+				cloned.setUUID(e.getUUID());
+				entities.add(cloned);
+			} catch (CloneNotSupportedException ex) {
+				// Should not happen for Player/Item
+				// Fallback to reference (better than crash)
+				entities.add(e);
+				if (GameLogger.get() != null)
+					GameLogger.get().error("Failed to clone entity: " + ex.getMessage());
+			}
+		}
 	}
 
 	/**
@@ -303,8 +321,10 @@ public class Server implements PacketHandler {
 	@Deprecated
 	public void respawnPlayer() {
 		// WARNING: This method is deprecated and should not be called
-		System.err.println("WARNING: Server.respawnPlayer() called directly! This is deprecated.");
-		System.err.println("         All respawns should use PacketRespawn → SharedWorld.respawnPlayer()");
+		if (GameLogger.get() != null) {
+			GameLogger.get().warn("WARNING: Server.respawnPlayer() called directly! This is deprecated.");
+			GameLogger.get().warn("         All respawns should use PacketRespawn -> SharedWorld.respawnPlayer()");
+		}
 
 		if (player != null && hostUsername != null && currentWorldName != null) {
 			// Reload playerdata (reset to spawn with full health)
@@ -322,7 +342,8 @@ public class Server implements PacketHandler {
 					player.respawn(spawnX, spawnY);
 				}
 			} catch (java.io.IOException e) {
-				System.err.println("Failed to reload playerdata on respawn: " + e.getMessage());
+				if (GameLogger.get() != null)
+					GameLogger.get().error("Failed to reload playerdata on respawn: " + e.getMessage());
 				player.respawn(spawnX, spawnY);
 			}
 			deathHandled = false;
@@ -412,7 +433,8 @@ public class Server implements PacketHandler {
 		}
 
 		if (sharedWorld == null) {
-			System.err.println("Cannot enable LAN: SharedWorld not initialized");
+			if (GameLogger.get() != null)
+				GameLogger.get().error("Cannot enable LAN: SharedWorld not initialized");
 			return false;
 		}
 
@@ -439,7 +461,8 @@ public class Server implements PacketHandler {
 			return;
 		}
 
-		System.out.println("Disabling LAN server...");
+		if (GameLogger.get() != null)
+			GameLogger.get().info("Disabling LAN server...");
 		lanEnabled = false;
 
 		// Disconnect all LAN clients (not the host)
@@ -455,14 +478,16 @@ public class Server implements PacketHandler {
 
 			// Disconnect each LAN client
 			for (mc.sayda.mcraze.server.PlayerConnection pc : lanClients) {
-				System.out.println("Disconnecting LAN player: " + pc.getPlayerName());
+				if (GameLogger.get() != null)
+					GameLogger.get().info("Disconnecting LAN player: " + pc.getPlayerName());
 				// Close the connection
 				pc.getConnection().disconnect();
 				// Remove player from world
 				sharedWorld.removePlayer(pc);
 			}
 
-			System.out.println("Disconnected " + lanClients.size() + " LAN client(s)");
+			if (GameLogger.get() != null)
+				GameLogger.get().info("Disconnected " + lanClients.size() + " LAN client(s)");
 		}
 
 		// Close server socket
@@ -470,7 +495,8 @@ public class Server implements PacketHandler {
 			try {
 				lanServerSocket.close();
 			} catch (java.io.IOException e) {
-				System.err.println("Error closing LAN server socket: " + e.getMessage());
+				if (GameLogger.get() != null)
+					GameLogger.get().error("Error closing LAN server socket: " + e.getMessage());
 			}
 			lanServerSocket = null;
 		}
@@ -485,7 +511,8 @@ public class Server implements PacketHandler {
 			lanAcceptThread = null;
 		}
 
-		System.out.println("LAN server stopped");
+		if (GameLogger.get() != null)
+			GameLogger.get().info("LAN server stopped");
 	}
 
 	/**
@@ -493,7 +520,8 @@ public class Server implements PacketHandler {
 	 */
 	private void startLANAcceptThread() {
 		lanAcceptThread = new Thread(() -> {
-			System.out.println("LAN accept thread started");
+			if (GameLogger.get() != null)
+				GameLogger.get().info("LAN accept thread started");
 			while (lanEnabled && running) {
 				try {
 					java.net.Socket clientSocket = lanServerSocket.accept();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -25,15 +25,15 @@ import java.nio.ByteBuffer;
 public class PacketBackdropChange extends ServerPacket {
 	public int x;
 	public int y;
-	public char backdropTileId;  // 0 = remove, else tile ordinal
+	public char backdropTileId; // 0 = remove, else tile ordinal
 
-	public PacketBackdropChange() {}
+	public PacketBackdropChange() {
+	}
 
 	public PacketBackdropChange(int x, int y, TileID backdropId) {
 		this.x = x;
 		this.y = y;
-		this.backdropTileId = backdropId == null ?
-			(char) 0 : (char) backdropId.ordinal();
+		this.backdropTileId = backdropId == null ? (char) 0 : (char) backdropId.ordinal();
 	}
 
 	@Override

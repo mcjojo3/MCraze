@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -228,7 +228,8 @@ public class LightingEngine implements Serializable {
 
 		public List<LightingPoint> getNeighbors(boolean sun, int width, int height) {
 			List<LightingPoint> neighbors = new LinkedList<LightingPoint>();
-			if (tiles[x][y] != null && tiles[x][y].type != null && tiles[x][y].type.lightBlocking == Constants.LIGHT_VALUE_OPAQUE) {
+			if (tiles[x][y] != null && tiles[x][y].type != null
+					&& tiles[x][y].type.lightBlocking == Constants.LIGHT_VALUE_OPAQUE) {
 				return neighbors;
 			}
 			int lightBlocking = (tiles[x][y] != null && tiles[x][y].type != null) ? tiles[x][y].type.lightBlocking : 0;
@@ -302,7 +303,8 @@ public class LightingEngine implements Serializable {
 		HashSet<LightingPoint> out = new HashSet<LightingPoint>();
 		PriorityQueue<LightingPoint> in = new PriorityQueue<LightingPoint>(sources.size(),
 				new LightValueComparator());
-		// consider that the input sources are done (this is not a good assumption if different
+		// consider that the input sources are done (this is not a good assumption if
+		// different
 		// light sources have different values......)
 		out.addAll(sources);
 
@@ -328,47 +330,47 @@ public class LightingEngine implements Serializable {
 
 	public Direction oppositeDirection(Direction direction) {
 		switch (direction) {
-		case RIGHT:
-			return Direction.LEFT;
-		case LEFT:
-			return Direction.RIGHT;
-		case UP:
-			return Direction.DOWN;
-		case DOWN:
-			return Direction.UP;
-		case UP_RIGHT:
-			return Direction.DOWN_LEFT;
-		case UP_LEFT:
-			return Direction.DOWN_RIGHT;
-		case DOWN_RIGHT:
-			return Direction.UP_LEFT;
-		case DOWN_LEFT:
-			return Direction.UP_RIGHT;
-		default:
-			return Direction.UNKNOWN;
+			case RIGHT:
+				return Direction.LEFT;
+			case LEFT:
+				return Direction.RIGHT;
+			case UP:
+				return Direction.DOWN;
+			case DOWN:
+				return Direction.UP;
+			case UP_RIGHT:
+				return Direction.DOWN_LEFT;
+			case UP_LEFT:
+				return Direction.DOWN_RIGHT;
+			case DOWN_RIGHT:
+				return Direction.UP_LEFT;
+			case DOWN_LEFT:
+				return Direction.UP_RIGHT;
+			default:
+				return Direction.UNKNOWN;
 		}
 	}
 
 	public Int2 followDirection(int x, int y, Direction direction) {
 		switch (direction) {
-		case RIGHT:
-			return new Int2(x + 1, y);
-		case LEFT:
-			return new Int2(x - 1, y);
-		case UP:
-			return new Int2(x, y - 1);
-		case DOWN:
-			return new Int2(x, y + 1);
-		case UP_RIGHT:
-			return new Int2(x + 1, y - 1);
-		case UP_LEFT:
-			return new Int2(x - 1, y - 1);
-		case DOWN_RIGHT:
-			return new Int2(x + 1, y + 1);
-		case DOWN_LEFT:
-			return new Int2(x - 1, y + 1);
-		default:
-			return null;
+			case RIGHT:
+				return new Int2(x + 1, y);
+			case LEFT:
+				return new Int2(x - 1, y);
+			case UP:
+				return new Int2(x, y - 1);
+			case DOWN:
+				return new Int2(x, y + 1);
+			case UP_RIGHT:
+				return new Int2(x + 1, y - 1);
+			case UP_LEFT:
+				return new Int2(x - 1, y - 1);
+			case DOWN_RIGHT:
+				return new Int2(x + 1, y + 1);
+			case DOWN_LEFT:
+				return new Int2(x - 1, y + 1);
+			default:
+				return null;
 		}
 	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -23,12 +23,13 @@ import java.nio.ByteBuffer;
  * Binary protocol: 2 ints + 2 booleans = 10 bytes
  */
 public class PacketInventoryAction extends ClientPacket {
-	public int slotX;          // Clicked slot X coordinate
-	public int slotY;          // Clicked slot Y coordinate
-	public boolean leftClick;  // true = left click, false = right click
+	public int slotX; // Clicked slot X coordinate
+	public int slotY; // Clicked slot Y coordinate
+	public boolean leftClick; // true = left click, false = right click
 	public boolean craftClick; // true if clicking craft output slot
 
-	public PacketInventoryAction() {}
+	public PacketInventoryAction() {
+	}
 
 	public PacketInventoryAction(int slotX, int slotY, boolean leftClick, boolean craftClick) {
 		this.slotX = slotX;

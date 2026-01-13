@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -25,7 +25,8 @@ import java.nio.ByteBuffer;
 public class PacketPlayerDeath extends ServerPacket {
 	// No data needed - death is a simple event
 
-	public PacketPlayerDeath() {}
+	public PacketPlayerDeath() {
+	}
 
 	@Override
 	public int getPacketId() {

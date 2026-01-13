@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -19,13 +19,17 @@ import java.nio.ByteBuffer;
 
 /**
  * Client → Server: Player pressed Q to toss an item
- * This packet is sent when the player wants to drop the currently selected item.
- * The server will handle removing the item from inventory and spawning it in the world.
+ * This packet is sent when the player wants to drop the currently selected
+ * item.
+ * The server will handle removing the item from inventory and spawning it in
+ * the world.
  */
 public class PacketItemToss extends ClientPacket {
-	// No payload needed - server knows which player sent it and which item is selected
+	// No payload needed - server knows which player sent it and which item is
+	// selected
 
-	public PacketItemToss() {}
+	public PacketItemToss() {
+	}
 
 	@Override
 	public int getPacketId() {

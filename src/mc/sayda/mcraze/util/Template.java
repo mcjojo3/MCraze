@@ -22,15 +22,80 @@ public class Template implements java.io.Serializable {
 
 	private String[][] matrix;
 
-	public Template(String[][] matrix, int outCount) {
+	public boolean shapeless;
+
+	public Template(String[][] matrix, int outCount, boolean shapeless) {
 		this.matrix = matrix;
 		this.outCount = outCount;
+		this.shapeless = shapeless;
+	}
+
+	public Template(String[][] matrix, int outCount) {
+		this(matrix, outCount, false);
 	}
 
 	public boolean compare(String[][] input) {
 		if (matrix == null) {
 			return false;
 		}
+
+		// SHAPELESS CRAFTING LOGIC
+		if (shapeless) {
+			java.util.List<String> requiredIngredients = new java.util.ArrayList<>();
+			// Collect all non-empty ingredients from the recipe
+			for (String[] row : matrix) {
+				for (String item : row) {
+					if (item != null && !item.equals("0") && !item.isEmpty()) {
+						requiredIngredients.add(item);
+					}
+				}
+			}
+
+			// Collect all non-empty items from the input grid
+			java.util.List<String> inputItems = new java.util.ArrayList<>();
+			for (String[] row : input) {
+				for (String item : row) {
+					if (item != null && !item.equals("0") && !item.isEmpty()) {
+						inputItems.add(item);
+					}
+				}
+			}
+
+			// If counts don't match, it's not a match
+			if (requiredIngredients.size() != inputItems.size()) {
+				return false;
+			}
+
+			// Copy list to avoid modifying original
+			java.util.List<String> remainingInput = new java.util.ArrayList<>(inputItems);
+
+			// Match each required ingredient against input
+			for (String req : requiredIngredients) {
+				boolean found = false;
+				for (int i = 0; i < remainingInput.size(); i++) {
+					if (remainingInput.get(i).equals(req)) {
+						remainingInput.remove(i);
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					return false; // Ingredient missing
+				}
+			}
+
+			// If we matched everything, remainingInput should be empty (checked by size
+			// check above)
+			return true;
+		}
+
+		// STANDARD SHAPED CRAFTING LOGIC
+
+		// Safety check: input must be at least as big as the template
+		if (input.length < matrix.length || input[0].length < matrix[0].length) {
+			return false;
+		}
+
 		for (int x = 0; x <= (input.length - matrix.length); x++) {
 			for (int y = 0; y <= (input[0].length - matrix[0].length); y++) {
 				boolean isGood = false;
@@ -38,6 +103,13 @@ public class Template implements java.io.Serializable {
 				// Try the template at this position
 				for (int i = 0; i < matrix.length; i++) {
 					for (int j = 0; j < matrix[0].length; j++) {
+						// Double check bounds to prevent crashes (fixes ArrayIndexOutOfBoundsException)
+						if (i >= matrix.length || j >= matrix[i].length ||
+								x + i >= input.length || y + j >= input[0].length) {
+							isBad = true;
+							break;
+						}
+
 						String templateItem = matrix[i][j];
 						String inputItem = input[x + i][y + j];
 
@@ -80,7 +152,8 @@ public class Template implements java.io.Serializable {
 								break;
 							}
 						}
-						if (isBad) break;
+						if (isBad)
+							break;
 					}
 
 					if (!isBad) {

@@ -24,20 +24,20 @@ import mc.sayda.mcraze.world.World;
 public class Player extends LivingEntity {
 	private static final long serialVersionUID = 1L;
 
-	public String username = "Player";  // Player's display name
+	public String username = "Player"; // Player's display name
 
-	public Int2 handTargetPos = new Int2(0, 0);  // Unified position for breaking/placing
+	public Int2 handTargetPos = new Int2(0, 0); // Unified position for breaking/placing
 	public float handStartX;
 	public float handStartY;
 	public float handEndX;
 	public float handEndY;
 
-    public boolean debugMode = false;
-	public boolean godmode = false;  // Invincibility mode (no damage taken)
+	public boolean debugMode = false;
+	public boolean godmode = false; // Invincibility mode (no damage taken)
 
-    // Backdrop placement mode (server-authoritative)
+	// Backdrop placement mode (server-authoritative)
 	public boolean backdropPlacementMode = false;
-	
+
 	private Sprite leftFootSprite;
 	private Sprite rightFootSprite;
 	private Sprite sneakSprite;
@@ -46,10 +46,10 @@ public class Player extends LivingEntity {
 		super(gravityApplies, x, y, width, height);
 
 		// 3-frame walking animation: right foot → still → left foot → still
-		sprite = SpriteStore.get().getSprite("sprites/entities/player.png");  // Standing (both feet together)
-		rightFootSprite = SpriteStore.get().getSprite("sprites/entities/player_right.png");  // Right foot forward
-		leftFootSprite = SpriteStore.get().getSprite("sprites/entities/player_left.png");  // Left foot forward
-		sneakSprite = SpriteStore.get().getSprite("sprites/entities/player_sneak.png");  // Sneaking
+		sprite = SpriteStore.get().getSprite("sprites/entities/player.png"); // Standing (both feet together)
+		rightFootSprite = SpriteStore.get().getSprite("sprites/entities/player_right.png"); // Right foot forward
+		leftFootSprite = SpriteStore.get().getSprite("sprites/entities/player_left.png"); // Left foot forward
+		sneakSprite = SpriteStore.get().getSprite("sprites/entities/player_sneak.png"); // Sneaking
 	}
 
 	public void setHotbarItem(int hotbarIdx) {
@@ -59,6 +59,7 @@ public class Player extends LivingEntity {
 	/**
 	 * Scroll the hotbar by the given number of slots.
 	 * Clamps the result to valid range [0, 9].
+	 * 
 	 * @param scrollAmount Number of slots to scroll (positive or negative)
 	 */
 	public void scrollHotbar(int scrollAmount) {
@@ -73,7 +74,7 @@ public class Player extends LivingEntity {
 	public void takeDamage(int amount) {
 		// Godmode prevents all damage
 		if (godmode) {
-			return;  // No damage taken
+			return; // No damage taken
 		}
 		// Normal damage handling
 		super.takeDamage(amount);
@@ -82,6 +83,7 @@ public class Player extends LivingEntity {
 	/**
 	 * Toss the selected inventory item.
 	 * Returns the item to be added to the world, or null if nothing to toss.
+	 * 
 	 * @param random Random number generator for positioning
 	 * @return The item to add to entities, or null
 	 */
@@ -108,9 +110,10 @@ public class Player extends LivingEntity {
 
 		return newItem;
 	}
-	
+
 	/**
 	 * Respawn the player at the given location
+	 * 
 	 * @param spawnX Spawn X coordinate
 	 * @param spawnY Spawn Y coordinate
 	 */
@@ -135,6 +138,7 @@ public class Player extends LivingEntity {
 
 	/**
 	 * Drop all items from inventory on death.
+	 * 
 	 * @param random Random number generator for scatter positioning
 	 * @return List of items to add to the world
 	 */
@@ -163,8 +167,8 @@ public class Player extends LivingEntity {
 						// Scatter items around player position
 						droppedItem.x = x + (random.nextFloat() - 0.5f) * 2;
 						droppedItem.y = y + (random.nextFloat() - 0.5f) * 2;
-						droppedItem.dy = -0.1f - random.nextFloat() * 0.1f;  // Pop up
-						droppedItem.dx = (random.nextFloat() - 0.5f) * 0.2f;  // Scatter horizontally
+						droppedItem.dy = -0.1f - random.nextFloat() * 0.1f; // Pop up
+						droppedItem.dx = (random.nextFloat() - 0.5f) * 0.2f; // Scatter horizontally
 						droppedItems.add(droppedItem);
 					}
 				}
@@ -195,7 +199,8 @@ public class Player extends LivingEntity {
 		handStartX = playerX;
 		handStartY = playerY;
 
-		// Convert mouse position to block coordinates (mouseX/Y are already in world coords)
+		// Convert mouse position to block coordinates (mouseX/Y are already in world
+		// coords)
 		int targetBlockX = (int) Math.floor(mouseX);
 		int targetBlockY = (int) Math.floor(mouseY);
 
@@ -218,7 +223,7 @@ public class Player extends LivingEntity {
 			handEndY = -1;
 		}
 	}
-	
+
 	@Override
 	public void draw(GraphicsHandler g, float cameraX, float cameraY, int screenWidth,
 			int screenHeight, int tileSize) {
@@ -234,7 +239,7 @@ public class Player extends LivingEntity {
 				}
 			} else {
 				// 3-frame walking animation: right foot → still → left foot → still
-				boolean isMoving = (Math.abs(dx) > 0.001f);  // Check if actually moving
+				boolean isMoving = (Math.abs(dx) > 0.001f); // Check if actually moving
 
 				if (isMoving) {
 					// 4-step cycle: right → still → left → still (each step = 8 ticks)
@@ -242,11 +247,21 @@ public class Player extends LivingEntity {
 					Sprite currentSprite;
 
 					switch (walkCycle) {
-						case 0: currentSprite = rightFootSprite; break;  // Right foot forward
-						case 1: currentSprite = sprite; break;           // Standing
-						case 2: currentSprite = leftFootSprite; break;   // Left foot forward
-						case 3: currentSprite = sprite; break;           // Standing
-						default: currentSprite = sprite; break;
+						case 0:
+							currentSprite = rightFootSprite;
+							break; // Right foot forward
+						case 1:
+							currentSprite = sprite;
+							break; // Standing
+						case 2:
+							currentSprite = leftFootSprite;
+							break; // Left foot forward
+						case 3:
+							currentSprite = sprite;
+							break; // Standing
+						default:
+							currentSprite = sprite;
+							break;
 					}
 
 					if (facingRight) {
@@ -273,14 +288,30 @@ public class Player extends LivingEntity {
 					Item heldItem = selectedItem.getItem();
 					if (heldItem != null && heldItem.sprite != null) {
 						// Position held item near player's hand
-						int itemSize = tileSize / 2;  // Half tile size for held items
+						int itemSize = tileSize / 2; // Half tile size for held items
 						int handOffsetX = facingRight ? widthPX / 2 : -itemSize;
-						int handOffsetY = heightPX / 4;  // Near center of player
+						int handOffsetY = heightPX / 4; // Near center of player
 
 						heldItem.sprite.draw(g, pos.x + handOffsetX, pos.y + handOffsetY, itemSize, itemSize);
 					}
 				}
 			}
+		}
+	}
+
+	@Override
+	public Player clone() {
+		try {
+			Player cloned = (Player) super.clone();
+			if (this.inventory != null) {
+				cloned.inventory = this.inventory.clone();
+			}
+			if (this.handTargetPos != null) {
+				cloned.handTargetPos = new Int2(this.handTargetPos.x, this.handTargetPos.y);
+			}
+			return cloned;
+		} catch (CloneNotSupportedException e) {
+			throw new AssertionError();
 		}
 	}
 }

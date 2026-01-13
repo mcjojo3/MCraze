@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -30,8 +30,8 @@ import java.nio.file.Paths;
  * Manages player data persistence per world.
  *
  * File structure:
- *   %APPDATA%/MCraze/saves/WorldName/playerdata/username.dat (JSON format)
- *   %APPDATA%/MCraze/saves/WorldName/playerdata/username.dat.bak (backup)
+ * %APPDATA%/MCraze/saves/WorldName/playerdata/username.dat (JSON format)
+ * %APPDATA%/MCraze/saves/WorldName/playerdata/username.dat.bak (backup)
  *
  * Each world maintains independent playerdata for each username.
  */
@@ -63,7 +63,8 @@ public class PlayerDataManager {
 	}
 
 	/**
-	 * Check if playerdata exists for a username in this world directory (dedicated server)
+	 * Check if playerdata exists for a username in this world directory (dedicated
+	 * server)
 	 */
 	public static boolean exists(Path worldDirectory, String username) {
 		Path playerDataFile = getPlayerDataDirectory(worldDirectory).resolve(sanitizeUsername(username) + ".dat");
@@ -86,10 +87,10 @@ public class PlayerDataManager {
 			PlayerData data = load(worldName, username);
 			if (data != null && data.password.equals(password)) {
 				System.out.println("PlayerDataManager: Authentication successful for " + username);
-				return data;  // Authentication successful
+				return data; // Authentication successful
 			} else {
 				System.err.println("PlayerDataManager: Wrong password for " + username);
-				return null;  // Wrong password
+				return null; // Wrong password
 			}
 		} catch (IOException e) {
 			System.err.println("Failed to authenticate " + username + ": " + e.getMessage());
@@ -114,10 +115,10 @@ public class PlayerDataManager {
 			PlayerData data = load(worldDirectory, username);
 			if (data != null && data.password.equals(password)) {
 				System.out.println("PlayerDataManager: Authentication successful for " + username);
-				return data;  // Authentication successful
+				return data; // Authentication successful
 			} else {
 				System.err.println("PlayerDataManager: Wrong password for " + username);
-				return null;  // Wrong password
+				return null; // Wrong password
 			}
 		} catch (IOException e) {
 			System.err.println("Failed to authenticate " + username + ": " + e.getMessage());

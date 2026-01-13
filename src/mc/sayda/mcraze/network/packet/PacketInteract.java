@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -18,15 +18,18 @@ import mc.sayda.mcraze.network.ServerPacketHandler;
 import java.nio.ByteBuffer;
 
 /**
- * Client → Server: Player interaction with a block (e.g., crafting table, chest)
- * Fixes the crafting table interaction bug by separating interaction from placement.
+ * Client → Server: Player interaction with a block (e.g., crafting table,
+ * chest)
+ * Fixes the crafting table interaction bug by separating interaction from
+ * placement.
  */
 public class PacketInteract extends ClientPacket {
     public int blockX;
     public int blockY;
     public InteractionType type;
 
-    public PacketInteract() {}
+    public PacketInteract() {
+    }
 
     public PacketInteract(int blockX, int blockY, InteractionType type) {
         this.blockX = blockX;
@@ -46,7 +49,7 @@ public class PacketInteract extends ClientPacket {
 
     @Override
     public byte[] encode() {
-        ByteBuffer buf = ByteBuffer.allocate(9);  // 4 + 4 + 1
+        ByteBuffer buf = ByteBuffer.allocate(9); // 4 + 4 + 1
         buf.putInt(blockX);
         buf.putInt(blockY);
         buf.put((byte) type.ordinal());
@@ -64,9 +67,9 @@ public class PacketInteract extends ClientPacket {
      * Types of block interactions
      */
     public enum InteractionType {
-        OPEN_CRAFTING,    // Open 3x3 crafting table
-        OPEN_CHEST,       // Open chest inventory (future)
-        OPEN_FURNACE,     // Open furnace UI (future)
-        TOGGLE_INVENTORY  // Toggle inventory open/closed (E key)
+        OPEN_CRAFTING, // Open 3x3 crafting table
+        OPEN_CHEST, // Open chest inventory (future)
+        OPEN_FURNACE, // Open furnace UI (future)
+        TOGGLE_INVENTORY // Toggle inventory open/closed (E key)
     }
 }

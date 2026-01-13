@@ -185,14 +185,14 @@ public class SharedSettings {
 
 			// Draw volume down button
 			volumeDownBtn.updateHover(mouseX - (centerX - 100), mouseY - btnY);
-			g.setColor(Color.DARK_GRAY);
+			g.setColor(Color.darkGray);
 			g.fillRect(centerX - 100, btnY, BUTTON_WIDTH, BUTTON_HEIGHT);
 			g.setColor(Color.white);
 			g.drawString("-", centerX - 100 + (BUTTON_WIDTH / 2) - 4, btnY + 15);
 
 			// Draw volume up button
 			volumeUpBtn.updateHover(mouseX - (centerX + 40), mouseY - btnY);
-			g.setColor(Color.DARK_GRAY);
+			g.setColor(Color.darkGray);
 			g.fillRect(centerX + 40, btnY, BUTTON_WIDTH, BUTTON_HEIGHT);
 			g.setColor(Color.white);
 			g.drawString("+", centerX + 40 + (BUTTON_WIDTH / 2) - 4, btnY + 15);

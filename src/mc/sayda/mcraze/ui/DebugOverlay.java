@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -171,9 +171,10 @@ public class DebugOverlay {
 	 * Format time of day to HH:MM
 	 */
 	private String formatTime(long timeOfDay) {
-		// 0 = dawn (06:00), 5000 = noon (12:00), 10000 = dusk (18:00), 15000 = midnight (00:00)
+		// 0 = dawn (06:00), 5000 = noon (12:00), 10000 = dusk (18:00), 15000 = midnight
+		// (00:00)
 		// 20000 ticks = 24 hours
-		double hours = (timeOfDay / 20000.0) * 24.0 + 6.0;  // Offset by 6 hours so 0 ticks = 06:00
+		double hours = (timeOfDay / 20000.0) * 24.0 + 6.0; // Offset by 6 hours so 0 ticks = 06:00
 		if (hours >= 24.0) {
 			hours -= 24.0;
 		}

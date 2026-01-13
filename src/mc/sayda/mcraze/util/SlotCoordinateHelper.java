@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -15,12 +15,16 @@ package mc.sayda.mcraze.util;
 /**
  * Utility for gap-aware slot coordinate calculation.
  *
- * This replaces the buggy integer division approach used in Inventory.mouseToCoor()
- * and ChestUI.mouseToSlot() which incorrectly assigned gap pixels to adjacent slots.
+ * This replaces the buggy integer division approach used in
+ * Inventory.mouseToCoor()
+ * and ChestUI.mouseToSlot() which incorrectly assigned gap pixels to adjacent
+ * slots.
  *
- * Based on the correct implementation from SlotGrid.getSlotAt() (SlotGrid.java:298-324).
+ * Based on the correct implementation from SlotGrid.getSlotAt()
+ * (SlotGrid.java:298-324).
  *
- * KEY FIX: Uses modulo operator to detect clicks in gaps between slots and returns
+ * KEY FIX: Uses modulo operator to detect clicks in gaps between slots and
+ * returns
  * null instead of incorrectly selecting an adjacent slot.
  */
 public class SlotCoordinateHelper {
@@ -28,18 +32,18 @@ public class SlotCoordinateHelper {
 	/**
 	 * Calculate which slot contains a point, with gap detection.
 	 *
-	 * @param relX Relative X position within panel
-	 * @param relY Relative Y position within panel
+	 * @param relX     Relative X position within panel
+	 * @param relY     Relative Y position within panel
 	 * @param slotSize Size of each slot in pixels (e.g., 16 or 18)
-	 * @param gap Gap between slots in pixels (e.g., 2, 10, or 15)
-	 * @param offsetX X offset from panel edge to first slot (usually margin)
-	 * @param offsetY Y offset from panel edge to first slot (usually margin)
-	 * @param columns Number of columns in the grid
-	 * @param rows Number of rows in the grid
+	 * @param gap      Gap between slots in pixels (e.g., 2, 10, or 15)
+	 * @param offsetX  X offset from panel edge to first slot (usually margin)
+	 * @param offsetY  Y offset from panel edge to first slot (usually margin)
+	 * @param columns  Number of columns in the grid
+	 * @param rows     Number of rows in the grid
 	 * @return Int2(column, row) or null if click is in gap or outside bounds
 	 */
 	public static Int2 getSlotAt(int relX, int relY, int slotSize, int gap,
-	                              int offsetX, int offsetY, int columns, int rows) {
+			int offsetX, int offsetY, int columns, int rows) {
 		// Calculate position relative to first slot
 		int localX = relX - offsetX;
 		int localY = relY - offsetY;
@@ -61,7 +65,7 @@ public class SlotCoordinateHelper {
 
 		// If we're in the gap portion (beyond slotSize), return null
 		if (slotLocalX >= slotSize || slotLocalY >= slotSize) {
-			return null;  // Clicked in gap between slots
+			return null; // Clicked in gap between slots
 		}
 
 		// Bounds check - verify slot is within grid

@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -30,7 +30,7 @@ public class ChestUI {
 	private Inventory playerInventory;
 
 	// Display grids (references to chest data and player inventory)
-	private InventoryItem[][] chestItems = new InventoryItem[9][3];  // 9 wide, 3 tall
+	private InventoryItem[][] chestItems = new InventoryItem[9][3]; // 9 wide, 3 tall
 
 	public ChestUI() {
 		// Initialize empty chest items
@@ -107,13 +107,19 @@ public class ChestUI {
 	 * Returns true if mouse is over the chest UI
 	 */
 	public boolean update(int screenWidth, int screenHeight, Int2 mousePos,
-	                      boolean leftClick, boolean rightClick, Connection connection) {
+			boolean leftClick, boolean rightClick, Connection connection) {
 		if (!visible) {
 			return false;
 		}
 
 		int tileSize = 16;
 		int separation = 15;
+
+		// Update holding item position for cursor rendering
+		if (playerInventory != null) {
+			playerInventory.holdingX = mousePos.x - tileSize / 2;
+			playerInventory.holdingY = mousePos.y - tileSize / 2;
+		}
 
 		// Calculate chest panel dimensions (9 wide x 3 tall)
 		int chestPanelWidth = 9 * (tileSize + separation) + separation;
@@ -132,7 +138,7 @@ public class ChestUI {
 
 		// Check if mouse is over chest panel
 		if (mousePos.x >= chestX && mousePos.x <= chestX + chestPanelWidth &&
-		    mousePos.y >= chestY && mousePos.y <= chestY + chestPanelHeight) {
+				mousePos.y >= chestY && mousePos.y <= chestY + chestPanelHeight) {
 
 			if (leftClick || rightClick) {
 				// Calculate clicked slot in chest
@@ -141,7 +147,7 @@ public class ChestUI {
 					// Send chest action packet (chest slot)
 					if (connection != null) {
 						PacketChestAction packet = new PacketChestAction(
-							this.chestX, this.chestY, slot.x, slot.y, true, rightClick);
+								this.chestX, this.chestY, slot.x, slot.y, true, rightClick);
 						connection.sendPacket(packet);
 					}
 				}
@@ -151,7 +157,7 @@ public class ChestUI {
 
 		// Check if mouse is over player inventory panel
 		if (mousePos.x >= playerX && mousePos.x <= playerX + playerPanelWidth &&
-		    mousePos.y >= playerY && mousePos.y <= playerY + playerPanelHeight) {
+				mousePos.y >= playerY && mousePos.y <= playerY + playerPanelHeight) {
 
 			if (leftClick || rightClick) {
 				// Calculate clicked slot in player inventory
@@ -160,7 +166,7 @@ public class ChestUI {
 					// Send chest action packet (player inventory slot)
 					if (connection != null) {
 						PacketChestAction packet = new PacketChestAction(
-							this.chestX, this.chestY, slot.x, slot.y, false, rightClick);
+								this.chestX, this.chestY, slot.x, slot.y, false, rightClick);
 						connection.sendPacket(packet);
 					}
 				}
@@ -173,19 +179,14 @@ public class ChestUI {
 
 	/**
 	 * Convert mouse position to slot coordinates
+	 * Uses unified SlotCoordinateHelper for gap-aware hit detection.
 	 */
 	private Int2 mouseToSlot(int relX, int relY, int separation, int tileSize) {
-		// CRITICAL FIX: Account for initial separation offset before first slot
-		// Rendering starts at (x + separation, y + separation), so we must subtract
-		// the initial offset before dividing to get correct slot coordinates
-		int slotX = (relX - separation) / (separation + tileSize);
-		int slotY = (relY - separation) / (separation + tileSize);
-
-		if (slotX < 0 || slotY < 0) {
-			return null;
-		}
-
-		return new Int2(slotX, slotY);
+		return mc.sayda.mcraze.util.SlotCoordinateHelper.getSlotAt(
+				relX, relY,
+				tileSize, separation,
+				separation, separation,
+				9, 4); // ChestUI handles grids up to 9x4 (Chest 9x3, Player Inv 9x4)
 	}
 
 }

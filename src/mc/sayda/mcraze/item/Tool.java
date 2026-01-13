@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -27,11 +27,11 @@ public class Tool extends Item {
 	public int uses;
 	public ToolType toolType;
 	public ToolPower toolPower;
-	public int attackDamage;  // Damage dealt when used as a weapon
+	public int attackDamage; // Damage dealt when used as a weapon
 
 	public Tool(String ref, int size, String itemId, String name, String[][] template, int templateCount,
-			ToolType toolType, ToolPower toolPower) {
-		super(ref, size, itemId, name, template, templateCount);
+			ToolType toolType, ToolPower toolPower, boolean shapeless) {
+		super(ref, size, itemId, name, template, templateCount, shapeless);
 		if (toolPower == ToolPower.Wood) {
 			totalUses = 32;
 		} else if (toolPower == ToolPower.Stone) {
@@ -41,8 +41,8 @@ public class Tool extends Item {
 		} else if (toolPower == ToolPower.Diamond) {
 			totalUses = 256;
 		} else {
-            totalUses = 1024;
-        }
+			totalUses = 1024;
+		}
 		this.toolPower = toolPower;
 		this.toolType = toolType;
 
@@ -51,19 +51,19 @@ public class Tool extends Item {
 		if (toolType == ToolType.Sword) {
 			switch (toolPower) {
 				case Wood:
-					attackDamage = 4;  // 2 hearts
+					attackDamage = 4; // 2 hearts
 					break;
 				case Stone:
-					attackDamage = 5;  // 2.5 hearts
+					attackDamage = 5; // 2.5 hearts
 					break;
 				case Iron:
-					attackDamage = 6;  // 3 hearts
+					attackDamage = 6; // 3 hearts
 					break;
 				case Gold:
-					attackDamage = 4;  // 2 hearts (gold is weak but fast)
+					attackDamage = 4; // 2 hearts (gold is weak but fast)
 					break;
 				case Diamond:
-					attackDamage = 7;  // 3.5 hearts
+					attackDamage = 7; // 3.5 hearts
 					break;
 				default:
 					attackDamage = 1;

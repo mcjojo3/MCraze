@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  * 
  * This file is part of MCraze
  * 
@@ -12,7 +12,6 @@
 
 package mc.sayda.mcraze.world;
 
-
 import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.Constants.TileID;
 import mc.sayda.mcraze.GraphicsHandler;
@@ -20,7 +19,7 @@ import mc.sayda.mcraze.Sprite;
 import mc.sayda.mcraze.SpriteStore;
 
 public class TileType implements java.io.Serializable {
-	private static final long serialVersionUID = 2L;  // Incremented for stable field
+	private static final long serialVersionUID = 2L; // Incremented for stable field
 
 	/** The sprite that represents this Type */
 	protected Sprite sprite;
@@ -29,7 +28,7 @@ public class TileType implements java.io.Serializable {
 	protected boolean liquid;
 	public int lightBlocking;
 	public int lightEmitting;
-	public boolean stable;  // true = block doesn't need ground support, false = needs support (plants)
+	public boolean stable; // true = block doesn't need ground support, false = needs support (plants)
 
 	public TileType(String ref, TileID name) {
 		this(ref, name, false, false, Constants.LIGHT_VALUE_OPAQUE);
@@ -54,7 +53,7 @@ public class TileType implements java.io.Serializable {
 		this.lightEmitting = lightEmitting;
 		this.stable = stable;
 	}
-	
+
 	public void draw(GraphicsHandler g, int x, int y) {
 		sprite.draw(g, x, y);
 	}

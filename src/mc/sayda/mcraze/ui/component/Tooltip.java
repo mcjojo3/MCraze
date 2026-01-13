@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -15,9 +15,6 @@ package mc.sayda.mcraze.ui.component;
 import mc.sayda.mcraze.Color;
 import mc.sayda.mcraze.GraphicsHandler;
 import mc.sayda.mcraze.Sprite;
-import mc.sayda.mcraze.ui.layout.Anchor;
-import mc.sayda.mcraze.ui.layout.LayoutEngine;
-import mc.sayda.mcraze.ui.layout.LayoutParams;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,22 +25,10 @@ import java.util.List;
  * Features:
  * - Multiple lines of text
  * - Semi-transparent background
- * - Optional 9-patch background sprite
+ * - Following mouse cursor or anchors to position
  * - Automatic sizing based on content
- * - Follows mouse cursor or anchors to position
- *
- * Usage:
- * <pre>
- * Tooltip tooltip = new Tooltip()
- *     .addLine("Diamond Pickaxe")
- *     .addLine("Durability: 150/200")
- *     .addLine("Mining Speed: Fast")
- *     .show(mouseX, mouseY);
- *
- * tooltip.draw(g);
- * </pre>
  */
-public class Tooltip implements UIComponent {
+public class Tooltip {
 	private List<String> lines = new ArrayList<>();
 	private int x, y;
 	private int width, height;
@@ -51,19 +36,16 @@ public class Tooltip implements UIComponent {
 
 	// Background
 	private Sprite backgroundSprite;
-	private NinePatch ninePatch;
-	private Color backgroundColor = new Color(0, 0, 0, 200);  // Semi-transparent black
-	private Color borderColor = new Color(100, 100, 255, 200);  // Light blue border
+	private Color backgroundColor = new Color(0, 0, 0, 200); // Semi-transparent black
+	private Color borderColor = new Color(100, 100, 255, 200); // Light blue border
 	private Color textColor = Color.white;
 
-	// Layout
-	private LayoutParams layoutParams = new LayoutParams();
 	private static final int PADDING = 5;
 	private static final int LINE_HEIGHT = 12;
 
 	// Hover delay
 	private long hoverStartTime = 0;
-	private static final long HOVER_DELAY_MS = 500;  // 500ms delay before showing
+	private static final long HOVER_DELAY_MS = 500; // 500ms delay before showing
 	private boolean delayElapsed = false;
 
 	/**
@@ -94,17 +76,13 @@ public class Tooltip implements UIComponent {
 	}
 
 	/**
-	 * Set background sprite (optional 9-patch).
+	 * Set background sprite.
 	 *
 	 * @param sprite Background sprite
-	 * @param useNinePatch If true, render as 9-patch
 	 * @return This tooltip for chaining
 	 */
-	public Tooltip setBackground(Sprite sprite, boolean useNinePatch) {
+	public Tooltip setBackground(Sprite sprite) {
 		this.backgroundSprite = sprite;
-		if (useNinePatch && sprite != null) {
-			this.ninePatch = new NinePatch(sprite, 4);
-		}
 		return this;
 	}
 
@@ -112,8 +90,8 @@ public class Tooltip implements UIComponent {
 	 * Set colors.
 	 *
 	 * @param background Background color
-	 * @param border Border color
-	 * @param text Text color
+	 * @param border     Border color
+	 * @param text       Text color
 	 * @return This tooltip for chaining
 	 */
 	public Tooltip setColors(Color background, Color border, Color text) {
@@ -146,10 +124,9 @@ public class Tooltip implements UIComponent {
 		// Only show if delay elapsed
 		if (delayElapsed && !lines.isEmpty()) {
 			this.visible = true;
-			// CRITICAL FIX: Position tooltip to the right and further below mouse
-			// This prevents it from obscuring the slot and appearing "half a slot above"
+			// Position tooltip
 			this.x = mouseX + 15;
-			this.y = mouseY + 35;  // Increased offset to appear well below cursor without obscuring items
+			this.y = mouseY + 10;
 		}
 
 		return this;
@@ -189,10 +166,14 @@ public class Tooltip implements UIComponent {
 		height = (lines.size() * LINE_HEIGHT) + (PADDING * 2);
 	}
 
-	@Override
+	/**
+	 * Update the component's layout based on screen dimensions.
+	 *
+	 * @param screenWidth  Screen width in pixels
+	 * @param screenHeight Screen height in pixels
+	 */
 	public void updateLayout(int screenWidth, int screenHeight) {
-		// Tooltips don't use standard layout - they follow mouse
-		// But ensure tooltip stays on screen
+		// Ensure tooltip stays on screen
 		if (x + width > screenWidth) {
 			x = screenWidth - width - 5;
 		}
@@ -207,7 +188,11 @@ public class Tooltip implements UIComponent {
 		}
 	}
 
-	@Override
+	/**
+	 * Render the component.
+	 *
+	 * @param g Graphics handler for rendering
+	 */
 	public void draw(GraphicsHandler g) {
 		if (!visible || lines.isEmpty()) {
 			return;
@@ -224,8 +209,9 @@ public class Tooltip implements UIComponent {
 		width = maxWidth + (PADDING * 2);
 
 		// Draw background
-		if (backgroundSprite != null && ninePatch != null) {
-			ninePatch.draw(g, x, y, width, height);
+		if (backgroundSprite != null) {
+			// Simple stretch render as current NinePatch was just a wrapper for this
+			backgroundSprite.draw(g, x, y, width, height);
 		} else {
 			// Solid color background with border
 			g.setColor(backgroundColor);
@@ -237,65 +223,59 @@ public class Tooltip implements UIComponent {
 
 		// Draw text lines
 		g.setColor(textColor);
-		int textY = y + PADDING + LINE_HEIGHT - 2;  // Align to baseline
+		int textY = y + PADDING + LINE_HEIGHT - 2; // Align to baseline
 		for (String line : lines) {
 			g.drawString(line, x + PADDING, textY);
 			textY += LINE_HEIGHT;
 		}
 	}
 
-	@Override
-	public boolean onMouseClick(int mouseX, int mouseY, boolean leftClick) {
-		// Tooltips don't handle clicks
-		return false;
-	}
-
-	@Override
+	/**
+	 * Handle mouse move event.
+	 *
+	 * @param mouseX Mouse X position
+	 * @param mouseY Mouse Y position
+	 */
 	public void onMouseMove(int mouseX, int mouseY) {
 		// Update position to follow mouse
 		if (visible) {
 			this.x = mouseX + 15;
-			this.y = mouseY + 20;  // Match show() method offset
+			this.y = mouseY + 35;
 		}
 	}
 
-	@Override
+	/**
+	 * Check if point is within component bounds.
+	 *
+	 * @param x X position
+	 * @param y Y position
+	 * @return True if point is inside component
+	 */
 	public boolean contains(int x, int y) {
 		return x >= this.x && x < this.x + width &&
-		       y >= this.y && y < this.y + height;
+				y >= this.y && y < this.y + height;
 	}
 
-	@Override
 	public int getX() {
 		return x;
 	}
 
-	@Override
 	public int getY() {
 		return y;
 	}
 
-	@Override
 	public int getWidth() {
 		return width;
 	}
 
-	@Override
 	public int getHeight() {
 		return height;
 	}
 
-	@Override
-	public LayoutParams getLayoutParams() {
-		return layoutParams;
-	}
-
-	@Override
 	public boolean isVisible() {
 		return visible;
 	}
 
-	@Override
 	public void setVisible(boolean visible) {
 		this.visible = visible;
 		if (!visible) {

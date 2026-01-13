@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -20,34 +20,36 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * Server → Client: Inventory state synchronization
- * Sends inventory data (item IDs, counts, hotbar index) and UI state for the player
+ * Sends inventory data (item IDs, counts, hotbar index) and UI state for the
+ * player
  * Binary protocol: UUID string + count + item arrays + metadata
  */
 public class PacketInventoryUpdate extends ServerPacket {
 	// Player identification
-	public String playerUUID;  // UUID of the player this inventory belongs to
+	public String playerUUID; // UUID of the player this inventory belongs to
 
 	// Flattened inventory grid: inventoryWidth * inventoryHeight
-	public String[] itemIds;  // Item ID strings (null for empty slots)
-	public int[] itemCounts;  // Item counts
-	public int[] toolUses;    // Tool durability (0 for non-tools)
-	public int hotbarIndex;   // Current hotbar selection
+	public String[] itemIds; // Item ID strings (null for empty slots)
+	public int[] itemCounts; // Item counts
+	public int[] toolUses; // Tool durability (0 for non-tools)
+	public int hotbarIndex; // Current hotbar selection
 
 	// Inventory UI state
-	public boolean visible;           // Whether inventory is open
-	public int tableSizeAvailable;    // 0 = no crafting, 2 = 2x2, 3 = 3x3
+	public boolean visible; // Whether inventory is open
+	public int tableSizeAvailable; // 0 = no crafting, 2 = 2x2, 3 = 3x3
 
 	// Crafting preview (craftable item)
-	public String craftableItemId;    // Item ID of craftable result (null if none)
-	public int craftableCount;        // Stack count of craftable result
-	public int craftableToolUse;      // Tool durability of craftable result
+	public String craftableItemId; // Item ID of craftable result (null if none)
+	public int craftableCount; // Stack count of craftable result
+	public int craftableToolUse; // Tool durability of craftable result
 
 	// Cursor item (holding item) synchronization
-	public String holdingItemId;      // Item ID of item on cursor (null if empty)
-	public int holdingCount;          // Stack count of cursor item
-	public int holdingToolUse;        // Tool durability (0 if not a tool)
+	public String holdingItemId; // Item ID of item on cursor (null if empty)
+	public int holdingCount; // Stack count of cursor item
+	public int holdingToolUse; // Tool durability (0 if not a tool)
 
-	public PacketInventoryUpdate() {}
+	public PacketInventoryUpdate() {
+	}
 
 	@Override
 	public int getPacketId() {
@@ -65,26 +67,26 @@ public class PacketInventoryUpdate extends ServerPacket {
 		int count = (itemIds != null) ? itemIds.length : 0;
 
 		// Calculate total size
-		int totalSize = 2 + uuidBytes.length + 4;  // UUID + count
+		int totalSize = 2 + uuidBytes.length + 4; // UUID + count
 		for (int i = 0; i < count; i++) {
 			String itemId = (itemIds[i] != null) ? itemIds[i] : "";
-			totalSize += 2 + itemId.getBytes(StandardCharsets.UTF_8).length;  // Each item ID
-			totalSize += 4;  // itemCount
-			totalSize += 4;  // toolUse
+			totalSize += 2 + itemId.getBytes(StandardCharsets.UTF_8).length; // Each item ID
+			totalSize += 4; // itemCount
+			totalSize += 4; // toolUse
 		}
-		totalSize += 4 + 1 + 4;  // hotbarIndex + visible + tableSizeAvailable
+		totalSize += 4 + 1 + 4; // hotbarIndex + visible + tableSizeAvailable
 
 		// Add craftable item size
 		String craftableId = (craftableItemId != null) ? craftableItemId : "";
-		totalSize += 2 + craftableId.getBytes(StandardCharsets.UTF_8).length;  // craftableItemId
-		totalSize += 4;  // craftableCount
-		totalSize += 4;  // craftableToolUse
+		totalSize += 2 + craftableId.getBytes(StandardCharsets.UTF_8).length; // craftableItemId
+		totalSize += 4; // craftableCount
+		totalSize += 4; // craftableToolUse
 
 		// Add holding item size
 		String holdingId = (holdingItemId != null) ? holdingItemId : "";
-		totalSize += 2 + holdingId.getBytes(StandardCharsets.UTF_8).length;  // holdingItemId
-		totalSize += 4;  // holdingCount
-		totalSize += 4;  // holdingToolUse
+		totalSize += 2 + holdingId.getBytes(StandardCharsets.UTF_8).length; // holdingItemId
+		totalSize += 4; // holdingCount
+		totalSize += 4; // holdingToolUse
 
 		ByteBuffer buf = ByteBuffer.allocate(totalSize);
 

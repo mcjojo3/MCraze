@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -25,21 +25,22 @@ public class Checkbox {
 	private int y;
 	private boolean checked;
 	private boolean hovered;
-	private final int size = 16;  // Checkbox box size
-	private final boolean centered;  // Whether to center horizontally
-	private int cachedLabelWidth = 0;  // Cached actual label width from font metrics
+	private final int size = 16; // Checkbox box size
+	private final boolean centered; // Whether to center horizontally
+	private int cachedLabelWidth = 0; // Cached actual label width from font metrics
 
 	/**
 	 * Create a checkbox
-	 * @param id Unique identifier
-	 * @param label Text label displayed next to checkbox
-	 * @param y Y position
+	 * 
+	 * @param id       Unique identifier
+	 * @param label    Text label displayed next to checkbox
+	 * @param y        Y position
 	 * @param centered Whether to center horizontally
 	 */
 	public Checkbox(String id, String label, int y, boolean centered) {
 		this.id = id;
 		this.label = label;
-		this.x = 0;  // Will be calculated during draw/update
+		this.x = 0; // Will be calculated during draw/update
 		this.y = y;
 		this.checked = false;
 		this.hovered = false;
@@ -94,11 +95,12 @@ public class Checkbox {
 		int labelWidth = (cachedLabelWidth > 0) ? cachedLabelWidth : label.length() * 7;
 		int totalWidth = size + 5 + labelWidth;
 		this.hovered = mouseX >= x && mouseX <= x + totalWidth &&
-		               mouseY >= y && mouseY <= y + size;
+				mouseY >= y && mouseY <= y + size;
 	}
 
 	/**
 	 * Handle mouse click
+	 * 
 	 * @return true if click was handled
 	 */
 	public boolean handleClick(int mouseX, int mouseY) {
@@ -107,7 +109,7 @@ public class Checkbox {
 		int totalWidth = size + 5 + labelWidth;
 
 		if (mouseX >= x && mouseX <= x + totalWidth &&
-		    mouseY >= y && mouseY <= y + size) {
+				mouseY >= y && mouseY <= y + size) {
 			toggle();
 			return true;
 		}
@@ -122,7 +124,7 @@ public class Checkbox {
 		cachedLabelWidth = g.getStringWidth(label);
 
 		// Draw checkbox box
-		g.setColor(hovered ? Color.LIGHT_GRAY : Color.white);
+		g.setColor(hovered ? Color.lightGray : Color.white);
 		g.fillRect(x, y, size, size);
 
 		// Draw border
@@ -131,7 +133,7 @@ public class Checkbox {
 
 		// Draw checkmark if checked
 		if (checked) {
-			g.setColor(new Color(50, 200, 50, 255));  // Green checkmark
+			g.setColor(new Color(50, 200, 50, 255)); // Green checkmark
 			// Draw a simple filled rectangle checkmark
 			g.fillRect(x + 4, y + 4, size - 8, size - 8);
 		}

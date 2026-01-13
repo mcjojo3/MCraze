@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -60,21 +60,23 @@ public class PacketRegistry {
         registerServerPacket(62, PacketBackdropChange.class, PacketBackdropChange::decode);
         registerServerPacket(63, PacketChestOpen.class, PacketChestOpen::decode);
         registerServerPacket(64, PacketGameruleUpdate.class, PacketGameruleUpdate::decode);
-        registerServerPacket(65, PacketBackdropBatch.class, PacketBackdropBatch::decode);  // NEW - Batched backdrops
+        registerServerPacket(65, PacketBackdropBatch.class, PacketBackdropBatch::decode); // NEW - Batched backdrops
         registerServerPacket(66, PacketPong.class, PacketPong::decode);
     }
 
     /**
      * Register a client packet (C→S)
      */
-    private static void registerClientPacket(int id, Class<? extends Packet> clazz, Function<ByteBuffer, Packet> decoder) {
+    private static void registerClientPacket(int id, Class<? extends Packet> clazz,
+            Function<ByteBuffer, Packet> decoder) {
         register(id, clazz, decoder);
     }
 
     /**
      * Register a server packet (S→C)
      */
-    private static void registerServerPacket(int id, Class<? extends Packet> clazz, Function<ByteBuffer, Packet> decoder) {
+    private static void registerServerPacket(int id, Class<? extends Packet> clazz,
+            Function<ByteBuffer, Packet> decoder) {
         register(id, clazz, decoder);
     }
 
@@ -102,7 +104,8 @@ public class PacketRegistry {
 
     /**
      * Decode a packet from binary data (without ID header)
-     * @param id Packet ID (read from stream)
+     * 
+     * @param id     Packet ID (read from stream)
      * @param buffer Data buffer positioned after ID
      * @return Decoded packet
      */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -34,7 +34,7 @@ public class LootTable {
 		public Item item;
 		public int minCount;
 		public int maxCount;
-		public double chance;  // 0.0-1.0 (0% to 100%)
+		public double chance; // 0.0-1.0 (0% to 100%)
 
 		public LootEntry(Item item, int minCount, int maxCount, double chance) {
 			this.item = item;
@@ -49,10 +49,10 @@ public class LootTable {
 	/**
 	 * Add a loot entry to this table (fluent API).
 	 *
-	 * @param item Item to add
+	 * @param item     Item to add
 	 * @param minCount Minimum count
 	 * @param maxCount Maximum count
-	 * @param chance Chance to spawn (0.0 = 0%, 1.0 = 100%)
+	 * @param chance   Chance to spawn (0.0 = 0%, 1.0 = 100%)
 	 * @return This loot table for chaining
 	 */
 	public LootTable add(Item item, int minCount, int maxCount, double chance) {
@@ -97,10 +97,10 @@ public class LootTable {
 	 * and utility items (torches).
 	 */
 	public static final LootTable DUNGEON = new LootTable()
-		.add(Constants.itemTypes.get("coal_ore"), 3, 8, 0.8)       // 80% chance: 3-8 coal ore
-		.add(Constants.itemTypes.get("iron_ore"), 1, 4, 0.5)       // 50% chance: 1-4 iron ore
-		.add(Constants.itemTypes.get("gold_ore"), 1, 3, 0.3)       // 30% chance: 1-3 gold ore
-		.add(Constants.itemTypes.get("diamond_ore"), 1, 2, 0.1)    // 10% chance: 1-2 diamonds
-		.add(Constants.itemTypes.get("torch"), 4, 12, 0.7)         // 70% chance: 4-12 torches
-		.add(Constants.itemTypes.get("wood"), 5, 15, 0.6);         // 60% chance: 5-15 wood
+			.add(Constants.itemTypes.get("coal_ore"), 3, 8, 0.8) // 80% chance: 3-8 coal ore
+			.add(Constants.itemTypes.get("iron_ore"), 1, 4, 0.5) // 50% chance: 1-4 iron ore
+			.add(Constants.itemTypes.get("gold_ore"), 1, 3, 0.3) // 30% chance: 1-3 gold ore
+			.add(Constants.itemTypes.get("diamond_ore"), 1, 2, 0.1) // 10% chance: 1-2 diamonds
+			.add(Constants.itemTypes.get("torch"), 4, 12, 0.7) // 70% chance: 4-12 torches
+			.add(Constants.itemTypes.get("wood"), 5, 15, 0.6); // 60% chance: 5-15 wood
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -15,7 +15,7 @@ package mc.sayda.mcraze.item;
 import mc.sayda.mcraze.Color;
 import mc.sayda.mcraze.GraphicsHandler;
 
-public class InventoryItem implements java.io.Serializable {
+public class InventoryItem implements java.io.Serializable, Cloneable {
 	private static final long serialVersionUID = -2389571032163510795L;
 
 	public final int maxCount = 64;
@@ -119,5 +119,30 @@ public class InventoryItem implements java.io.Serializable {
 
 	public int getCount() {
 		return count;
+	}
+
+	@Override
+	public InventoryItem clone() {
+		try {
+			InventoryItem cloned = (InventoryItem) super.clone();
+			if (this.item != null) {
+				// We rely on Item implementation but since Item is Entity and Entity is
+				// Serializable mostly,
+				// and we need deep copy:
+				// Note: Item.clone() is shallow if not overridden.
+				// However, most Items are immutable flyweights except Tools.
+				if (this.item instanceof Tool) {
+					// Tool must be cloned to preserve uses
+					cloned.item = (Item) this.item.clone();
+				} else {
+					// Regular items (resources) are immutable definitions usually?
+					// Wait, Item.x/y are mutable.
+					cloned.item = (Item) this.item.clone();
+				}
+			}
+			return cloned;
+		} catch (CloneNotSupportedException e) {
+			throw new AssertionError();
+		}
 	}
 }

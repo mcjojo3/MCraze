@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -25,9 +25,10 @@ import java.nio.ByteBuffer;
  * Size: 4 + worldWidth bytes
  */
 public class PacketBiomeData extends ServerPacket {
-	public byte[] biomeIndices;  // Biome ordinal values (one byte per X column)
+	public byte[] biomeIndices; // Biome ordinal values (one byte per X column)
 
-	public PacketBiomeData() {}
+	public PacketBiomeData() {
+	}
 
 	public PacketBiomeData(Biome[] biomes) {
 		if (biomes != null) {
@@ -88,11 +89,11 @@ public class PacketBiomeData extends ServerPacket {
 		Biome[] allBiomes = Biome.values();
 
 		for (int i = 0; i < biomeIndices.length; i++) {
-			int ordinal = biomeIndices[i] & 0xFF;  // Convert to unsigned
+			int ordinal = biomeIndices[i] & 0xFF; // Convert to unsigned
 			if (ordinal >= 0 && ordinal < allBiomes.length) {
 				biomes[i] = allBiomes[ordinal];
 			} else {
-				biomes[i] = Biome.PLAINS;  // Fallback to plains for invalid indices
+				biomes[i] = Biome.PLAINS; // Fallback to plains for invalid indices
 			}
 		}
 

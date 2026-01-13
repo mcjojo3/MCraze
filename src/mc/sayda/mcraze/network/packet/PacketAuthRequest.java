@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -26,7 +26,8 @@ public class PacketAuthRequest extends ClientPacket {
 	public String username;
 	public String password;
 
-	public PacketAuthRequest() {}
+	public PacketAuthRequest() {
+	}
 
 	public PacketAuthRequest(String username, String password) {
 		this.username = username;
@@ -45,7 +46,7 @@ public class PacketAuthRequest extends ClientPacket {
 
 	@Override
 	public boolean requiresImmediateFlush() {
-		return true;  // CRITICAL: Auth packets must be flushed immediately
+		return true; // CRITICAL: Auth packets must be flushed immediately
 	}
 
 	@Override

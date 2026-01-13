@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -25,9 +25,10 @@ import java.nio.charset.StandardCharsets;
  */
 public class PacketChatMessage extends ServerPacket {
 	public String message;
-	public int colorRGB;  // Color serialized as RGB int
+	public int colorRGB; // Color serialized as RGB int
 
-	public PacketChatMessage() {}
+	public PacketChatMessage() {
+	}
 
 	public PacketChatMessage(String message, Color color) {
 		this.message = message;

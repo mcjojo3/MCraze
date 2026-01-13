@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  * 
  * This file is part of MCraze
  * 
@@ -13,10 +13,10 @@
 package mc.sayda.mcraze.world;
 
 public class Tile implements java.io.Serializable {
-	private static final long serialVersionUID = 2L;  // Incremented for backdrop support
+	private static final long serialVersionUID = 2L; // Incremented for backdrop support
 
-	public TileType type;          // Foreground tile
-	public TileType backdropType;  // Background tile (nullable)
+	public TileType type; // Foreground tile
+	public TileType backdropType; // Background tile (nullable)
 
 	public Tile(TileType type) {
 		this.type = type;

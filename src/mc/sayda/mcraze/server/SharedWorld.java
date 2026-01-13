@@ -2,6 +2,7 @@ package mc.sayda.mcraze.server;
 
 import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.entity.Entity;
+import mc.sayda.mcraze.entity.EntitySheep;
 import mc.sayda.mcraze.entity.LivingEntity;
 import mc.sayda.mcraze.entity.Player;
 import mc.sayda.mcraze.item.Item;
@@ -10,6 +11,7 @@ import mc.sayda.mcraze.logging.GameLogger;
 import mc.sayda.mcraze.network.Connection;
 import mc.sayda.mcraze.network.packet.PacketBlockChange;
 import mc.sayda.mcraze.network.packet.PacketBreakingProgress;
+import mc.sayda.mcraze.network.packet.PacketChatMessage;
 import mc.sayda.mcraze.network.packet.PacketChestOpen;
 import mc.sayda.mcraze.network.packet.PacketEntityUpdate;
 import mc.sayda.mcraze.network.packet.PacketInteract;
@@ -47,6 +49,10 @@ public class SharedWorld {
 	private HashMap<Player, BreakingState> playerBreakingState = new HashMap<>();
 	private final java.util.concurrent.ConcurrentHashMap<String, Long> doorCooldowns = new java.util.concurrent.ConcurrentHashMap<>();
 	private static final long DOOR_COOLDOWN_MS = 250;
+	private final java.util.concurrent.ConcurrentHashMap<String, Long> bedCooldowns = new java.util.concurrent.ConcurrentHashMap<>();
+	private static final long BED_COOLDOWN_MS = 500; // Bed message cooldown (0.5 seconds)
+	private final java.util.concurrent.ConcurrentHashMap<String, Long> interactCooldowns = new java.util.concurrent.ConcurrentHashMap<>();
+	private static final long INTERACT_COOLDOWN_MS = 200; // General interaction cooldown (doors, chests, workbenches)
 
 	// World entities (items, etc.) not associated with a specific player -
 	// thread-safe
@@ -432,6 +438,14 @@ public class SharedWorld {
 			logger.debug("SharedWorld.sendInitialWorldState: PacketBiomeData sent (" +
 					(world.getBiomeMap() != null ? world.getBiomeMap().length : 0) + " biomes)");
 
+		// CRITICAL FIX: Flush initial packets (WorldInit + BiomeData) before sending
+		// massive world data
+		// This prevents BufferedOutputStream from accumulating ALL packets before
+		// flushing
+		playerConnection.getConnection().flush();
+		if (logger != null)
+			logger.debug("SharedWorld.sendInitialWorldState: Flushed initial packets (WorldInit + BiomeData)");
+
 		// Send in chunks of 1000 tiles
 		if (logger != null)
 			logger.debug("SharedWorld.sendInitialWorldState: Sending " + numChunks + " chunks of world data...");
@@ -456,6 +470,17 @@ public class SharedWorld {
 			if (logger != null)
 				logger.debug("SharedWorld.sendInitialWorldState: Sent chunk " + chunkNum + "/" + numChunks + " ("
 						+ (end - i) + " tiles)");
+
+			// CRITICAL FIX: Flush every 2 chunks (~10,000 tiles) to prevent packet
+			// overflow
+			// Without this, all packets accumulate in BufferedOutputStream and flush as
+			// massive burst
+			if (chunkNum % 2 == 0 || chunkNum == numChunks) {
+				playerConnection.getConnection().flush();
+				if (logger != null)
+					logger.debug(
+							"SharedWorld.sendInitialWorldState: Flushed after chunk " + chunkNum + "/" + numChunks);
+			}
 		}
 		if (logger != null)
 			logger.debug("SharedWorld.sendInitialWorldState: All world data chunks sent");
@@ -514,6 +539,11 @@ public class SharedWorld {
 			logger.debug(
 					"SharedWorld.sendInitialWorldState: All backdrop data sent (" + backdropX.size() + " backdrops)");
 
+		// CRITICAL FIX: Flush after backdrop chunks to prevent packet overflow
+		playerConnection.getConnection().flush();
+		if (logger != null)
+			logger.debug("SharedWorld.sendInitialWorldState: Flushed after backdrop data");
+
 		// Send initial entity update DIRECTLY to this player (not broadcast)
 		if (logger != null)
 			logger.debug("SharedWorld.sendInitialWorldState: Sending initial entity update directly to "
@@ -524,6 +554,16 @@ public class SharedWorld {
 					+ playerConnection.getPlayerName());
 			logger.info("SharedWorld: Initial world state complete for " + playerConnection.getPlayerName() + " ("
 					+ changedX.size() + " tiles)");
+		}
+
+		// CRITICAL: Flush all initial world data packets immediately
+		// sendInitialWorldState() is called outside the normal tick loop (during player
+		// join)
+		// so flushAllConnections() won't run until next tick. Must flush manually here!
+		playerConnection.getConnection().flush();
+		if (logger != null) {
+			logger.debug(
+					"SharedWorld.sendInitialWorldState: Flushed connection for " + playerConnection.getPlayerName());
 		}
 
 		// Mark player as fully loaded - they can now receive live world updates
@@ -680,6 +720,14 @@ public class SharedWorld {
 			logger.debug("SharedWorld.tick: Tick " + ticksRunning + " - " + players.size() + " players");
 		}
 
+		// Check for disconnected players and remove them
+		// This fixes "Players leaving not removed in integrated server"
+		for (PlayerConnection pc : players) {
+			if (!pc.isConnected()) {
+				removePlayer(pc);
+			}
+		}
+
 		// Process packets from all players
 		if (logger != null && ticksRunning <= 5) {
 			logger.debug("SharedWorld.tick: Processing packets from " + players.size() + " players...");
@@ -774,7 +822,14 @@ public class SharedWorld {
 			// Check for death
 			if (entity instanceof LivingEntity) {
 				LivingEntity livingEntity = (LivingEntity) entity;
-				if (livingEntity.hitPoints <= 0 && !livingEntity.dead) {
+				// Robust removal: If entity is marked dead, ensure it stays in removal list
+				// until tick finishes
+				if (livingEntity.dead) {
+					entitiesToRemove.add(entity);
+					continue;
+				}
+
+				if (livingEntity.hitPoints <= 0) {
 					livingEntity.dead = true;
 					if (logger != null)
 						logger.info("SharedWorld.tick: Entity died - type: " + entity.getClass().getSimpleName());
@@ -802,12 +857,30 @@ public class SharedWorld {
 							}
 						}
 					}
+					// Sheep drops
+					else if (entity instanceof EntitySheep) {
+						Item woolProto = Constants.itemTypes.get("white_wool");
+						if (woolProto != null) {
+							int count = 1 + random.nextInt(3); // 1-3 wool
+							for (int i = 0; i < count; i++) {
+								Item wool = woolProto.clone();
+								wool.x = entity.x + (random.nextFloat() - 0.5f) * 0.5f;
+								wool.y = entity.y + (random.nextFloat() - 0.5f) * 0.5f;
+								wool.dy = -0.1f;
+								entityManager.add(wool);
+							}
+						}
+					}
+					// Ensure dead entities are removed from world and broadcast to clients
+					entitiesToRemove.add(entity);
 				}
 			}
 		}
 
 		// Remove picked-up items using thread-safe EntityManager
-		if (!entitiesToRemove.isEmpty()) {
+		if (!entitiesToRemove.isEmpty())
+
+		{
 			// Send entity removal packets immediately to all clients
 			for (Entity entity : entitiesToRemove) {
 				mc.sayda.mcraze.network.packet.PacketEntityRemove removePacket = new mc.sayda.mcraze.network.packet.PacketEntityRemove();
@@ -834,29 +907,31 @@ public class SharedWorld {
 			logger.debug("SharedWorld.tick: Broadcasting entity update (tick " + ticksRunning + ")");
 		}
 
-		// Entity updates at 60 Hz for both integrated and dedicated servers
-		// Modern networks can easily handle this bandwidth (~30-60 KB/sec for 10
-		// entities)
-		// Provides smooth, responsive gameplay without stuttering
+		// Entity updates at reduced rate (20 Hz)
+		// This significantly reduces bandwidth usage and CPU load for packet encoding
+		// 60 Hz -> 20 Hz = 66% less overhead
+		// Entity updates at 60Hz
 		broadcastEntityUpdate();
 		// NOTE: Inventory updates are NOT broadcast on timer - only when inventory
 		// actually changes
 		// This prevents packet spam. Inventory is broadcast via handleBlockChange,
 		// handleInventoryAction, etc.
 
-		// PERFORMANCE FIX: Flush all network connections once per tick to batch I/O
-		// operations
-		// This reduces I/O syscall overhead from 60-600ms/sec (flush per packet) to
-		// 1-10ms/sec (flush per tick)
-		// Critical for dedicated server performance where NetworkConnection uses
-		// blocking I/O
-		flushAllConnections();
+		// REMOVED: flushAllConnections() no longer needed -
+		// NetworkConnection.sendPacket() now auto-flushes
+		// This was causing lag because it batched ALL packets, preventing immediate
+		// delivery
+		// LocalConnection (singleplayer) doesn't need flush, NetworkConnection (LAN)
+		// does
+		// flushAllConnections();
 
 		// PERFORMANCE FIX: Broadcast world time less frequently to reduce packet spam
 		// Changed from every 20 ticks to every 100 ticks (once per 5 seconds at 20 TPS)
 		// This still ensures clients see daylight changes, but with much less network
 		// overhead
-		if (ticksRunning % 100 == 0) {
+		if (ticksRunning % 100 == 0)
+
+		{
 			broadcastWorldTime();
 		}
 
@@ -975,6 +1050,7 @@ public class SharedWorld {
 			packet.entityY[i] = entity.y;
 			packet.entityDX[i] = entity.dx;
 			packet.entityDY[i] = entity.dy;
+			packet.damageFlashTicks[i] = entity.damageFlashTicks;
 
 			// Determine entity type
 			if (entity instanceof Player) {
@@ -984,6 +1060,10 @@ public class SharedWorld {
 			} else if (entity instanceof Item) {
 				packet.entityTypes[i] = "Item";
 				packet.itemIds[i] = ((Item) entity).itemId;
+				packet.playerNames[i] = null;
+			} else if (entity instanceof mc.sayda.mcraze.entity.EntitySheep) {
+				packet.entityTypes[i] = "Sheep";
+				packet.itemIds[i] = null;
 				packet.playerNames[i] = null;
 			} else {
 				packet.entityTypes[i] = "Unknown";
@@ -1070,7 +1150,10 @@ public class SharedWorld {
 		if (logger != null && ticksRunning <= 15) {
 			logger.debug("SharedWorld.broadcastEntityUpdate: Broadcasting to " + players.size() + " players");
 		}
-		broadcast(packet);
+		// CRITICAL: Flush immediately for entity updates to prevent lag in LAN
+		// multiplayer
+		// Entity position is time-sensitive - cannot wait for end-of-tick batch flush
+		broadcast(packet, true); // true = immediate flush
 		if (logger != null && ticksRunning <= 15) {
 			logger.debug("SharedWorld.broadcastEntityUpdate: Broadcast complete");
 		}
@@ -1219,11 +1302,25 @@ public class SharedWorld {
 	 * Broadcast a packet to all connected players
 	 */
 	private void broadcast(Object packet) {
+		broadcast(packet, false); // Default: no immediate flush (batched)
+	}
+
+	/**
+	 * Broadcast a packet to all connected players with optional immediate flush
+	 * 
+	 * @param packet         The packet to send
+	 * @param immediateFlush If true, flush connection immediately after sending
+	 *                       (for time-sensitive packets)
+	 */
+	private void broadcast(Object packet, boolean immediateFlush) {
 		for (PlayerConnection playerConnection : players) {
 			// Only send to fully loaded players to prevent ghost blocks during initial
 			// world load
 			if (playerConnection.isInitialWorldLoaded() && playerConnection.getConnection().isConnected()) {
 				playerConnection.getConnection().sendPacket((mc.sayda.mcraze.network.Packet) packet);
+				if (immediateFlush) {
+					playerConnection.getConnection().flush();
+				}
 			}
 		}
 	}
@@ -1489,6 +1586,37 @@ public class SharedWorld {
 				}
 			}
 
+			// BED SYSTEM: When breaking a bed part, also break the other part
+			if (broken == Constants.TileID.BED_LEFT) {
+				// Breaking bed left - also break bed right
+				int rightX = packet.x + 1;
+				if (rightX < world.width) {
+					Tile rightTile = worldAccess.getTile(rightX, packet.y);
+					if (rightTile != null && rightTile.type != null &&
+							rightTile.type.name == Constants.TileID.BED_RIGHT) {
+						world.removeTile(rightX, packet.y);
+						broadcastBlockChange(rightX, packet.y, null);
+						if (logger != null) {
+							logger.debug("SharedWorld: Auto-removed bed right at (" + rightX + ", " + packet.y + ")");
+						}
+					}
+				}
+			} else if (broken == Constants.TileID.BED_RIGHT) {
+				// Breaking bed right - also break bed left
+				int leftX = packet.x - 1;
+				if (leftX >= 0) {
+					Tile leftTile = worldAccess.getTile(leftX, packet.y);
+					if (leftTile != null && leftTile.type != null &&
+							leftTile.type.name == Constants.TileID.BED_LEFT) {
+						world.removeTile(leftX, packet.y);
+						broadcastBlockChange(leftX, packet.y, null);
+						if (logger != null) {
+							logger.debug("SharedWorld: Auto-removed bed left at (" + leftX + ", " + packet.y + ")");
+						}
+					}
+				}
+			}
+
 			// Convert certain blocks when broken (grass->dirt, stone->cobble, etc.)
 			Constants.TileID dropId = broken;
 			if (broken == Constants.TileID.GRASS) {
@@ -1572,6 +1700,14 @@ public class SharedWorld {
 		} else {
 			// Check if clicking on a crafting table FIRST (before parsing packet data)
 			if (world.isCraft(packet.x, packet.y)) {
+				// INTERACTION COOLDOWN CHECK
+				long currentTime = System.currentTimeMillis();
+				Long lastInteract = interactCooldowns.get(player.username);
+				if (lastInteract != null && currentTime - lastInteract < INTERACT_COOLDOWN_MS) {
+					return;
+				}
+				interactCooldowns.put(player.username, currentTime);
+
 				// Open inventory with 3x3 crafting
 				player.inventory.tableSizeAvailable = 3;
 				player.inventory.setVisible(true);
@@ -1586,8 +1722,18 @@ public class SharedWorld {
 				// Get or create chest data
 				mc.sayda.mcraze.world.ChestData chestData = world.getOrCreateChest(packet.x, packet.y);
 
-				// Send chest open packet to this player
-				PacketChestOpen chestPacket = new PacketChestOpen(packet.x, packet.y, chestData.items);
+				// INTERACTION COOLDOWN CHECK
+				long currentTime = System.currentTimeMillis();
+				Long lastInteract = interactCooldowns.get(player.username);
+				if (lastInteract != null && currentTime - lastInteract < INTERACT_COOLDOWN_MS) {
+					return;
+				}
+				interactCooldowns.put(player.username, currentTime);
+
+				// Send chest open packet to this player (including UUID for client-side
+				// filtering)
+				PacketChestOpen chestPacket = new PacketChestOpen(packet.x, packet.y, chestData.items,
+						player.getUUID());
 				playerConnection.getConnection().sendPacket(chestPacket);
 
 				if (logger != null) {
@@ -1660,6 +1806,55 @@ public class SharedWorld {
 				}
 			}
 
+			// BED SYSTEM: Check if clicking on a bed to skip night
+			Tile bedTile = worldAccess.getTile(packet.x, packet.y);
+			if (bedTile != null && bedTile.type != null) {
+				Constants.TileID bedType = bedTile.type.name;
+				boolean isBed = (bedType == Constants.TileID.BED_LEFT || bedType == Constants.TileID.BED_RIGHT);
+
+				if (isBed) {
+					// Check if it's night time
+					if (world.isNight()) {
+						// Skip to morning (next day at time 0.0)
+						long currentTicks = world.getTicksAlive();
+						int dayLength = 20000; // From World.java
+						// Calculate the next morning (skip to next day start)
+						long nextMorning = ((currentTicks / dayLength) + 1) * dayLength;
+						world.setTicksAlive(nextMorning);
+
+						// Broadcast new time to all players
+						broadcastWorldTime();
+
+						if (logger != null) {
+							logger.info("SharedWorld: Player " + player.username +
+									" used bed to skip night at (" + packet.x + ", " + packet.y + ")");
+						}
+					} else {
+						// Can only sleep at night - add cooldown to prevent message spam
+						long currentTime = System.currentTimeMillis();
+						Long lastBedMessage = bedCooldowns.get(player.username);
+
+						// Only send message if cooldown has expired
+						if (lastBedMessage == null || currentTime - lastBedMessage >= BED_COOLDOWN_MS) {
+							bedCooldowns.put(player.username, currentTime);
+
+							if (logger != null) {
+								logger.debug("SharedWorld: Player " + player.username +
+										" tried to use bed during day at (" + packet.x + ", " + packet.y + ")");
+							}
+
+							// Send feedback message to player
+							PacketChatMessage msg = new PacketChatMessage(
+									"You can only sleep at night",
+									new mc.sayda.mcraze.Color(255, 100, 100)); // Red color
+							playerConnection.getConnection().sendPacket(msg);
+						}
+						// Else: Cooldown active, silently ignore click
+					}
+					return; // Don't proceed with block placement
+				}
+			}
+
 			// Block placing - validate and apply
 			Constants.TileID tileId = null;
 			if (packet.newTileId >= 0 && packet.newTileId < Constants.TileID.values().length) {
@@ -1726,6 +1921,11 @@ public class SharedWorld {
 
 			// Block placing validation - check if tileId is valid for normal placement
 			if (tileId == null || tileId == Constants.TileID.AIR || tileId == Constants.TileID.NONE) {
+				// Correction: send current block state to client (likely AIR)
+				Tile current = worldAccess.getTile(packet.x, packet.y);
+				int currentId = (current != null && current.type != null) ? current.type.name.ordinal() : 0;
+				playerConnection.getConnection()
+						.sendPacket(new PacketBlockChange(packet.x, packet.y, (char) currentId, false));
 				return; // Cannot place air or invalid tiles
 			}
 
@@ -1746,6 +1946,12 @@ public class SharedWorld {
 			// FOREGROUND MODE: Normal block placement (existing code)
 			// Can only place if the target position is empty (not a solid block)
 			if (world.isBreakable(packet.x, packet.y)) {
+				// Correction: send current block state to client (which is the block causing
+				// collision)
+				Tile current = worldAccess.getTile(packet.x, packet.y);
+				int currentId = (current != null && current.type != null) ? current.type.name.ordinal() : 0;
+				playerConnection.getConnection()
+						.sendPacket(new PacketBlockChange(packet.x, packet.y, (char) currentId, false));
 				return; // Cannot place - there's already a block here
 			}
 
@@ -1756,12 +1962,22 @@ public class SharedWorld {
 					world.isBreakable(packet.x, packet.y + 1); // down
 
 			if (!hasAdjacentBlock) {
+				// Correction: send current block state (likely AIR)
+				Tile current = worldAccess.getTile(packet.x, packet.y);
+				int currentId = (current != null && current.type != null) ? current.type.name.ordinal() : 0;
+				playerConnection.getConnection()
+						.sendPacket(new PacketBlockChange(packet.x, packet.y, (char) currentId, false));
 				return; // Cannot place - no adjacent block
 			}
 
 			// Check if the block would collide with the player
 			boolean isPassable = Constants.tileTypes.get(tileId).type.passable;
 			if (!isPassable && player.inBoundingBox(new mc.sayda.mcraze.util.Int2(packet.x, packet.y), tileSize)) {
+				// Correction: send current block state (likely AIR)
+				Tile current = worldAccess.getTile(packet.x, packet.y);
+				int currentId = (current != null && current.type != null) ? current.type.name.ordinal() : 0;
+				playerConnection.getConnection()
+						.sendPacket(new PacketBlockChange(packet.x, packet.y, (char) currentId, false));
 				return; // Cannot place - would collide with player
 			}
 
@@ -1785,6 +2001,20 @@ public class SharedWorld {
 						broadcastBlockChange(packet.x, topY, Constants.TileID.DOOR_TOP_CLOSED);
 						if (logger != null) {
 							logger.debug("SharedWorld: Auto-placed door top at (" + packet.x + ", " + topY + ")");
+						}
+					}
+				}
+
+				// BED SYSTEM: Auto-place bed right when placing bed left
+				if (tileId == Constants.TileID.BED_LEFT) {
+					int rightX = packet.x + 1; // Bed right is to the right (x+1)
+					// Check if space to the right is empty and within world bounds
+					if (rightX < world.width && !world.isBreakable(rightX, packet.y)) {
+						// Place bed right
+						world.addTile(rightX, packet.y, Constants.TileID.BED_RIGHT);
+						broadcastBlockChange(rightX, packet.y, Constants.TileID.BED_RIGHT);
+						if (logger != null) {
+							logger.debug("SharedWorld: Auto-placed bed right at (" + rightX + ", " + packet.y + ")");
 						}
 					}
 				}
@@ -2207,7 +2437,10 @@ public class SharedWorld {
 			// Chest UI shows 9x4 grid: 3 rows + hotbar
 			if (packet.slotX >= 0 && packet.slotX < 9 && packet.slotY >= 0 && packet.slotY < 4) {
 				int invX = packet.slotX;
-				int invY = packet.slotY;
+				// CRITICAL FIX: Map chest UI row index (0-3) to actual player inventory row
+				// index (3-6)
+				// Rows 0-2 are crafting grid, rows 3-5 are main inventory, row 6 is hotbar
+				int invY = packet.slotY + 3;
 
 				// Validate bounds
 				if (invX < inv.inventoryItems.length && invY < inv.inventoryItems[0].length) {
@@ -2220,7 +2453,8 @@ public class SharedWorld {
 		// Send chest update only to the acting player (not all players)
 		// This prevents all players' chest UIs from opening when one player opens a
 		// chest
-		PacketChestOpen refreshPacket = new PacketChestOpen(packet.chestX, packet.chestY, chestData.items);
+		PacketChestOpen refreshPacket = new PacketChestOpen(packet.chestX, packet.chestY, chestData.items,
+				player.getUUID());
 		playerConnection.getConnection().sendPacket(refreshPacket);
 
 		// Also broadcast inventory updates (for player inventory changes)
@@ -2336,15 +2570,23 @@ public class SharedWorld {
 			return; // Dead players can't attack
 		}
 
-		// Find the target entity by ID (index in getAllEntities list)
-		java.util.List<mc.sayda.mcraze.entity.Entity> entities = getAllEntities();
-		if (packet.entityId < 0 || packet.entityId >= entities.size()) {
-			GameLogger.get().warn("Player " + playerConnection.getPlayerName() + " tried to attack invalid entity ID "
-					+ packet.entityId);
+		// Find the target entity by UUID (stable tracking across disconnects/list
+		// shifts)
+		mc.sayda.mcraze.entity.Entity target = entityManager.findByUUID(packet.entityUUID);
+
+		if (target == null) {
+			// Suppress warning - this is common when aiming at a dying mob
+			GameLogger.get().debug("Player " + playerConnection.getPlayerName()
+					+ " tried to attack non-existent entity with UUID " + packet.entityUUID);
 			return;
 		}
 
-		mc.sayda.mcraze.entity.Entity target = entities.get(packet.entityId);
+		// SELF-ATTACK RESTRICTION: Do not allow attacking yourself
+		if (attacker.getUUID() != null && target.getUUID() != null &&
+				attacker.getUUID().equals(target.getUUID())) {
+			GameLogger.get().debug("Player " + playerConnection.getPlayerName() + " attack rejected: self-attack");
+			return;
+		}
 
 		// Only living entities can take damage
 		if (!(target instanceof mc.sayda.mcraze.entity.LivingEntity)) {
@@ -2353,15 +2595,24 @@ public class SharedWorld {
 
 		mc.sayda.mcraze.entity.LivingEntity livingTarget = (mc.sayda.mcraze.entity.LivingEntity) target;
 
+		// INVULNERABILITY CHECK: Respect damage cooldown
+		if (livingTarget.invulnerabilityTicks > 0) {
+			GameLogger.get().debug("Player " + playerConnection.getPlayerName()
+					+ " attack rejected: target invulnerable (" + livingTarget.invulnerabilityTicks + " ticks left)");
+			return;
+		}
+
 		// Calculate damage from held item
-		int damage = 1; // Base damage (fist)
+		int damage = 0; // Default: no damage (fists/tools cannot attack)
 		mc.sayda.mcraze.item.InventoryItem heldItem = attacker.inventory.selectedItem();
 		if (heldItem != null && !heldItem.isEmpty() && heldItem.getItem() instanceof mc.sayda.mcraze.item.Tool) {
 			mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) heldItem.getItem();
-			damage = tool.attackDamage;
 
-			// Damage sword durability (swords lose 1 durability per hit)
+			// WEAPON RESTRICTION: Only swords can deal damage to entities
 			if (tool.toolType == mc.sayda.mcraze.item.Tool.ToolType.Sword) {
+				damage = tool.attackDamage;
+
+				// Damage sword durability (swords lose 1 durability per hit)
 				tool.uses++;
 				if (tool.uses >= tool.totalUses) {
 					// Sword broke
@@ -2371,7 +2622,17 @@ public class SharedWorld {
 			}
 		}
 
+		// Only apply damage if holding a valid weapon
+		if (damage <= 0) {
+			GameLogger.get()
+					.debug("Player " + playerConnection.getPlayerName() + " attack rejected: damage=0 (heldItem: " +
+							(heldItem != null && !heldItem.isEmpty() ? heldItem.getItem().itemId : "empty") + ")");
+			return;
+		}
+
 		// Apply damage to target
+		GameLogger.get().info("Player " + playerConnection.getPlayerName() + " attacking " +
+				target.getClass().getSimpleName() + " (UUID: " + target.getUUID() + ") with damage " + damage);
 		livingTarget.takeDamage(damage);
 
 		GameLogger.get().info("Player " + playerConnection.getPlayerName() + " attacked " +

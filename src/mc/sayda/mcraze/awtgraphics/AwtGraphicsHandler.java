@@ -45,7 +45,7 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 			ImageIcon ii = new ImageIcon(new URL("file:sprites/other/mouse.png"));
 			Image im = ii.getImage();
 			Toolkit tk = canvas.getToolkit();
-			myCursor = tk.createCustomCursor(im, new Point(0, 0), "MyCursor");
+			myCursor = tk.createCustomCursor(im, new Point(8, 8), "MyCursor");
 		} catch (Exception e) {
 			System.out.println("myCursor creation failed " + e);
 		}
@@ -84,7 +84,7 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 		container.addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosing(WindowEvent e) {
-				game.goToMainMenu();  // this saves and cleans up appropriately
+				game.goToMainMenu(); // this saves and cleans up appropriately
 				game.quit();
 			}
 		});

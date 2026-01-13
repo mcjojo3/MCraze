@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -29,19 +29,19 @@ import javax.sound.sampled.Mixer;
 
 public class MusicPlayer {
 	private Clip currentClip;
-	private float volume = 0.5f;  // Volume level (0.0 to 1.0)
-	private boolean muted = false;  // Muted state
+	private float volume = 0.5f; // Volume level (0.0 to 1.0)
+	private boolean muted = false; // Muted state
 
 	// Playlist support - separate playlists for different contexts
 	private List<String> menuPlaylist;
 	private List<String> dayPlaylist;
-    private List<String> nightPlaylist;
-    private List<String> cavePlaylist;
-    private List<String> musicPlaylist;
-	private List<String> currentPlaylist;  // Active playlist
+	private List<String> nightPlaylist;
+	private List<String> cavePlaylist;
+	private List<String> musicPlaylist;
+	private List<String> currentPlaylist; // Active playlist
 	private int currentTrackIndex = -1;
 	private Random random;
-	private String currentContext = "menu";  // Current music context (menu/cave)
+	private String currentContext = "menu"; // Current music context (menu/cave)
 
 	// Selected mixer for audio playback (avoids PortMixer)
 	private Mixer.Info selectedMixerInfo = null;
@@ -52,9 +52,9 @@ public class MusicPlayer {
 		// Load separate playlists
 		this.menuPlaylist = loadPlaylistFromFolder("sounds/menu");
 		this.dayPlaylist = loadPlaylistFromFolder("sounds/day");
-        this.nightPlaylist = loadPlaylistFromFolder("sounds/night");
-        this.cavePlaylist = loadPlaylistFromFolder("sounds/cave");
-        this.musicPlaylist = loadPlaylistFromFolder("sounds/music");
+		this.nightPlaylist = loadPlaylistFromFolder("sounds/night");
+		this.cavePlaylist = loadPlaylistFromFolder("sounds/cave");
+		this.musicPlaylist = loadPlaylistFromFolder("sounds/music");
 
 		// Start with menu playlist
 		this.currentPlaylist = menuPlaylist;
@@ -71,7 +71,7 @@ public class MusicPlayer {
 				if (!currentPlaylist.isEmpty()) {
 					currentTrackIndex = random.nextInt(currentPlaylist.size());
 					loadTrack(currentPlaylist.get(currentTrackIndex));
-					play();  // Auto-play first track
+					play(); // Auto-play first track
 				}
 			} else {
 				System.err.println("No compatible audio mixer found - music disabled");
@@ -124,6 +124,7 @@ public class MusicPlayer {
 
 	/**
 	 * Load playlist from a specific folder
+	 * 
 	 * @param folderPath Path relative to src/
 	 */
 	private List<String> loadPlaylistFromFolder(String folderPath) {
@@ -139,9 +140,7 @@ public class MusicPlayer {
 
 			if (soundsDir.exists() && soundsDir.isDirectory()) {
 				// Running from filesystem (development or extracted JAR)
-				File[] files = soundsDir.listFiles((dir, name) ->
-					name.toLowerCase().endsWith(".wav")
-				);
+				File[] files = soundsDir.listFiles((dir, name) -> name.toLowerCase().endsWith(".wav"));
 
 				if (files != null) {
 					for (File file : files) {
@@ -155,7 +154,8 @@ public class MusicPlayer {
 					if (resourceUrl != null && resourceUrl.getProtocol().equals("jar")) {
 						// Inside a JAR file - need to list resources differently
 						String jarPath = resourceUrl.getPath().substring(5, resourceUrl.getPath().indexOf("!"));
-						java.util.jar.JarFile jar = new java.util.jar.JarFile(java.net.URLDecoder.decode(jarPath, "UTF-8"));
+						java.util.jar.JarFile jar = new java.util.jar.JarFile(
+								java.net.URLDecoder.decode(jarPath, "UTF-8"));
 						java.util.Enumeration<java.util.jar.JarEntry> entries = jar.entries();
 
 						while (entries.hasMoreElements()) {
@@ -170,9 +170,7 @@ public class MusicPlayer {
 						// Resource exists but not in JAR format - try as directory
 						File resourceDir = new File(resourceUrl.toURI());
 						if (resourceDir.isDirectory()) {
-							File[] files = resourceDir.listFiles((dir, name) ->
-								name.toLowerCase().endsWith(".wav")
-							);
+							File[] files = resourceDir.listFiles((dir, name) -> name.toLowerCase().endsWith(".wav"));
 							if (files != null) {
 								for (File file : files) {
 									tracks.add(folderPath + "/" + file.getName());
@@ -180,7 +178,8 @@ public class MusicPlayer {
 							}
 						}
 					} else {
-						System.err.println("Music folder not found: " + folderPath + " (not in filesystem or JAR resources)");
+						System.err.println(
+								"Music folder not found: " + folderPath + " (not in filesystem or JAR resources)");
 					}
 				} catch (Exception jarEx) {
 					System.err.println("Error loading music from JAR: " + jarEx.getMessage());
@@ -232,8 +231,7 @@ public class MusicPlayer {
 
 			// Open audio stream
 			AudioInputStream audioStream = AudioSystem.getAudioInputStream(
-				new BufferedInputStream(trackURL.openStream())
-			);
+					new BufferedInputStream(trackURL.openStream()));
 
 			// Get Clip from our selected mixer (NOT default mixer)
 			currentClip = AudioSystem.getClip(selectedMixerInfo);
@@ -241,17 +239,17 @@ public class MusicPlayer {
 			// Open and prepare clip
 			currentClip.open(audioStream);
 
-            currentClip.start(); // play once
+			currentClip.start(); // play once
 
-            // Add listener for track natural end
-            currentClip.addLineListener(event -> {
-                if (event.getType() == LineEvent.Type.STOP &&
-                        currentClip.getMicrosecondPosition() >= currentClip.getMicrosecondLength() - 1_000) {
-                    nextTrack();
-                }
-            });
+			// Add listener for track natural end
+			currentClip.addLineListener(event -> {
+				if (event.getType() == LineEvent.Type.STOP &&
+						currentClip.getMicrosecondPosition() >= currentClip.getMicrosecondLength() - 1_000) {
+					nextTrack();
+				}
+			});
 
-            // Apply current volume and muted state
+			// Apply current volume and muted state
 			updateVolume();
 
 			System.out.println("Loaded track: " + trackURL);
@@ -362,7 +360,7 @@ public class MusicPlayer {
 	 * Set volume (0.0 = silent, 1.0 = max)
 	 */
 	public void setVolume(float volume) {
-		this.volume = Math.max(0.0f, Math.min(1.0f, volume));  // Clamp between 0 and 1
+		this.volume = Math.max(0.0f, Math.min(1.0f, volume)); // Clamp between 0 and 1
 		updateVolume();
 	}
 
@@ -419,11 +417,13 @@ public class MusicPlayer {
 	/**
 	 * Switch music context
 	 * This will change the active playlist and start playing from the new playlist
-	 * @param context "menu" for main menu music, "day", "night", "cave" for in-game music
+	 * 
+	 * @param context "menu" for main menu music, "day", "night", "cave" for in-game
+	 *                music
 	 */
 	public void switchContext(String context) {
 		if (context.equals(currentContext)) {
-			return;  // Already in this context
+			return; // Already in this context
 		}
 
 		System.out.println("Switching music context: " + currentContext + " -> " + context);
@@ -435,12 +435,12 @@ public class MusicPlayer {
 			currentPlaylist = menuPlaylist;
 		} else if (context.equals("day")) {
 			currentPlaylist = dayPlaylist;
-        } else if (context.equals("night")) {
-            currentPlaylist = nightPlaylist;
-        } else if (context.equals("cave")) {
-            currentPlaylist = cavePlaylist;
-        } else if (context.equals("music")) {
-            currentPlaylist = musicPlaylist;
+		} else if (context.equals("night")) {
+			currentPlaylist = nightPlaylist;
+		} else if (context.equals("cave")) {
+			currentPlaylist = cavePlaylist;
+		} else if (context.equals("music")) {
+			currentPlaylist = musicPlaylist;
 		} else {
 			System.err.println("Unknown music context: " + context);
 			return;

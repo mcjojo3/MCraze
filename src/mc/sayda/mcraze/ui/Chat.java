@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -23,21 +23,21 @@ import mc.sayda.mcraze.GraphicsHandler;
  * Chat/Console UI for commands and future multiplayer chat
  */
 public class Chat {
-	private static final int MAX_MESSAGES = 100;  // Increased from 10 to 100
-	private static final int VISIBLE_MESSAGES = 10;  // How many messages to show at once
+	private static final int MAX_MESSAGES = 100; // Increased from 10 to 100
+	private static final int VISIBLE_MESSAGES = 10; // How many messages to show at once
 	private static final int MESSAGE_DISPLAY_TIME = 300; // ticks (~5 seconds)
 
 	private boolean open = false;
 	private String currentInput = "";
-	private int cursorPosition = 0;  // CRITICAL FIX: Cursor position for editing
-	private int selectionStart = -1;  // Selection start (-1 if no selection)
-	private int selectionEnd = -1;    // Selection end (-1 if no selection)
+	private int cursorPosition = 0; // CRITICAL FIX: Cursor position for editing
+	private int selectionStart = -1; // Selection start (-1 if no selection)
+	private int selectionEnd = -1; // Selection end (-1 if no selection)
 	private ArrayList<ChatMessage> messages = new ArrayList<>();
 	private long currentTick = 0;
-	private int scrollOffset = 0;  // How many messages scrolled up from bottom
+	private int scrollOffset = 0; // How many messages scrolled up from bottom
 
 	// Tab completion state
-	private CommandHandler commandHandler;  // Dynamically provides available commands
+	private CommandHandler commandHandler; // Dynamically provides available commands
 	private int tabCompletionIndex = -1;
 	private String tabCompletionPrefix = "";
 	private ArrayList<String> tabMatches = new ArrayList<>();
@@ -89,7 +89,8 @@ public class Chat {
 	}
 
 	/**
-	 * Add a character to the input (CRITICAL FIX: Insert at cursor position, delete selection)
+	 * Add a character to the input (CRITICAL FIX: Insert at cursor position, delete
+	 * selection)
 	 */
 	public void typeChar(char c) {
 		if (open && currentInput.length() < 100) {
@@ -99,14 +100,15 @@ public class Chat {
 			}
 
 			currentInput = currentInput.substring(0, cursorPosition) + c +
-				currentInput.substring(cursorPosition);
+					currentInput.substring(cursorPosition);
 			cursorPosition++;
 			resetTabCompletion();
 		}
 	}
 
 	/**
-	 * Remove character before cursor (backspace) - CRITICAL FIX: Delete at cursor position or selection
+	 * Remove character before cursor (backspace) - CRITICAL FIX: Delete at cursor
+	 * position or selection
 	 */
 	public void backspace() {
 		if (open) {
@@ -114,7 +116,7 @@ public class Chat {
 				deleteSelection();
 			} else if (cursorPosition > 0) {
 				currentInput = currentInput.substring(0, cursorPosition - 1) +
-					currentInput.substring(cursorPosition);
+						currentInput.substring(cursorPosition);
 				cursorPosition--;
 			}
 			resetTabCompletion();
@@ -130,7 +132,7 @@ public class Chat {
 				deleteSelection();
 			} else if (cursorPosition < currentInput.length()) {
 				currentInput = currentInput.substring(0, cursorPosition) +
-					currentInput.substring(cursorPosition + 1);
+						currentInput.substring(cursorPosition + 1);
 			}
 			resetTabCompletion();
 		}
@@ -268,10 +270,11 @@ public class Chat {
 	 * Delete selected text
 	 */
 	private void deleteSelection() {
-		if (!hasSelection()) return;
+		if (!hasSelection())
+			return;
 
 		currentInput = currentInput.substring(0, selectionStart) +
-			currentInput.substring(selectionEnd);
+				currentInput.substring(selectionEnd);
 		cursorPosition = selectionStart;
 		clearSelection();
 	}
@@ -280,7 +283,8 @@ public class Chat {
 	 * Get selected text
 	 */
 	private String getSelectedText() {
-		if (!hasSelection()) return "";
+		if (!hasSelection())
+			return "";
 		return currentInput.substring(selectionStart, selectionEnd);
 	}
 
@@ -333,7 +337,7 @@ public class Chat {
 							pastedText = pastedText.substring(0, maxPaste);
 						}
 						currentInput = currentInput.substring(0, cursorPosition) + pastedText +
-							currentInput.substring(cursorPosition);
+								currentInput.substring(cursorPosition);
 						cursorPosition += pastedText.length();
 						resetTabCompletion();
 					}
@@ -348,7 +352,8 @@ public class Chat {
 	 * Handle tab completion - cycle through matching commands and arguments
 	 */
 	public void tabComplete() {
-		if (!open || commandHandler == null) return;
+		if (!open || commandHandler == null)
+			return;
 
 		// Initialize tab completion on first tab press
 		if (tabCompletionIndex == -1) {
@@ -356,7 +361,7 @@ public class Chat {
 			tabMatches.clear();
 
 			// Split input into parts to determine completion level
-			String[] parts = currentInput.trim().split("\\s+", -1);  // -1 to keep trailing empty string
+			String[] parts = currentInput.trim().split("\\s+", -1); // -1 to keep trailing empty string
 			int numSpaces = countSpaces(currentInput);
 
 			if (numSpaces == 0) {
@@ -389,7 +394,8 @@ public class Chat {
 					// Rebuild the base (everything except the last part)
 					StringBuilder base = new StringBuilder();
 					for (int i = 0; i < parts.length - 1; i++) {
-						if (i > 0) base.append(" ");
+						if (i > 0)
+							base.append(" ");
 						base.append(parts[i]);
 					}
 
@@ -402,7 +408,7 @@ public class Chat {
 			}
 
 			if (tabMatches.isEmpty()) {
-				return;  // No matches, do nothing
+				return; // No matches, do nothing
 			}
 
 			tabCompletionIndex = 0;
@@ -413,7 +419,7 @@ public class Chat {
 			currentInput = tabMatches.get(tabCompletionIndex);
 		}
 
-		cursorPosition = currentInput.length();  // CRITICAL FIX: Move cursor to end after tab completion
+		cursorPosition = currentInput.length(); // CRITICAL FIX: Move cursor to end after tab completion
 	}
 
 	/**
@@ -422,7 +428,8 @@ public class Chat {
 	private int countSpaces(String str) {
 		int count = 0;
 		for (char c : str.toCharArray()) {
-			if (c == ' ') count++;
+			if (c == ' ')
+				count++;
 		}
 		return count;
 	}
@@ -459,7 +466,7 @@ public class Chat {
 		}
 
 		currentInput = "";
-		cursorPosition = 0;  // CRITICAL FIX: Reset cursor on submit
+		cursorPosition = 0; // CRITICAL FIX: Reset cursor on submit
 		resetTabCompletion();
 		resetHistoryNavigation();
 		return input;
@@ -469,7 +476,8 @@ public class Chat {
 	 * Navigate to previous command in history (arrow up)
 	 */
 	public void historyUp() {
-		if (!open || commandHistory.isEmpty()) return;
+		if (!open || commandHistory.isEmpty())
+			return;
 
 		if (historyIndex == -1) {
 			// First time pressing up - start from the end
@@ -481,7 +489,7 @@ public class Chat {
 			currentInput = commandHistory.get(historyIndex);
 		}
 
-		cursorPosition = currentInput.length();  // CRITICAL FIX: Move cursor to end
+		cursorPosition = currentInput.length(); // CRITICAL FIX: Move cursor to end
 		resetTabCompletion();
 	}
 
@@ -489,7 +497,8 @@ public class Chat {
 	 * Navigate to next command in history (arrow down)
 	 */
 	public void historyDown() {
-		if (!open || historyIndex == -1) return;
+		if (!open || historyIndex == -1)
+			return;
 
 		if (historyIndex < commandHistory.size() - 1) {
 			// Go to newer command
@@ -501,7 +510,7 @@ public class Chat {
 			currentInput = "";
 		}
 
-		cursorPosition = currentInput.length();  // CRITICAL FIX: Move cursor to end
+		cursorPosition = currentInput.length(); // CRITICAL FIX: Move cursor to end
 		resetTabCompletion();
 	}
 
@@ -509,7 +518,8 @@ public class Chat {
 	 * Scroll chat history up (view older messages)
 	 */
 	public void scrollUp() {
-		if (!open) return;
+		if (!open)
+			return;
 
 		// Calculate max scroll (can't scroll beyond start of history)
 		int maxScroll = Math.max(0, messages.size() - VISIBLE_MESSAGES);
@@ -522,7 +532,8 @@ public class Chat {
 	 * Scroll chat history down (view newer messages)
 	 */
 	public void scrollDown() {
-		if (!open) return;
+		if (!open)
+			return;
 
 		if (scrollOffset > 0) {
 			scrollOffset--;
@@ -597,11 +608,12 @@ public class Chat {
 				int prefixWidth = g.getStringWidth(prefix);
 				int selectionWidth = g.getStringWidth(selected);
 
-				g.setColor(new Color(50, 100, 200, 150));  // Blue highlight
+				g.setColor(new Color(50, 100, 200, 150)); // Blue highlight
 				g.fillRect(8 + prefixWidth, y + 2, selectionWidth, 14);
 			}
 
-			// Input text with cursor at position (CRITICAL FIX: Show cursor at cursorPosition + selection)
+			// Input text with cursor at position (CRITICAL FIX: Show cursor at
+			// cursorPosition + selection)
 			g.setColor(Color.white);
 			String beforeCursor = currentInput.substring(0, cursorPosition);
 			String afterCursor = currentInput.substring(cursorPosition);

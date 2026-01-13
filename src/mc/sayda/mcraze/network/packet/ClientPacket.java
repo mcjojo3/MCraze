@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -24,12 +24,14 @@ import java.nio.ByteBuffer;
 public abstract class ClientPacket extends Packet {
     /**
      * Handle this packet on the server side
+     * 
      * @param handler Server packet handler
      */
     public abstract void handle(ServerPacketHandler handler);
 
     /**
      * Encode packet data to binary format
+     * 
      * @return Binary data (without packet ID header)
      */
     public abstract byte[] encode();

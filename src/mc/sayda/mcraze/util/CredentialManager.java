@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -69,6 +69,7 @@ public class CredentialManager {
 
 	/**
 	 * Save credentials to AppData/Roaming
+	 * 
 	 * @param username User's username
 	 * @param password User's password
 	 * @return true if saved successfully
@@ -100,6 +101,7 @@ public class CredentialManager {
 
 	/**
 	 * Load saved credentials from AppData/Roaming
+	 * 
 	 * @return SavedCredentials if found, null otherwise
 	 */
 	public static SavedCredentials loadCredentials() {
@@ -137,6 +139,7 @@ public class CredentialManager {
 
 	/**
 	 * Delete saved credentials
+	 * 
 	 * @return true if deleted successfully or file didn't exist
 	 */
 	public static boolean deleteCredentials() {
@@ -157,6 +160,7 @@ public class CredentialManager {
 
 	/**
 	 * Check if credentials are saved
+	 * 
 	 * @return true if credentials file exists
 	 */
 	public static boolean hasCredentials() {
@@ -172,6 +176,7 @@ public class CredentialManager {
 
 	/**
 	 * Save the last used multiplayer IP address
+	 * 
 	 * @param ipAddress The IP address to save
 	 * @return true if saved successfully
 	 */
@@ -202,6 +207,7 @@ public class CredentialManager {
 
 	/**
 	 * Load the last used multiplayer IP address
+	 * 
 	 * @return The last IP address, or null if not found
 	 */
 	public static String loadLastIP() {

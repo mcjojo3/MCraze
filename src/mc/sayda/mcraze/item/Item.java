@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -24,11 +24,12 @@ public class Item extends Entity implements Cloneable {
 
 	// Item despawn timer (prevents entity accumulation in world)
 	private long spawnTime;
-	private static final long DESPAWN_TIME_MS = 300000;  // 5 minutes
+	private static final long DESPAWN_TIME_MS = 300000; // 5 minutes
 
-	public Item(String ref, int size, String itemId, String name, String[][] template, int templateCount) {
+	public Item(String ref, int size, String itemId, String name, String[][] template, int templateCount,
+			boolean shapeless) {
 		super(ref, true, 0, 0, size, size);
-		this.template = new Template(template, templateCount);
+		this.template = new Template(template, templateCount, shapeless);
 		this.itemId = itemId;
 		this.name = name;
 		this.spawnTime = System.currentTimeMillis();

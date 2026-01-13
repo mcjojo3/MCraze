@@ -3,10 +3,17 @@
     "configurations": [
         {
             "type": "java",
-            "name": "MCraze Client",
+            "name": "MCraze1",
             "request": "launch",
             "mainClass": "mc.sayda.mcraze.Game",
             "args": "--username mc_jojo3 --password mcmc123"
+        },
+        {
+            "type": "java",
+            "name": "MCraze2",
+            "request": "launch",
+            "mainClass": "mc.sayda.mcraze.Game",
+            "args": "--username Player1 --password 123"
         },
         {
             "type": "java",

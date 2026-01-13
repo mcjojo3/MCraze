@@ -102,7 +102,7 @@ public class LoadingScreen {
 		int barY = 200;
 
 		// Progress bar background
-		g.setColor(Color.DARK_GRAY);
+		g.setColor(Color.darkGray);
 		g.fillRect(barX, barY, barWidth, barHeight);
 
 		// Progress bar fill
@@ -120,7 +120,7 @@ public class LoadingScreen {
 		g.drawString(progressText, progressX, barY + barHeight / 2 - 4);
 
 		// Draw console messages
-		g.setColor(Color.LIGHT_GRAY);
+		g.setColor(Color.lightGray);
 		int messageY = 280;
 		for (String message : messages) {
 			// Truncate long messages

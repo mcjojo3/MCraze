@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -65,20 +65,18 @@ public class LoginScreen {
 
 		// Create remember me checkbox
 		rememberMeCheckbox = new Checkbox(
-			"remember_me",
-			"Remember me",
-			200 + (INPUT_HEIGHT + INPUT_SPACING) * 2 + 10,
-			true
-		);
+				"remember_me",
+				"Remember me",
+				200 + (INPUT_HEIGHT + INPUT_SPACING) * 2 + 10,
+				true);
 
 		// Create login button
 		loginButton = new Button(
-			"login",
-			"Login",
-			200 + (INPUT_HEIGHT + INPUT_SPACING) * 2 + 40,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(this::attemptLogin);
+				"login",
+				"Login",
+				200 + (INPUT_HEIGHT + INPUT_SPACING) * 2 + 40,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::attemptLogin);
 
 		errorMessage = null;
 		errorStartTime = 0;
@@ -138,11 +136,11 @@ public class LoginScreen {
 		if (errorMessage != null) {
 			long elapsed = System.currentTimeMillis() - errorStartTime;
 			if (elapsed < ERROR_DISPLAY_DURATION) {
-				g.setColor(new Color(255, 100, 100, 255));  // Red color for errors
+				g.setColor(new Color(255, 100, 100, 255)); // Red color for errors
 				int errorX = screenWidth / 2 - g.getStringWidth(errorMessage) / 2;
 				g.drawString(errorMessage, errorX, loginButton.getY() + loginButton.getHeight() + 30);
 			} else {
-				errorMessage = null;  // Clear expired error
+				errorMessage = null; // Clear expired error
 			}
 		}
 	}
@@ -182,7 +180,7 @@ public class LoginScreen {
 	 */
 	public void handleKeyPressed(int keyCode, boolean shiftPressed, boolean ctrlPressed) {
 		// Handle TAB key to switch between inputs
-		if (keyCode == 9) {  // VK_TAB
+		if (keyCode == 9) { // VK_TAB
 			if (usernameInput.isFocused()) {
 				usernameInput.setFocused(false);
 				passwordInput.setFocused(true);

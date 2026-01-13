@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -28,15 +28,16 @@ public class PacketWorldInit extends ServerPacket {
 	public long seed;
 	public float spawnX;
 	public float spawnY;
-	public String playerUUID;  // UUID of this client's player entity
-	public int totalPacketsExpected;  // Total number of world update + entity packets to expect
+	public String playerUUID; // UUID of this client's player entity
+	public int totalPacketsExpected; // Total number of world update + entity packets to expect
 
 	// Gamerules
 	public boolean spelunking = false;
 	public boolean keepInventory = false;
 	public boolean daylightCycle = true;
 
-	public PacketWorldInit() {}
+	public PacketWorldInit() {
+	}
 
 	public PacketWorldInit(int width, int height, long seed) {
 		this.worldWidth = width;
@@ -65,7 +66,7 @@ public class PacketWorldInit extends ServerPacket {
 	@Override
 	public byte[] encode() {
 		byte[] uuidBytes = (playerUUID != null ? playerUUID : "").getBytes(StandardCharsets.UTF_8);
-		ByteBuffer buf = ByteBuffer.allocate(33 + uuidBytes.length);  // +3 bytes for gamerules
+		ByteBuffer buf = ByteBuffer.allocate(33 + uuidBytes.length); // +3 bytes for gamerules
 		buf.putInt(worldWidth);
 		buf.putInt(worldHeight);
 		buf.putLong(seed);

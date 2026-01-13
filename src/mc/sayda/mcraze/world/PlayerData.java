@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -18,7 +18,8 @@ import java.io.Serializable;
  * Represents all persistent data for a single player in a specific world.
  * Stored as JSON in saves/WorldName/playerdata/username.dat
  *
- * Each world maintains independent playerdata - same username in different worlds
+ * Each world maintains independent playerdata - same username in different
+ * worlds
  * has separate character data (position, inventory, health, etc.)
  */
 public class PlayerData implements Serializable {
@@ -26,7 +27,7 @@ public class PlayerData implements Serializable {
 
 	// Authentication
 	public String username;
-	public String password;  // Plain text for now (no encryption yet)
+	public String password; // Plain text for now (no encryption yet)
 
 	// Player state
 	public int health;
@@ -37,18 +38,18 @@ public class PlayerData implements Serializable {
 	public boolean facingRight;
 
 	// Inventory data (flattened 2D array: 10 columns x 7 rows = 70 slots)
-	public String[] inventoryItemIds;      // Item IDs
-	public int[] inventoryItemCounts;      // Stack counts
-	public int[] inventoryToolUses;        // Tool durability
-	public int inventoryHotbarIdx;         // Selected hotbar slot
+	public String[] inventoryItemIds; // Item IDs
+	public int[] inventoryItemCounts; // Stack counts
+	public int[] inventoryToolUses; // Tool durability
+	public int inventoryHotbarIdx; // Selected hotbar slot
 
 	// Crafting grid size (2 = normal, 3 = workbench)
 	public int tableSizeAvailable = 2;
 
 	// Cursor item (item being held by mouse)
-	public String holdingItemId;           // Item ID of held item (null if empty)
-	public int holdingItemCount;           // Stack count
-	public int holdingToolUses;            // Tool durability (0 if not a tool)
+	public String holdingItemId; // Item ID of held item (null if empty)
+	public int holdingItemCount; // Stack count
+	public int holdingToolUses; // Tool durability (0 if not a tool)
 
 	// Metadata
 	public long firstJoinTime;
@@ -57,19 +58,21 @@ public class PlayerData implements Serializable {
 	/**
 	 * Default constructor for Gson
 	 */
-	public PlayerData() {}
+	public PlayerData() {
+	}
 
 	/**
 	 * Create new playerdata for fresh spawn
+	 * 
 	 * @param username Player username
 	 * @param password Player password (plain text)
-	 * @param spawnX Spawn X coordinate
-	 * @param spawnY Spawn Y coordinate
+	 * @param spawnX   Spawn X coordinate
+	 * @param spawnY   Spawn Y coordinate
 	 */
 	public PlayerData(String username, String password, float spawnX, float spawnY) {
 		this.username = username;
 		this.password = password;
-		this.health = 100;  // maxHP
+		this.health = 100; // maxHP
 		this.x = spawnX;
 		this.y = spawnY;
 		this.dx = 0;

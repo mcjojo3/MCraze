@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -25,9 +25,10 @@ import java.nio.ByteBuffer;
 public class PacketBackdropBatch extends ServerPacket {
 	public int[] x;
 	public int[] y;
-	public char[] backdropTileIds;  // tile ordinal, 0 = remove
+	public char[] backdropTileIds; // tile ordinal, 0 = remove
 
-	public PacketBackdropBatch() {}
+	public PacketBackdropBatch() {
+	}
 
 	@Override
 	public int getPacketId() {

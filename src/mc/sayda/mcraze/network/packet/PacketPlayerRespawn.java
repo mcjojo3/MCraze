@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -19,13 +19,15 @@ import java.nio.ByteBuffer;
 
 /**
  * Server → Client: Notify client that their player has respawned
- * Sent immediately on respawn for instant synchronization (symmetric with PacketPlayerDeath)
+ * Sent immediately on respawn for instant synchronization (symmetric with
+ * PacketPlayerDeath)
  * Binary protocol: 0 bytes (signal packet, no payload)
  */
 public class PacketPlayerRespawn extends ServerPacket {
 	// No data needed - respawn is a simple event
 
-	public PacketPlayerRespawn() {}
+	public PacketPlayerRespawn() {
+	}
 
 	@Override
 	public int getPacketId() {

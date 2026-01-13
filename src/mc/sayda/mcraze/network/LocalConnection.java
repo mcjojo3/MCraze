@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -37,7 +37,8 @@ public class LocalConnection implements Connection {
 		return new LocalConnection[] { client, server };
 	}
 
-	private LocalConnection() {}
+	private LocalConnection() {
+	}
 
 	@Override
 	public synchronized void sendPacket(Packet packet) {

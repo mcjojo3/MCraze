@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -26,7 +26,7 @@ public abstract class Entity implements java.io.Serializable {
 	protected static final float gravityAcceleration = .03f;
 	protected static final float waterAcceleration = .015f;
 	protected static final float maxWaterDY = .05f;
-	protected static final float swimUpVelocity = .055f;  // Slightly higher than maxWaterDY for active swimming
+	protected static final float swimUpVelocity = .055f; // Slightly higher than maxWaterDY for active swimming
 
 	// Unique identifier for network entity tracking
 	private String uuid;
@@ -40,6 +40,9 @@ public abstract class Entity implements java.io.Serializable {
 	protected boolean gravityApplies;
 	public int widthPX;
 	public int heightPX;
+
+	public boolean dead = false;
+	protected long ticksAlive = 0;
 
 	public Entity(String ref, boolean gravityApplies, float x, float y, int width, int height) {
 		if (ref != null) {
@@ -55,9 +58,27 @@ public abstract class Entity implements java.io.Serializable {
 		this.uuid = UUID.randomUUID().toString();
 	}
 
+	/**
+	 * Get the number of ticks this entity has been alive (for animation timing)
+	 */
+	public long getTicksAlive() {
+		return ticksAlive;
+	}
+
+	/**
+	 * Set the number of ticks this entity has been alive (used by client for
+	 * animation sync)
+	 */
+	public void setTicksAlive(long ticksAlive) {
+		this.ticksAlive = ticksAlive;
+	}
+
 	@Override
-	protected Entity clone() throws CloneNotSupportedException {
-		return (Entity) super.clone();
+	public Entity clone() throws CloneNotSupportedException {
+		Entity cloned = (Entity) super.clone();
+		// Reset UUID for cloned instances so they behave as distinct entities
+		cloned.uuid = UUID.randomUUID().toString();
+		return cloned;
 	}
 
 	public void updatePosition(World world, int tileSize) {
@@ -180,12 +201,12 @@ public abstract class Entity implements java.io.Serializable {
 			}
 			if (hitBottom) {
 				// mathemagically derived to mimic the damage from
-				//   counting the number of meters dropped
+				// counting the number of meters dropped
 				int dmg = ((int) (114 * dy)) - 60;
 				if (dmg > 0) {
 					this.takeDamage(dmg);
 				}
-				dx *= 0.9;  // loss of energy due to friction
+				dx *= 0.9; // loss of energy due to friction
 			}
 		}
 		if (hitTop) {
@@ -275,12 +296,19 @@ public abstract class Entity implements java.io.Serializable {
 		return pos.x >= left && pos.x <= right && pos.y >= top && pos.y <= bottom;
 	}
 
+	public int damageFlashTicks = 0; // Ticks remaining for red damage flash
+
 	public void draw(GraphicsHandler g, float cameraX, float cameraY, int screenWidth,
 			int screenHeight, int tileSize) {
 		Int2 pos = StockMethods.computeDrawLocationInPlace(cameraX, cameraY, screenWidth,
 				screenHeight, tileSize, x, y);
 		if (StockMethods.onScreen) {
-			sprite.draw(g, pos.x, pos.y, widthPX, heightPX);
+			if (damageFlashTicks > 0) {
+				// Apply red tint for damage indication (50% opacity red)
+				g.drawImage(sprite, pos.x, pos.y, widthPX, heightPX, new mc.sayda.mcraze.Color(255, 0, 0, 128));
+			} else {
+				sprite.draw(g, pos.x, pos.y, widthPX, heightPX);
+			}
 		}
 	}
 

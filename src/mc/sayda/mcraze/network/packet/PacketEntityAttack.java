@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -22,12 +22,13 @@ import java.nio.ByteBuffer;
  * Server determines damage from player's held item
  */
 public class PacketEntityAttack extends ClientPacket {
-    public int entityId;  // The entity being attacked
+    public String entityUUID; // The entity being attacked
 
-    public PacketEntityAttack() {}
+    public PacketEntityAttack() {
+    }
 
-    public PacketEntityAttack(int entityId) {
-        this.entityId = entityId;
+    public PacketEntityAttack(String entityUUID) {
+        this.entityUUID = entityUUID;
     }
 
     @Override
@@ -42,13 +43,20 @@ public class PacketEntityAttack extends ClientPacket {
 
     @Override
     public byte[] encode() {
-        ByteBuffer buf = ByteBuffer.allocate(4);
-        buf.putInt(entityId);
+        if (entityUUID == null)
+            entityUUID = "";
+        byte[] uuidBytes = entityUUID.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        ByteBuffer buf = ByteBuffer.allocate(2 + uuidBytes.length);
+        buf.putShort((short) uuidBytes.length);
+        buf.put(uuidBytes);
         return buf.array();
     }
 
     public static PacketEntityAttack decode(ByteBuffer buf) {
-        int entityId = buf.getInt();
-        return new PacketEntityAttack(entityId);
+        short len = buf.getShort();
+        byte[] bytes = new byte[len];
+        buf.get(bytes);
+        String entityUUID = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        return new PacketEntityAttack(entityUUID);
     }
 }

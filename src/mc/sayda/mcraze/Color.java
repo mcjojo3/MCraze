@@ -11,11 +11,11 @@ public class Color implements java.io.Serializable {
 	public static final Color green = new Color(0, 255, 0);
 	public static final Color gray = new Color(128, 128, 128);
 	public static final Color blue = new Color(0, 0, 255);
-	public static final Color LIGHT_GRAY = new Color(192, 192, 192);
-	public static final Color DARK_GRAY = darkGray;
+	public static final Color lightGray = new Color(192, 192, 192);
 	public static final Color orange = new Color(255, 200, 0);
+    public static final Color red = new Color(255, 0, 0);
 
-	public int R, G, B, A;
+    public int R, G, B, A;
 
 	public Color(int R, int G, int B) {
 		this.R = R;

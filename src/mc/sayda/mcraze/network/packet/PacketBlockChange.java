@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -24,10 +24,11 @@ import java.nio.ByteBuffer;
 public class PacketBlockChange extends ClientPacket {
 	public int x;
 	public int y;
-	public char newTileId;  // 0 for break, tile ID for place
+	public char newTileId; // 0 for break, tile ID for place
 	public boolean isBreak;
 
-	public PacketBlockChange() {}
+	public PacketBlockChange() {
+	}
 
 	public PacketBlockChange(int x, int y, char newTileId, boolean isBreak) {
 		this.x = x;

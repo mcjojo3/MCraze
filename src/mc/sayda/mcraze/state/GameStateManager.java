@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -28,6 +28,7 @@ public class GameStateManager {
 
     /**
      * Get the current game state
+     * 
      * @return current state
      */
     public synchronized GameState getState() {
@@ -36,7 +37,8 @@ public class GameStateManager {
 
     /**
      * Register a handler for a specific state
-     * @param state the state to handle
+     * 
+     * @param state   the state to handle
      * @param handler the handler implementation
      */
     public void registerHandler(GameState state, StateHandler handler) {
@@ -45,6 +47,7 @@ public class GameStateManager {
 
     /**
      * Transition to a new state with validation
+     * 
      * @param newState the state to transition to
      * @return true if transition succeeded
      * @throws IllegalStateException if transition is invalid
@@ -106,8 +109,9 @@ public class GameStateManager {
 
     /**
      * Validate if a state transition is allowed
+     * 
      * @param from current state
-     * @param to target state
+     * @param to   target state
      * @return true if transition is valid
      */
     private boolean isValidTransition(GameState from, GameState to) {
@@ -125,10 +129,10 @@ public class GameStateManager {
                 return to == GameState.MENU;
 
             case MENU:
-                return to == GameState.LOADING || to == GameState.LOGIN;  // Allow logout
+                return to == GameState.LOADING || to == GameState.LOGIN; // Allow logout
 
             case LOADING:
-                return to == GameState.IN_GAME || to == GameState.MENU;  // Can cancel loading
+                return to == GameState.IN_GAME || to == GameState.MENU; // Can cancel loading
 
             case IN_GAME:
                 return to == GameState.PAUSED || to == GameState.MENU;
@@ -137,7 +141,7 @@ public class GameStateManager {
                 return to == GameState.IN_GAME || to == GameState.MENU;
 
             case SHUTDOWN:
-                return false;  // Cannot transition from SHUTDOWN
+                return false; // Cannot transition from SHUTDOWN
 
             default:
                 return false;
@@ -146,6 +150,7 @@ public class GameStateManager {
 
     /**
      * Forcefully set state without validation (use with caution!)
+     * 
      * @param state the state to set
      */
     public synchronized void forceState(GameState state) {

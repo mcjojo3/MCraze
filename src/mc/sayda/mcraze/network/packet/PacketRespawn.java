@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -20,7 +20,8 @@ import java.nio.ByteBuffer;
 /**
  * Client → Server: Player pressed R to respawn after death
  * This packet is sent when the player wants to respawn.
- * The server will handle respawning the player at the spawn point and broadcasting
+ * The server will handle respawning the player at the spawn point and
+ * broadcasting
  * the respawn state to all clients.
  *
  * Server authority: Client cannot dictate spawn location (anti-cheat).
@@ -29,7 +30,8 @@ import java.nio.ByteBuffer;
 public class PacketRespawn extends ClientPacket {
 	// No payload needed - server knows which player sent it and where spawn is
 
-	public PacketRespawn() {}
+	public PacketRespawn() {
+	}
 
 	@Override
 	public int getPacketId() {

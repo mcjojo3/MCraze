@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -55,17 +55,19 @@ class ItemDefinition {
 	String spriteRef;
 	String[][] recipe;
 	int yield;
+	boolean shapeless;
 
-	public ItemDefinition(String id, String n, String s, String[][] t, int y) {
+	public ItemDefinition(String id, String n, String s, String[][] t, int y, boolean sh) {
 		itemId = id;
 		name = n;
 		spriteRef = s;
 		recipe = t;
 		yield = y;
+		shapeless = sh;
 	}
 
 	public Item makeItem(int size) {
-		return new Item(spriteRef, size, itemId, name, recipe, yield);
+		return new Item(spriteRef, size, itemId, name, recipe, yield, shapeless);
 	}
 }
 
@@ -73,14 +75,14 @@ class ToolDefinition extends ItemDefinition {
 	Tool.ToolType type;
 	Tool.ToolPower power;
 
-	public ToolDefinition(String id, String n, String s, String[][] t, int y, Tool.ToolType tt,
+	public ToolDefinition(String id, String n, String s, String[][] t, int y, boolean sh, Tool.ToolType tt,
 			Tool.ToolPower tp) {
-		super(id, n, s, t, y);
+		super(id, n, s, t, y, sh);
 		type = tt;
 		power = tp;
 	}
 
 	public Tool makeTool(int size) {
-		return new Tool(spriteRef, size, itemId, name, recipe, yield, type, power);
+		return new Tool(spriteRef, size, itemId, name, recipe, yield, type, power, shapeless);
 	}
 }

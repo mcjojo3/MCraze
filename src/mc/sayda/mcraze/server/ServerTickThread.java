@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -32,7 +32,7 @@ public class ServerTickThread extends Thread {
 	private long tickCount = 0;
 
 	// Target 60 TPS (16.67ms per tick)
-	private static final long TARGET_TICK_TIME_MS = 16;  // ~60 TPS
+	private static final long TARGET_TICK_TIME_MS = 16; // ~60 TPS
 	private static final long TARGET_TICK_TIME_NS = TARGET_TICK_TIME_MS * 1_000_000;
 
 	// Performance tracking
@@ -44,7 +44,7 @@ public class ServerTickThread extends Thread {
 		super("ServerTickThread");
 		this.sharedWorld = sharedWorld;
 		this.stateManager = stateManager;
-		setDaemon(true);  // Don't prevent JVM shutdown
+		setDaemon(true); // Don't prevent JVM shutdown
 
 		GameLogger logger = GameLogger.get();
 		if (logger != null) {
@@ -84,7 +84,7 @@ public class ServerTickThread extends Thread {
 							long avgTickTime = totalTickTime / ticksSinceLastReport;
 							double avgTPS = 1_000_000_000.0 / avgTickTime;
 							logger.debug(String.format("ServerTickThread: Avg tick time: %.2fms (%.1f TPS)",
-								avgTickTime / 1_000_000.0, avgTPS));
+									avgTickTime / 1_000_000.0, avgTPS));
 							totalTickTime = 0;
 							ticksSinceLastReport = 0;
 						}
@@ -92,11 +92,11 @@ public class ServerTickThread extends Thread {
 						// Calculate sleep time to maintain 60 TPS
 						long sleepTime = TARGET_TICK_TIME_NS - tickDuration;
 						if (sleepTime > 0) {
-							Thread.sleep(sleepTime / 1_000_000, (int)(sleepTime % 1_000_000));
+							Thread.sleep(sleepTime / 1_000_000, (int) (sleepTime % 1_000_000));
 						} else if (logger != null && tickCount % 60 == 0) {
 							// Warn if tick is taking too long
 							logger.warn(String.format("ServerTickThread: Tick overrun by %.2fms",
-								-sleepTime / 1_000_000.0));
+									-sleepTime / 1_000_000.0));
 						}
 					} else {
 						// SharedWorld not running, sleep briefly
@@ -141,7 +141,7 @@ public class ServerTickThread extends Thread {
 			logger.info("ServerTickThread: Shutdown requested");
 		}
 		running = false;
-		interrupt();  // Wake up if sleeping
+		interrupt(); // Wake up if sleeping
 	}
 
 	/**

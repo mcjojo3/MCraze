@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -21,7 +21,8 @@ import java.nio.ByteBuffer;
  * Client → Server: Player input (movement, mouse position in WORLD coordinates)
  * Binary protocol: 6 booleans + 2 floats + 1 int = 18 bytes (was ~200 bytes!)
  *
- * IMPORTANT: worldMouseX/worldMouseY are in WORLD coordinates, not screen coordinates!
+ * IMPORTANT: worldMouseX/worldMouseY are in WORLD coordinates, not screen
+ * coordinates!
  * Client must convert screen coords to world coords before sending.
  */
 public class PacketPlayerInput extends ClientPacket {
@@ -31,15 +32,16 @@ public class PacketPlayerInput extends ClientPacket {
 	public boolean sneak;
 	public boolean leftClick;
 	public boolean rightClick;
-	public float worldMouseX;  // World coordinates (not screen coordinates!)
-	public float worldMouseY;  // World coordinates (not screen coordinates!)
+	public float worldMouseX; // World coordinates (not screen coordinates!)
+	public float worldMouseY; // World coordinates (not screen coordinates!)
 	public int hotbarSlot;
 
-	public PacketPlayerInput() {}
+	public PacketPlayerInput() {
+	}
 
 	public PacketPlayerInput(boolean moveLeft, boolean moveRight, boolean climb, boolean sneak,
-							 boolean leftClick, boolean rightClick,
-							 float worldMouseX, float worldMouseY, int hotbarSlot) {
+			boolean leftClick, boolean rightClick,
+			float worldMouseX, float worldMouseY, int hotbarSlot) {
 		this.moveLeft = moveLeft;
 		this.moveRight = moveRight;
 		this.climb = climb;
@@ -86,6 +88,7 @@ public class PacketPlayerInput extends ClientPacket {
 		float worldMouseX = buf.getFloat();
 		float worldMouseY = buf.getFloat();
 		int hotbarSlot = buf.getInt();
-		return new PacketPlayerInput(moveLeft, moveRight, climb, sneak, leftClick, rightClick, worldMouseX, worldMouseY, hotbarSlot);
+		return new PacketPlayerInput(moveLeft, moveRight, climb, sneak, leftClick, rightClick, worldMouseX, worldMouseY,
+				hotbarSlot);
 	}
 }

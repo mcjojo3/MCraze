@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SaydaGames (mc_jojo3)
+ * Copyright 2026 SaydaGames (mc_jojo3)
  *
  * This file is part of MCraze
  *
@@ -19,13 +19,16 @@ import java.nio.ByteBuffer;
 
 /**
  * Client → Server: Player pressed 'B' to toggle backdrop placement mode
- * This packet is sent when the player wants to switch between foreground and backdrop placement.
- * The server will toggle the player's backdropPlacementMode boolean and send chat feedback.
+ * This packet is sent when the player wants to switch between foreground and
+ * backdrop placement.
+ * The server will toggle the player's backdropPlacementMode boolean and send
+ * chat feedback.
  */
 public class PacketToggleBackdropMode extends ClientPacket {
 	// No payload needed - server knows which player sent it
 
-	public PacketToggleBackdropMode() {}
+	public PacketToggleBackdropMode() {
+	}
 
 	@Override
 	public int getPacketId() {
