@@ -17,9 +17,10 @@ public class PlayerConnection implements ServerPacketHandler {
 	private final String playerName;
 	private final String password;
 	private final SharedWorld sharedWorld;
-	private boolean initialWorldLoaded = false;  // Track if player has finished loading initial world data
+	private boolean initialWorldLoaded = false; // Track if player has finished loading initial world data
 
-	public PlayerConnection(Connection connection, Player player, String playerName, String password, SharedWorld sharedWorld) {
+	public PlayerConnection(Connection connection, Player player, String playerName, String password,
+			SharedWorld sharedWorld) {
 		GameLogger logger = GameLogger.get();
 		this.connection = connection;
 		this.player = player;
@@ -28,7 +29,8 @@ public class PlayerConnection implements ServerPacketHandler {
 		this.sharedWorld = sharedWorld;
 
 		if (logger != null) {
-			logger.debug("PlayerConnection.<init>: Created for player " + playerName + " - connection type: " + connection.getClass().getSimpleName());
+			logger.debug("PlayerConnection.<init>: Created for player " + playerName + " - connection type: "
+					+ connection.getClass().getSimpleName());
 		}
 	}
 
@@ -50,19 +52,22 @@ public class PlayerConnection implements ServerPacketHandler {
 		if (packets.length > 0) {
 			packetProcessCount++;
 			if (logger != null && packetProcessCount <= 5) {
-				logger.debug("PlayerConnection.processPackets: " + playerName + " - processing " + packets.length + " packets");
+				logger.debug("PlayerConnection.processPackets: " + playerName + " - processing " + packets.length
+						+ " packets");
 			}
 		}
 
 		for (Packet packet : packets) {
 			if (logger != null && packetProcessCount <= 5) {
-				logger.debug("PlayerConnection.processPackets: " + playerName + " - handling " + packet.getClass().getSimpleName());
+				logger.debug("PlayerConnection.processPackets: " + playerName + " - handling "
+						+ packet.getClass().getSimpleName());
 			}
 			// All packets received by server are ClientPackets
 			if (packet instanceof ClientPacket) {
 				((ClientPacket) packet).handle(this);
 			} else {
-				if (logger != null) logger.warn("Server received non-ClientPacket: " + packet.getClass().getSimpleName());
+				if (logger != null)
+					logger.warn("Server received non-ClientPacket: " + packet.getClass().getSimpleName());
 			}
 		}
 	}
@@ -75,14 +80,15 @@ public class PlayerConnection implements ServerPacketHandler {
 	public void handlePlayerInput(PacketPlayerInput packet) {
 		GameLogger logger = GameLogger.get();
 		if (player == null) {
-			if (logger != null) logger.warn("PlayerConnection.handlePlayerInput: Player is null for " + playerName);
+			if (logger != null)
+				logger.warn("PlayerConnection.handlePlayerInput: Player is null for " + playerName);
 			return;
 		}
 
 		inputCount++;
 		if (logger != null && inputCount <= 3) {
 			logger.debug("PlayerConnection.handlePlayerInput: " + playerName + " - left=" + packet.moveLeft +
-				", right=" + packet.moveRight + ", climb=" + packet.climb + ", hotbar=" + packet.hotbarSlot);
+					", right=" + packet.moveRight + ", climb=" + packet.climb + ", hotbar=" + packet.hotbarSlot);
 		}
 
 		// Apply player input
@@ -123,7 +129,7 @@ public class PlayerConnection implements ServerPacketHandler {
 		float distance = (float) Math.sqrt(dx * dx + dy * dy);
 
 		// Check if within arm's reach
-		if (distance <= mc.sayda.mcraze.Constants.ARM_LENGTH) {
+		if (distance <= mc.sayda.mcraze.Constants.PLAYER_REACH) {
 			player.handTargetPos.x = targetBlockX;
 			player.handTargetPos.y = targetBlockY;
 		} else {
@@ -171,9 +177,9 @@ public class PlayerConnection implements ServerPacketHandler {
 		if (player == null || !player.dead) {
 			if (logger != null) {
 				logger.warn("PlayerConnection.handleRespawn: Player " + playerName +
-					" tried to respawn but is not dead (player null: " + (player == null) + ")");
+						" tried to respawn but is not dead (player null: " + (player == null) + ")");
 			}
-			return;  // Can't respawn if not dead
+			return; // Can't respawn if not dead
 		}
 
 		if (logger != null) {
@@ -192,14 +198,14 @@ public class PlayerConnection implements ServerPacketHandler {
 
 			// Send chat feedback to client (yellow color)
 			String message = "Backdrop Mode: " + (player.backdropPlacementMode ? "ON" : "OFF");
-			mc.sayda.mcraze.network.packet.PacketChatMessage chatPacket =
-				new mc.sayda.mcraze.network.packet.PacketChatMessage(message, new mc.sayda.mcraze.Color(255, 255, 0));
+			mc.sayda.mcraze.network.packet.PacketChatMessage chatPacket = new mc.sayda.mcraze.network.packet.PacketChatMessage(
+					message, new mc.sayda.mcraze.Color(255, 255, 0));
 			connection.sendPacket(chatPacket);
 
 			GameLogger logger = GameLogger.get();
 			if (logger != null) {
 				logger.info("PlayerConnection.handleToggleBackdropMode: Player " + playerName +
-					" toggled backdrop mode to " + player.backdropPlacementMode);
+						" toggled backdrop mode to " + player.backdropPlacementMode);
 			}
 		}
 	}
@@ -211,7 +217,7 @@ public class PlayerConnection implements ServerPacketHandler {
 		GameLogger logger = GameLogger.get();
 		if (logger != null) {
 			logger.info("PlayerConnection.handleChestAction: Player " + playerName +
-				" interacted with chest at (" + packet.chestX + ", " + packet.chestY + ")");
+					" interacted with chest at (" + packet.chestX + ", " + packet.chestY + ")");
 		}
 		sharedWorld.handleChestAction(this, packet);
 	}
@@ -225,7 +231,8 @@ public class PlayerConnection implements ServerPacketHandler {
 	@Override
 	public void handlePing(mc.sayda.mcraze.network.packet.PacketPing packet) {
 		// Respond to ping request with pong containing original timestamp
-		mc.sayda.mcraze.network.packet.PacketPong pong = new mc.sayda.mcraze.network.packet.PacketPong(packet.timestamp);
+		mc.sayda.mcraze.network.packet.PacketPong pong = new mc.sayda.mcraze.network.packet.PacketPong(
+				packet.timestamp);
 		connection.sendPacket(pong);
 	}
 
@@ -251,9 +258,10 @@ public class PlayerConnection implements ServerPacketHandler {
 			} else {
 				// No command handler available (dedicated server)
 				// PERFORMANCE: Commented out console logging
-				// System.out.println("[" + playerName + "] Command not supported: " + packet.message);
+				// System.out.println("[" + playerName + "] Command not supported: " +
+				// packet.message);
 			}
-			return;  // Don't broadcast commands
+			return; // Don't broadcast commands
 		}
 
 		// Regular chat message
@@ -265,12 +273,12 @@ public class PlayerConnection implements ServerPacketHandler {
 
 		// Broadcast chat message to all players
 		PacketChatMessage chatPacket = new PacketChatMessage(
-			"<" + playerName + "> " + packet.message,
-			mc.sayda.mcraze.Color.white
-		);
+				"<" + playerName + "> " + packet.message,
+				mc.sayda.mcraze.Color.white);
 
 		// Broadcast to all players via SharedWorld
-		if (logger != null) logger.debug("PlayerConnection.handleChatSend: Broadcasting message from " + playerName);
+		if (logger != null)
+			logger.debug("PlayerConnection.handleChatSend: Broadcasting message from " + playerName);
 		sharedWorld.broadcastPacket(chatPacket);
 	}
 

@@ -25,7 +25,7 @@ public class TileType implements java.io.Serializable {
 	protected Sprite sprite;
 	public TileID name;
 	public boolean passable;
-	protected boolean liquid;
+	public boolean liquid;
 	public int lightBlocking;
 	public int lightEmitting;
 	public boolean stable; // true = block doesn't need ground support, false = needs support (plants)

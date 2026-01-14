@@ -24,9 +24,13 @@ import java.nio.ByteBuffer;
  * Binary protocol: 0 bytes (signal packet, no payload)
  */
 public class PacketPlayerRespawn extends ServerPacket {
-	// No data needed - respawn is a simple event
+	public String playerUUID;
 
 	public PacketPlayerRespawn() {
+	}
+
+	public PacketPlayerRespawn(String playerUUID) {
+		this.playerUUID = playerUUID;
 	}
 
 	@Override
@@ -41,12 +45,18 @@ public class PacketPlayerRespawn extends ServerPacket {
 
 	@Override
 	public byte[] encode() {
-		// Empty packet - just a signal
-		return new byte[0];
+		byte[] uuidBytes = playerUUID.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+		ByteBuffer buf = ByteBuffer.allocate(2 + uuidBytes.length);
+		buf.putShort((short) uuidBytes.length);
+		buf.put(uuidBytes);
+		return buf.array();
 	}
 
 	public static PacketPlayerRespawn decode(ByteBuffer buf) {
-		// No data to decode
-		return new PacketPlayerRespawn();
+		short length = buf.getShort();
+		byte[] uuidBytes = new byte[length];
+		buf.get(uuidBytes);
+		String playerUUID = new String(uuidBytes, java.nio.charset.StandardCharsets.UTF_8);
+		return new PacketPlayerRespawn(playerUUID);
 	}
 }

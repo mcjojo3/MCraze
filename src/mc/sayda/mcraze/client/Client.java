@@ -57,20 +57,22 @@ public class Client implements ClientPacketHandler {
 	public boolean viewFPS = false;
 	private int tileSize = Constants.TILE_SIZE;
 	private float zoomLevel = 1.0f; // Zoom level (1.0 = normal, 0.5 = zoomed out 2x, 2.0 = zoomed in 2x)
-	private static final float MIN_ZOOM = 0.125f; // Max zoom out (8x)
-	private static final float MAX_ZOOM = 8.0f; // Max zoom in (8x)
+	private static final float MIN_ZOOM = Constants.CLIENT_MIN_ZOOM; // Max zoom out (8x)
+	private static final float MAX_ZOOM = Constants.CLIENT_MAX_ZOOM; // Max zoom in (8x)
 
 	// Input state
 	public boolean leftClick = false;
 	private boolean wasLeftClick = false;
 	public boolean rightClick = false;
+	private boolean wasRightClick = false;
 	public Int2 screenMousePos = new Int2(0, 0);
 
 	// Interaction timing (to prevent double-actions/multi-placement)
 	private long lastRightClickTime = 0;
 	private long uiOpenTime = 0;
-	private static final long INTERACT_COOLDOWN_MS = 250;
-	private static final long UI_GRACE_PERIOD_MS = 200;
+	private static final long INTERACT_COOLDOWN_MS = Constants.CLIENT_INTERACT_COOLDOWN_MS; // 8 cps limit (reduced from
+																							// 250ms/4cps)
+	private static final long UI_GRACE_PERIOD_MS = Constants.CLIENT_UI_GRACE_PERIOD_MS;
 
 	// Frame timing for FPS calculation
 	private long lastFrameTime = System.nanoTime();
@@ -329,13 +331,20 @@ public class Client implements ClientPacketHandler {
 		long currentTime = System.currentTimeMillis();
 		boolean canProcessUIClicks = (currentTime - uiOpenTime >= UI_GRACE_PERIOD_MS);
 
+		// Calculate initial input state for UI
+		boolean justPressedLeft = leftClick && !wasLeftClick;
+		boolean justPressedRight = rightClick && !wasRightClick;
+
 		if (chestUI != null && chestUI.isVisible()) {
 			chestFocus = chestUI.update(screenWidth, screenHeight, screenMousePos,
-					leftClick && !chatOpen && canProcessUIClicks,
-					rightClick && !chatOpen && canProcessUIClicks, connection);
+					justPressedLeft && !chatOpen && canProcessUIClicks,
+					justPressedRight && !chatOpen && canProcessUIClicks, connection);
 			if (chestFocus) {
 				leftClick = false;
 				rightClick = false;
+				// If UI handled the click, consume the "just pressed" state too so we don't
+				// double proc
+				justPressedLeft = false;
 			}
 		}
 
@@ -343,8 +352,8 @@ public class Client implements ClientPacketHandler {
 		boolean inventoryFocus = false;
 		if (player.inventory != null && player.inventory.inventoryItems != null) {
 			inventoryFocus = player.inventory.updateInventory(screenWidth, screenHeight,
-					screenMousePos, leftClick && !chatOpen && canProcessUIClicks,
-					rightClick && !chatOpen && canProcessUIClicks, connection);
+					screenMousePos, justPressedLeft && !chatOpen && canProcessUIClicks,
+					justPressedRight && !chatOpen && canProcessUIClicks, connection);
 		}
 		if (inventoryFocus || chatOpen) {
 			leftClick = false;
@@ -354,7 +363,6 @@ public class Client implements ClientPacketHandler {
 		// Handle block interactions (not if chest is open)
 		// Always use packet-based communication with server (integrated or remote)
 		// This ensures identical behavior in singleplayer and multiplayer
-		boolean justPressedLeft = leftClick && !wasLeftClick;
 
 		if (justPressedLeft && connection != null && !chestFocus) {
 			// Check if clicking on an entity first
@@ -393,10 +401,20 @@ public class Client implements ClientPacketHandler {
 				lastTargetBlockX = tileX;
 				lastTargetBlockY = tileY;
 			}
+		} else if (!leftClick && wasLeftClick && connection != null) {
+			// CRITICAL FIX: Send STOP BREAKING signal on release
+			// Use x=-1 to tell server we stopped breaking
+			connection.sendPacket(new mc.sayda.mcraze.network.packet.PacketBlockChange(-1, -1, (char) 0, true));
+
+			// Also reset local animation immediately for responsiveness
+			clientBreakingTicks = 0;
+			clientBreakingX = -1;
+			clientBreakingY = -1;
 		}
 
 		// Update previous input state
 		wasLeftClick = leftClick;
+		wasRightClick = rightClick;
 
 		if (rightClick && connection != null && !chestFocus) {
 			if (currentTime - lastRightClickTime >= INTERACT_COOLDOWN_MS) {
@@ -508,6 +526,11 @@ public class Client implements ClientPacketHandler {
 		// Movement keys are tracked and sent in AwtEventsHandler.sendInputPacket()
 		// This packet sending here is for click events only
 
+		// Attack Logic: Check for entity hits on left click
+		if (leftClick && !wasLeftClick) { // justPressed
+			checkEntityAttack();
+		}
+
 		// CRITICAL FIX: Convert screen coordinates to world coordinates
 		// PacketPlayerInput expects WORLD coordinates (floats), not screen pixels
 		int effectiveTileSize = getEffectiveTileSize();
@@ -530,6 +553,60 @@ public class Client implements ClientPacketHandler {
 				worldMouseX, worldMouseY,
 				getLocalPlayer().inventory.hotbarIdx);
 		connection.sendPacket(inputPacket);
+	}
+
+	private void checkEntityAttack() {
+		if (localServer == null || localServer.entities == null)
+			return;
+
+		mc.sayda.mcraze.entity.Player p = getLocalPlayer();
+		if (p == null)
+			return;
+
+		int effectiveTileSize = getEffectiveTileSize();
+		mc.sayda.mcraze.GraphicsHandler g = mc.sayda.mcraze.GraphicsHandler.get();
+		int screenWidth = g.getScreenWidth();
+		int screenHeight = g.getScreenHeight();
+
+		float cameraX = p.x - screenWidth / effectiveTileSize / 2f;
+		float cameraY = p.y - screenHeight / effectiveTileSize / 2f;
+
+		float worldMouseX = (cameraX * effectiveTileSize + screenMousePos.x) / effectiveTileSize;
+		float worldMouseY = (cameraY * effectiveTileSize + screenMousePos.y) / effectiveTileSize;
+
+		// Find captured entity (top-most rendered?)
+		// Iterate backwards if we want top-most? Or just any.
+		for (mc.sayda.mcraze.entity.Entity e : localServer.entities) {
+			if (e == p)
+				continue; // Don't attack self
+			if (e instanceof mc.sayda.mcraze.entity.LivingEntity) {
+				// Check bounds
+				// e.x, e.y is top-left in world coords
+				// widthPX/heightPX are pixel sizes. convert to tiles?
+				// Entity dimensions are often stored in widthPX... wait.
+				// e.widthPX is pixels. e.x is tiles.
+				// We need consistent units.
+
+				// Conversion: box in world tiles
+				float widthTiles = e.widthPX / (float) Constants.TILE_SIZE;
+				float heightTiles = e.heightPX / (float) Constants.TILE_SIZE;
+
+				if (worldMouseX >= e.x && worldMouseX < e.x + widthTiles &&
+						worldMouseY >= e.y && worldMouseY < e.y + heightTiles) {
+
+					// Hit!
+					// Verify range (server handles this too, but good to filter locally)
+					float dx = e.x - p.x;
+					float dy = e.y - p.y;
+					// Center to center distance approximately
+					if (dx * dx + dy * dy < 5.0f * 5.0f) { // 5 tiles reach
+						System.out.println("Client: Attacking entity " + e.getUUID());
+						connection.sendPacket(new mc.sayda.mcraze.network.packet.PacketEntityAttack(e.getUUID()));
+						return; // Attack one at a time
+					}
+				}
+			}
+		}
 	}
 
 	/**
@@ -954,6 +1031,15 @@ public class Client implements ClientPacketHandler {
 	}
 
 	/**
+	 * Update loading screen progress immediately (skipping animation)
+	 */
+	public void setLoadingProgressImmediate(int progress) {
+		if (loadingScreen != null) {
+			loadingScreen.forceProgress(progress);
+		}
+	}
+
+	/**
 	 * Add a message to the loading screen console
 	 */
 	public void addLoadingMessage(String message) {
@@ -1306,11 +1392,18 @@ public class Client implements ClientPacketHandler {
 					if (entity == null) {
 						entity = new mc.sayda.mcraze.entity.Player(true, packet.entityX[i], packet.entityY[i], 28, 56);
 					}
-				} else if ("Sheep".equals(entityType)) {
+				} else if ("Sheep".equals(entityType) || "EntitySheep".equals(entityType)) {
 					// Create Sheep entity
 					entity = new mc.sayda.mcraze.entity.EntitySheep(packet.entityX[i], packet.entityY[i]);
 					if (logger != null) {
 						logger.debug("Client: Created Sheep entity (UUID: " + entityUUID + ")");
+					}
+				} else if ("EntityZombie".equals(entityType) || "Zombie".equals(entityType)) {
+					// Create Zombie entity
+					entity = new mc.sayda.mcraze.entity.EntityZombie(true, packet.entityX[i], packet.entityY[i], 28,
+							56);
+					if (logger != null) {
+						logger.debug("Client: Created Zombie entity (UUID: " + entityUUID + ")");
 					}
 				} else {
 					// Create Player entity
@@ -1360,6 +1453,15 @@ public class Client implements ClientPacketHandler {
 			if (entity instanceof mc.sayda.mcraze.entity.LivingEntity) {
 				mc.sayda.mcraze.entity.LivingEntity le = (mc.sayda.mcraze.entity.LivingEntity) entity;
 				le.hitPoints = packet.entityHealth[i];
+
+				// CRITICAL FIX: Enforce death state if health is 0 or packet says dead
+				// This ensures the death screen triggers even if one flag is missed
+				if (packet.entityHealth[i] <= 0 || packet.dead[i]) {
+					le.hitPoints = 0;
+					le.dead = true;
+					entity.dead = true; // Ensure base entity flag is also set
+				}
+
 				le.facingRight = packet.facingRight[i];
 				le.ticksUnderwater = packet.ticksUnderwater[i];
 				le.flying = packet.flying[i];
@@ -1368,29 +1470,29 @@ public class Client implements ClientPacketHandler {
 				le.climbing = packet.climbing[i];
 				le.jumping = packet.jumping[i];
 				le.speedMultiplier = packet.speedMultiplier[i];
+			}
 
-				if (entity instanceof mc.sayda.mcraze.entity.Player) {
-					mc.sayda.mcraze.entity.Player p = (mc.sayda.mcraze.entity.Player) entity;
-					p.backdropPlacementMode = packet.backdropPlacementMode[i];
-					p.handTargetPos.x = packet.handTargetX[i];
-					p.handTargetPos.y = packet.handTargetY[i];
+			if (entity instanceof mc.sayda.mcraze.entity.Player) {
+				mc.sayda.mcraze.entity.Player p = (mc.sayda.mcraze.entity.Player) entity;
+				p.backdropPlacementMode = packet.backdropPlacementMode[i];
+				p.handTargetPos.x = packet.handTargetX[i];
+				p.handTargetPos.y = packet.handTargetY[i];
 
-					// Update inventory held item for remote players
-					p.inventory.hotbarIdx = packet.hotbarIndex[i];
-					String itemId = packet.selectedItemId[i];
-					if (itemId != null && !itemId.isEmpty()) {
-						mc.sayda.mcraze.item.Item item = mc.sayda.mcraze.Constants.itemTypes.get(itemId);
-						if (item != null) {
-							p.inventory.selectedItem().setItem(item);
-							p.inventory.selectedItem().setCount(packet.selectedItemCount[i]);
-							if (item instanceof mc.sayda.mcraze.item.Tool) {
-								((mc.sayda.mcraze.item.Tool) p.inventory.selectedItem()
-										.getItem()).uses = packet.selectedItemDurability[i];
-							}
+				// Update inventory held item for remote players
+				p.inventory.hotbarIdx = packet.hotbarIndex[i];
+				String itemId = packet.selectedItemId[i];
+				if (itemId != null && !itemId.isEmpty()) {
+					mc.sayda.mcraze.item.Item item = mc.sayda.mcraze.Constants.itemTypes.get(itemId);
+					if (item != null) {
+						p.inventory.selectedItem().setItem(item);
+						p.inventory.selectedItem().setCount(packet.selectedItemCount[i]);
+						if (item instanceof mc.sayda.mcraze.item.Tool) {
+							((mc.sayda.mcraze.item.Tool) p.inventory.selectedItem()
+									.getItem()).uses = packet.selectedItemDurability[i];
 						}
-					} else {
-						p.inventory.selectedItem().setEmpty();
 					}
+				} else {
+					p.inventory.selectedItem().setEmpty();
 				}
 			}
 
@@ -1401,7 +1503,9 @@ public class Client implements ClientPacketHandler {
 		localServer.entities.clear();
 		localServer.entities.addAll(updatedEntities);
 
-		if (logger != null) {
+		if (logger != null)
+
+		{
 			logger.debug("Client.handleEntityUpdate: " + updatedEntities.size() + " entities synced (player="
 					+ (localServer.player != null ? "SET" : "NULL") + ")");
 		}
@@ -1604,13 +1708,38 @@ public class Client implements ClientPacketHandler {
 
 	@Override
 	public void handlePlayerRespawn(mc.sayda.mcraze.network.packet.PacketPlayerRespawn packet) {
-		// Immediate respawn synchronization from server (symmetric with
-		// handlePlayerDeath)
-		mc.sayda.mcraze.entity.Player player = getLocalPlayer();
-		if (player != null) {
-			player.dead = false;
-			player.hitPoints = 100; // Full health on respawn
-			System.out.println("CLIENT: Player respawn received from server");
+		GameLogger logger = GameLogger.get();
+		mc.sayda.mcraze.entity.Player localPlayer = getLocalPlayer();
+
+		// Case 1: Local Player Respawned
+		if (localPlayer != null && packet.playerUUID.equals(localPlayer.getUUID())) {
+			localPlayer.dead = false;
+			localPlayer.hitPoints = localPlayer.getMaxHP(); // Full health
+			if (logger != null) {
+				logger.info("CLIENT: Local player respawn confirmed by server");
+			}
+			return;
+		}
+
+		// Case 2: Remote Player Respawned
+		// Find the entity in local world and reset it
+		if (localServer != null && localServer.entities != null) {
+			for (mc.sayda.mcraze.entity.Entity e : localServer.entities) {
+				if (e.getUUID() != null && e.getUUID().equals(packet.playerUUID)) {
+					if (e instanceof mc.sayda.mcraze.entity.LivingEntity) {
+						mc.sayda.mcraze.entity.LivingEntity le = (mc.sayda.mcraze.entity.LivingEntity) e;
+						le.dead = false;
+						le.hitPoints = le.getMaxHP();
+						if (logger != null) {
+							logger.info("CLIENT: Remote player respawned (UUID: " + packet.playerUUID + ")");
+						}
+					}
+					return;
+				}
+			}
+			if (logger != null) {
+				logger.debug("CLIENT: Could not find respawned player entity (UUID: " + packet.playerUUID + ")");
+			}
 		}
 	}
 

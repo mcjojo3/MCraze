@@ -100,6 +100,46 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 		strategy = canvas.getBufferStrategy();
 	}
 
+	/**
+	 * Initialize for crash display (no Game instance needed)
+	 */
+	public void initCrashDisplay(String title, int width, int height) {
+		this.screenWidth = width;
+		this.screenHeight = height;
+
+		canvas = new Canvas();
+		container = new JFrame(title);
+
+		panel = (JPanel) container.getContentPane();
+		panel.setPreferredSize(new Dimension(screenWidth, screenHeight));
+		panel.setLayout(null);
+
+		canvas.setBounds(0, 0, screenWidth, screenHeight);
+		panel.add(canvas);
+		canvas.setIgnoreRepaint(true);
+
+		container.pack();
+		container.setResizable(true);
+		container.setVisible(true);
+
+		// Close listener just disposes
+		container.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(WindowEvent e) {
+				container.dispose();
+			}
+		});
+
+		canvas.requestFocus();
+		canvas.createBufferStrategy(2);
+		strategy = canvas.getBufferStrategy();
+	}
+
+	@Override
+	public boolean isWindowOpen() {
+		return container != null && container.isVisible();
+	}
+
 	Graphics2D g;
 
 	@Override

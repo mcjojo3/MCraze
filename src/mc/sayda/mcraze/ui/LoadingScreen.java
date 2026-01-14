@@ -18,14 +18,16 @@ public class LoadingScreen {
 	// Loading messages
 	private List<String> messages;
 	private String currentStatus;
-	private int progress;  // 0-100
+	private int targetProgress; // The actual progress set by the game (0-100)
+	private float visualProgress; // The displayed progress for smooth animation
 	private long ticksRunning = 0;
-	private int maxMessages = 10;  // Maximum number of messages to display
+	private int maxMessages = 10;
 
 	public LoadingScreen() {
 		this.messages = new ArrayList<>();
 		this.currentStatus = "Initializing...";
-		this.progress = 0;
+		this.targetProgress = 0;
+		this.visualProgress = 0;
 	}
 
 	/**
@@ -51,7 +53,15 @@ public class LoadingScreen {
 	 * Set loading progress (0-100)
 	 */
 	public void setProgress(int progress) {
-		this.progress = Math.max(0, Math.min(100, progress));
+		this.targetProgress = Math.max(0, Math.min(100, progress));
+	}
+
+	/**
+	 * Force loading progress (0-100) without interpolation/smoothing
+	 */
+	public void forceProgress(int progress) {
+		this.targetProgress = Math.max(0, Math.min(100, progress));
+		this.visualProgress = this.targetProgress;
 	}
 
 	/**
@@ -59,6 +69,15 @@ public class LoadingScreen {
 	 */
 	public void tick() {
 		ticksRunning++;
+
+		// Smoothly interpolate visual progress towards target progress
+		if (visualProgress < targetProgress) {
+			visualProgress += 2.0f; // Speed of filling (faster than before to feel responsive but smooth)
+			if (visualProgress > targetProgress)
+				visualProgress = targetProgress;
+		} else if (visualProgress > targetProgress) {
+			visualProgress = targetProgress; // Snap if going backwards
+		}
 	}
 
 	/**
@@ -105,9 +124,9 @@ public class LoadingScreen {
 		g.setColor(Color.darkGray);
 		g.fillRect(barX, barY, barWidth, barHeight);
 
-		// Progress bar fill
+		// Progress bar fill (using smooth visualProgress)
 		g.setColor(Color.green);
-		int fillWidth = (barWidth * progress) / 100;
+		int fillWidth = (int) ((barWidth * visualProgress) / 100);
 		g.fillRect(barX, barY, fillWidth, barHeight);
 
 		// Progress bar border
@@ -115,7 +134,7 @@ public class LoadingScreen {
 		g.drawRect(barX, barY, barWidth, barHeight);
 
 		// Progress percentage
-		String progressText = progress + "%";
+		String progressText = (int) visualProgress + "%";
 		int progressX = screenWidth / 2 - g.getStringWidth(progressText) / 2;
 		g.drawString(progressText, progressX, barY + barHeight / 2 - 4);
 

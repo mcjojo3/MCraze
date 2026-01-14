@@ -141,6 +141,7 @@ public class CommandHandler {
         commandArguments.put("/heal", new String[] {});
         commandArguments.put("/fly", new String[] {});
         commandArguments.put("/spawn", new String[] {});
+        commandArguments.put("/setspawn", new String[] {});
         commandArguments.put("/ping", new String[] {});
         commandArguments.put("/template", new String[] {});
         commandArguments.put("/debug", new String[] {});
@@ -273,6 +274,9 @@ public class CommandHandler {
                 break;
             case "spawn":
                 handleSpawn(parts, executingPlayer);
+                break;
+            case "setspawn":
+                handleSetSpawn(parts, executingPlayer);
                 break;
             case "ping":
                 handlePing(parts, executingPlayer);
@@ -800,9 +804,7 @@ public class CommandHandler {
         if (id.equals("dummy")) {
             LivingEntity dummy = new LivingEntity(true, x, y, 16, 16) {
             };
-            dummy.sprite = mc.sayda.mcraze.SpriteStore.get()
-                    .getSprite("sprites/entities/player.png");
-
+            dummy.sprite = mc.sayda.mcraze.SpriteStore.get().getSprite("sprites/entities/player.png");
             sharedWorld.addEntity(dummy);
             sendMessage("Summoned dummy entity", Color.green);
             return;
@@ -816,8 +818,37 @@ public class CommandHandler {
             return;
         }
 
-        // unknown entity
-        sendMessage("Unknown summon id: " + id, new Color(255, 100, 100));
+        // ZOMBIE
+        if (id.equals("zombie")) {
+            mc.sayda.mcraze.entity.EntityZombie zombie = new mc.sayda.mcraze.entity.EntityZombie(true, x, y, 28, 56);
+            sharedWorld.addEntity(zombie);
+            sendMessage("Summoned zombie", Color.green);
+            return;
+        }
+
+        sendMessage("Unknown entity: " + id, new Color(255, 100, 100));
+    }
+
+    private void handleSetSpawn(String[] parts, Player executingPlayer) {
+        if (executingPlayer == null || sharedWorld == null)
+            return;
+
+        if (parts.length > 1) {
+            sendMessage("Usage: /setspawn - Set world spawn to your location", new Color(255, 200, 100));
+            return;
+        }
+
+        mc.sayda.mcraze.world.World world = sharedWorld.getWorld();
+        if (world == null)
+            return;
+
+        int spawnX = (int) executingPlayer.x;
+        int spawnY = (int) executingPlayer.y;
+
+        // Ensure valid spawn
+        world.spawnLocation = new mc.sayda.mcraze.util.Int2(spawnX, spawnY);
+
+        sendMessage("World spawn set to (" + spawnX + ", " + spawnY + ")", Color.green);
     }
 
     private static final int WE_BLOCK_LIMIT = 10_000;

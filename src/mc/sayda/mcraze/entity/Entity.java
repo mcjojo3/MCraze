@@ -18,15 +18,17 @@ import mc.sayda.mcraze.SpriteStore;
 import mc.sayda.mcraze.util.Int2;
 import mc.sayda.mcraze.util.StockMethods;
 import mc.sayda.mcraze.world.World;
+import mc.sayda.mcraze.Constants;
 import java.util.UUID;
 
 public abstract class Entity implements java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 
-	protected static final float gravityAcceleration = .03f;
-	protected static final float waterAcceleration = .015f;
-	protected static final float maxWaterDY = .05f;
-	protected static final float swimUpVelocity = .055f; // Slightly higher than maxWaterDY for active swimming
+	protected static final float gravityAcceleration = Constants.PHYSICS_GRAVITY;
+	protected static final float waterAcceleration = Constants.PHYSICS_WATER_ACCEL;
+	protected static final float maxWaterDY = Constants.PHYSICS_MAX_WATER_DY;
+	protected static final float swimUpVelocity = Constants.PHYSICS_SWIM_VELOCITY; // Slightly higher than maxWaterDY
+																					// for active swimming
 
 	// Unique identifier for network entity tracking
 	private String uuid;

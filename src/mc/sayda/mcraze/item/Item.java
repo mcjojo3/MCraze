@@ -21,6 +21,9 @@ public class Item extends Entity implements Cloneable {
 	public String itemId;
 	public String name;
 	public Template template;
+	// Tool requirements for breaking/harvesting this item (if it's a block)
+	public Tool.ToolType requiredToolType;
+	public Tool.ToolPower requiredToolPower;
 
 	// Item despawn timer (prevents entity accumulation in world)
 	private long spawnTime;

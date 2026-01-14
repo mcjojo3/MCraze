@@ -122,11 +122,11 @@ public class ChestUI {
 		}
 
 		// Calculate chest panel dimensions (9 wide x 3 tall)
-		int chestPanelWidth = 9 * (tileSize + separation) + separation;
+		int chestPanelWidth = 10 * (tileSize + separation) + separation;
 		int chestPanelHeight = 3 * (tileSize + separation) + separation;
 
 		// Calculate player inventory panel dimensions (9 wide x 4 tall)
-		int playerPanelWidth = 9 * (tileSize + separation) + separation;
+		int playerPanelWidth = 10 * (tileSize + separation) + separation;
 		int playerPanelHeight = 4 * (tileSize + separation) + separation;
 
 		// Center chest panel at top, player panel below
@@ -162,7 +162,7 @@ public class ChestUI {
 			if (leftClick || rightClick) {
 				// Calculate clicked slot in player inventory
 				Int2 slot = mouseToSlot(mousePos.x - playerX, mousePos.y - playerY, separation, tileSize);
-				if (slot != null && slot.x < 9 && slot.y < 4) {
+				if (slot != null && slot.x < 10 && slot.y < 4) {
 					// Send chest action packet (player inventory slot)
 					if (connection != null) {
 						PacketChestAction packet = new PacketChestAction(
@@ -186,7 +186,7 @@ public class ChestUI {
 				relX, relY,
 				tileSize, separation,
 				separation, separation,
-				9, 4); // ChestUI handles grids up to 9x4 (Chest 9x3, Player Inv 9x4)
+				10, 4); // ChestUI handles grids up to 9x4 (Chest 9x3, Player Inv 9x4)
 	}
 
 }

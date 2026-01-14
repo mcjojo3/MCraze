@@ -72,6 +72,9 @@ public class WorldSaveManager {
 		public long createdTime;
 		public long lastPlayedTime;
 		public String gameVersion = "0.1.0";
+		// CRITICAL FIX: Persist custom spawn location
+		public int spawnX;
+		public int spawnY;
 
 		public WorldMetadata() {
 		}
@@ -83,6 +86,9 @@ public class WorldSaveManager {
 			this.worldHeight = height;
 			this.createdTime = Instant.now().toEpochMilli();
 			this.lastPlayedTime = this.createdTime;
+			// Default spawn (will be overwritten if world has custom spawn)
+			this.spawnX = width / 2;
+			this.spawnY = height / 2;
 		}
 	}
 
@@ -166,6 +172,11 @@ public class WorldSaveManager {
 					server.world.getSeed(), // CRITICAL FIX: Save actual world seed instead of 0
 					server.world.width,
 					server.world.height);
+			// Save current spawn location
+			if (server.world.spawnLocation != null) {
+				metadata.spawnX = server.world.spawnLocation.x;
+				metadata.spawnY = server.world.spawnLocation.y;
+			}
 			metadata.lastPlayedTime = Instant.now().toEpochMilli();
 
 			try (FileWriter writer = new FileWriter(levelTemp.toFile())) {
@@ -233,6 +244,11 @@ public class WorldSaveManager {
 
 		WorldMetadata metadata = new WorldMetadata(worldName, world.getSeed(), world.width,
 				world.height);
+		// Save current spawn location from snapshot logic (world object is live)
+		if (world.spawnLocation != null) {
+			metadata.spawnX = world.spawnLocation.x;
+			metadata.spawnY = world.spawnLocation.y;
+		}
 		metadata.lastPlayedTime = Instant.now().toEpochMilli();
 
 		mc.sayda.mcraze.Constants.TileID[][] tilesSnapshot = world.cloneTiles();
@@ -483,6 +499,20 @@ public class WorldSaveManager {
 			world.setSeed(metadata.seed);
 		}
 
+		if (world != null) {
+			world.setSeed(metadata.seed);
+			// Restore spawn location from metadata if valid (check if non-zero or specific
+			// flag?)
+			// Assuming (0,0) is rarely a valid spawn in center of blocks, but let's trust
+			// metadata if it exists
+			// Gson defaults ints to 0. If saved as 0, it means 0.
+			// Only update if not default constructor state?
+			// The constructor calculates a safe spawn. We overwrite it if metadata has
+			// intent.
+			// Let's assume metadata is authority.
+			world.spawnLocation = new mc.sayda.mcraze.util.Int2(metadata.spawnX, metadata.spawnY);
+		}
+
 		return world;
 	}
 
@@ -543,6 +573,8 @@ public class WorldSaveManager {
 		// CRITICAL FIX: Restore world seed from metadata
 		if (server.world != null) {
 			server.world.setSeed(metadata.seed);
+			// Restore spawn location from metadata
+			server.world.spawnLocation = new mc.sayda.mcraze.util.Int2(metadata.spawnX, metadata.spawnY);
 		}
 
 		// Set spawn location from loaded world

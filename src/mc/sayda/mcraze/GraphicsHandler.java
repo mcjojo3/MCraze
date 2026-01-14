@@ -5,7 +5,7 @@ import mc.sayda.mcraze.awtgraphics.AwtGraphicsHandler;
 public abstract class GraphicsHandler {
 	public static final boolean awtMode = true;
 
-	protected static int screenWidth = 854;  // 16:9 aspect ratio
+	protected static int screenWidth = 854; // 16:9 aspect ratio
 	protected static int screenHeight = 480;
 
 	private static GraphicsHandler single;
@@ -54,4 +54,6 @@ public abstract class GraphicsHandler {
 	public abstract void drawImage(Sprite sprite, int x, int y, int width, int height);
 
 	public abstract void drawImage(Sprite sprite, int x, int y, int width, int height, Color tint);
+
+	public abstract boolean isWindowOpen();
 }

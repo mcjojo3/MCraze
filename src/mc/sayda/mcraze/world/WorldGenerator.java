@@ -17,6 +17,7 @@ import mc.sayda.mcraze.logging.GameLogger;
 import java.util.ArrayList;
 import java.util.Random;
 
+import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.Constants.TileID;
 import mc.sayda.mcraze.util.Int2;
 import mc.sayda.mcraze.Constants.TileID;
@@ -643,29 +644,32 @@ public class WorldGenerator {
 			System.out.println("Col " + i + ": world[" + i + "][" + median + "]=" + world[i][median]);
 		}
 
-		uniformlyAddMinerals(world, TileID.COAL_ORE, .01f, (int) (height * .4),
+		uniformlyAddMinerals(world, TileID.COAL_ORE, Constants.ORE_COAL_FREQUENCY, (int) (height * .4),
 				(int) (height * .9), new TileID[] { TileID.DIRT, TileID.SAND, TileID.WATER,
 						TileID.NONE },
 				random);
 
 		// Iron ore: Common, deeper underground (60% to 95%)
-		uniformlyAddMinerals(world, TileID.IRON_ORE, .005f, (int) (height * .6), (int) (height * .95),
+		uniformlyAddMinerals(world, TileID.IRON_ORE, Constants.ORE_IRON_FREQUENCY, (int) (height * .6),
+				(int) (height * .95),
 				new TileID[] { TileID.DIRT, TileID.SAND, TileID.WATER, TileID.NONE }, random);
 
 		// Gold ore: Rare, deep underground only (75% to 95%)
-		uniformlyAddMinerals(world, TileID.GOLD_ORE, .005f, (int) (height * .75), (int) (height * .95),
+		uniformlyAddMinerals(world, TileID.GOLD_ORE, Constants.ORE_GOLD_FREQUENCY, (int) (height * .75),
+				(int) (height * .95),
 				new TileID[] { TileID.DIRT, TileID.SAND, TileID.WATER, TileID.NONE }, random);
 
 		// Diamond ore: Very rare, deepest layers only (90% to 100%)
-		uniformlyAddMinerals(world, TileID.DIAMOND_ORE, .001f, (int) (height * .9), height,
+		uniformlyAddMinerals(world, TileID.DIAMOND_ORE, Constants.ORE_DIAMOND_FREQUENCY, (int) (height * .9), height,
 				new TileID[] { TileID.DIRT, TileID.SAND, TileID.WATER, TileID.NONE }, random);
 
 		// Lapis ore: Moderate rarity, specific deep layer (70% to 90%)
-		uniformlyAddMinerals(world, TileID.LAPIS_ORE, .003f, (int) (height * .7), (int) (height * .9),
+		uniformlyAddMinerals(world, TileID.LAPIS_ORE, Constants.ORE_LAPIS_FREQUENCY, (int) (height * .7),
+				(int) (height * .9),
 				new TileID[] { TileID.DIRT, TileID.SAND, TileID.WATER, TileID.NONE }, random);
 
 		// Emerald ore: Extremely rare, very deep with small veins (85% to 100%)
-		uniformlyAddMinerals(world, TileID.EMERALD_ORE, .0005f, (int) (height * .85), height,
+		uniformlyAddMinerals(world, TileID.EMERALD_ORE, Constants.ORE_EMERALD_FREQUENCY, (int) (height * .85), height,
 				new TileID[] { TileID.DIRT, TileID.SAND, TileID.WATER, TileID.NONE }, random, 0.5, 1.5);
 
 		TileID[] caveIgnore = new TileID[] { TileID.DIRT, TileID.COAL_ORE, TileID.WATER,

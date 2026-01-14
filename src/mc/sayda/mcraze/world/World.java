@@ -36,7 +36,7 @@ public class World implements java.io.Serializable {
 
 	private int chunkNeedsUpdate;
 	private int chunkCount;
-	private int chunkWidth = 16;
+	private int chunkWidth = Constants.WORLD_CHUNK_SIZE;
 	private volatile boolean chunkFillRight = true;
 	private Random random;
 
@@ -45,7 +45,7 @@ public class World implements java.io.Serializable {
 	private long seed; // World generation seed
 	private Biome[] biomeMap; // One biome per X column
 	private long ticksAlive = 0;
-	private final int dayLength = 20000;
+	private final int dayLength = Constants.WORLD_DAY_LENGTH_TICKS;
 	private LightingEngine lightingEngineSun;
 	private LightingEngine lightingEngineSourceBlocks;
 
@@ -533,11 +533,22 @@ public class World implements java.io.Serializable {
 	public void changeTile(int x, int y, Tile tile) {
 		// CRITICAL FIX: Create NEW Tile instance to prevent backdrop hivemind bug
 		// Directly assigning references causes multiple tiles to share the same object
+
+		// Capture existing backdrop BEFORE overwriting
+		TileType existingBackdrop = null;
+		if (tiles[x][y] != null) {
+			existingBackdrop = tiles[x][y].backdropType;
+		}
+
 		tiles[x][y] = new Tile(tile.type);
-		// Preserve backdrop if it exists on the source tile
+
+		// Preserve backdrop if it exists on the source tile OR the old tile
 		if (tile.backdropType != null) {
 			tiles[x][y].backdropType = tile.backdropType;
+		} else if (existingBackdrop != null) {
+			tiles[x][y].backdropType = existingBackdrop; // Restore old backdrop
 		}
+
 		if (tile.type.lightBlocking > 0) {
 			lightingEngineSun.addedTile(x, y);
 			lightingEngineSourceBlocks.addedTile(x, y);
@@ -611,24 +622,6 @@ public class World implements java.io.Serializable {
 		chests.put(ChestData.makeKey(x, y), chest);
 	}
 
-	private TileID[] breakWood = new TileID[] {
-			TileID.WOOD, TileID.PLANK, TileID.WORKBENCH, TileID.CHEST,
-			TileID.DOOR_TOP_CLOSED, TileID.DOOR_TOP, TileID.DOOR_BOT_CLOSED, TileID.DOOR_BOT,
-			TileID.BED_LEFT, TileID.BED_RIGHT
-	};
-
-	private TileID[] breakStone = new TileID[] {
-			TileID.STONE, TileID.COBBLE, TileID.COAL_ORE, TileID.COAL_BLOCK, TileID.LAPIS_BLOCK, TileID.FURNACE
-	};
-
-	private TileID[] breakIron = new TileID[] {
-			TileID.IRON_ORE, TileID.DIAMOND_BLOCK, TileID.IRON_BLOCK, TileID.GOLD_BLOCK, TileID.EMERALD_BLOCK
-	};
-
-	private TileID[] breakDiamond = new TileID[] {
-			TileID.DIAMOND_ORE
-	};
-
 	private TileID[] breakPlant = new TileID[] {
 			TileID.TALL_GRASS, TileID.ROSE, TileID.DANDELION, TileID.WHEAT, TileID.WHEAT_SEEDS, TileID.SAPLING,
 			TileID.LEAVES, // TileID.CACTUS
@@ -640,49 +633,97 @@ public class World implements java.io.Serializable {
 		}
 		TileID currentName = tiles[x][y].type.name;
 
-		TileID[] breakType = null; // hand breakable by all
-
 		// Check plant category first (almost instant break)
 		for (TileID element : breakPlant) {
 			if (element == currentName) {
-				return 3; // Plants break almost instantly (3 ticks = 0.15 seconds at 20 TPS)
+				return 3; // Plants break almost instantly
 			}
-		}
-		for (TileID element : breakWood) {
-			if (element == currentName) {
-				breakType = breakWood;
-			}
-		}
-		for (TileID element : breakStone) {
-			if (element == currentName) {
-				breakType = breakStone;
-			}
-		}
-		for (TileID element : breakIron) {
-			if (element == currentName) {
-				breakType = breakIron;
-			}
-		}
-		for (TileID element : breakDiamond) {
-			if (element == currentName) {
-				breakType = breakDiamond;
-			}
-		}
-		if (item == null || !(item instanceof Tool)) {
-			return handResult(breakType);
-		}
-		Tool tool = (Tool) item;
-		if (breakType == breakWood && tool.toolType == Tool.ToolType.Axe) {
-			return (int) (getSpeed(tool) * 20);
-		} else if (breakType != breakWood && breakType != null
-				&& tool.toolType == Tool.ToolType.Pick) {
-			return (int) (getSpeed(tool) * 25);
-		} else if (breakType == null && tool.toolType == Tool.ToolType.Shovel) {
-			return (int) (getSpeed(tool) * 15);
-		} else {
-			return handResult(breakType);
 		}
 
+		// Look up block properties from items.json
+		Item blockItem = null;
+		if (currentName.itemDropId != null) {
+			blockItem = Constants.itemTypes.get(currentName.itemDropId);
+		}
+
+		// Determine required tool and power
+		Tool.ToolType requiredTool = null;
+		Tool.ToolPower requiredPower = null;
+
+		if (blockItem != null) {
+			requiredTool = blockItem.requiredToolType;
+			requiredPower = blockItem.requiredToolPower;
+		}
+
+		// Calculate break time
+		if (item == null || !(item instanceof Tool)) {
+			// Hand breaking
+			if (requiredTool == Tool.ToolType.Pick)
+				return 500; // Cannot break stone/ore/metal by hand
+			if (requiredTool == Tool.ToolType.Axe)
+				return 75; // Slower for wood
+			return 50; // Default hand speed (Dirt, Sand, etc)
+		}
+
+		Tool tool = (Tool) item;
+
+		// If block has specific requirement
+		if (requiredTool != null) {
+			if (tool.toolType == requiredTool) {
+				// Correct tool type!
+
+				// Check power requirement
+				boolean sufficientPower = true;
+				if (requiredPower != null) {
+					// Use ordinal comparison (Wood=0, Stone=1, etc)
+					if (tool.toolPower.ordinal() < requiredPower.ordinal()) {
+						sufficientPower = false;
+					}
+				}
+
+				if (sufficientPower) {
+					// Apply speed multiplier based on tool type
+					double multiplier = 10;
+					switch (tool.toolType) {
+						case Axe:
+							multiplier = 20;
+							break;
+						case Pick:
+							multiplier = 25;
+							break;
+						case Shovel:
+							multiplier = 15;
+							break;
+						case Hoe:
+							multiplier = 5;
+							break;
+						default:
+							multiplier = 10;
+					}
+					// Return ticks (base speed * multiplier)
+					// Warning: this formula relies on getSpeed returning a small value (0.1 - 5)
+					// Existing code used: speed * 20 or 25.
+					return (int) (getSpeed(tool) * multiplier);
+				} else {
+					// Insufficient power (e.g. Wood Pick on Gold Ore)
+					return 500; // Treat as impossible/very slow
+				}
+			} else {
+				// Wrong tool type
+				if (requiredTool == Tool.ToolType.Pick)
+					return 500;
+				if (requiredTool == Tool.ToolType.Axe)
+					return 75;
+				return 50;
+			}
+		}
+
+		// No specific requirement defined?
+		// Fallback for blocks not in items.json or without requirements
+		if (tool.toolType == Tool.ToolType.Shovel)
+			return (int) (getSpeed(tool) * 15);
+
+		return 50;
 	}
 
 	private double getSpeed(Tool tool) {
@@ -698,16 +739,6 @@ public class World implements java.io.Serializable {
 			return 1;
 		} else {
 			return 0.1;
-		}
-	}
-
-	private int handResult(TileID[] breakType) {
-		if (breakType == null) {
-			return 50;
-		} else if (breakType == breakWood) {
-			return 75;
-		} else {
-			return 500;
 		}
 	}
 

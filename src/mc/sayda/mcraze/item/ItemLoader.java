@@ -56,6 +56,8 @@ class ItemDefinition {
 	String[][] recipe;
 	int yield;
 	boolean shapeless;
+	String requiredTool;
+	String requiredPower;
 
 	public ItemDefinition(String id, String n, String s, String[][] t, int y, boolean sh) {
 		itemId = id;
@@ -67,7 +69,22 @@ class ItemDefinition {
 	}
 
 	public Item makeItem(int size) {
-		return new Item(spriteRef, size, itemId, name, recipe, yield, shapeless);
+		Item item = new Item(spriteRef, size, itemId, name, recipe, yield, shapeless);
+		if (requiredTool != null) {
+			try {
+				item.requiredToolType = Tool.ToolType.valueOf(requiredTool);
+			} catch (IllegalArgumentException e) {
+				System.err.println("Invalid requiredTool: " + requiredTool + " for " + itemId);
+			}
+		}
+		if (requiredPower != null) {
+			try {
+				item.requiredToolPower = Tool.ToolPower.valueOf(requiredPower);
+			} catch (IllegalArgumentException e) {
+				System.err.println("Invalid requiredPower: " + requiredPower + " for " + itemId);
+			}
+		}
+		return item;
 	}
 }
 

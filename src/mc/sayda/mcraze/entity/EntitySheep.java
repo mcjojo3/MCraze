@@ -34,7 +34,7 @@ public class EntitySheep extends LivingEntity {
         this.sprite = mc.sayda.mcraze.SpriteStore.get().getSprite("sprites/entities/sheep.png");
 
         // Set initial health
-        this.hitPoints = 20; // 2x original health to make tool tiers more noticeable
+        this.hitPoints = 8; // Standard health (4 hearts)
 
         // Slower than player
         this.speedMultiplier = 0.5f;

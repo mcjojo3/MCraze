@@ -78,6 +78,9 @@ public class SharedWorld {
 	// Command handler (for integrated server only)
 	private mc.sayda.mcraze.ui.CommandHandler commandHandler;
 
+	// Spawning
+	private MobSpawner mobSpawner;
+
 	public SharedWorld(int worldWidth, Random random, String worldName) {
 		this(worldWidth, random, worldName, null); // Integrated server - no world directory
 	}
@@ -88,6 +91,21 @@ public class SharedWorld {
 		this.worldName = worldName;
 		this.worldDirectory = worldDirectory;
 		this.players = new CopyOnWriteArrayList<>(); // Thread-safe for concurrent access
+
+		// Initialize spawner with rules
+		this.mobSpawner = new MobSpawner(this);
+		// Sheep rule: Weight 50, Group 1-3, Non-hostile, Biomes: Plains, Forest,
+		// Mountain
+		// Sheep rule: 32x32 dimensions
+		this.mobSpawner.addRule(new SpawnRule(mc.sayda.mcraze.entity.EntitySheep.class, 50, 1, 3, false, 32, 32,
+				mc.sayda.mcraze.world.Biome.PLAINS, mc.sayda.mcraze.world.Biome.FOREST,
+				mc.sayda.mcraze.world.Biome.MOUNTAIN));
+
+		// Zombie rule: 28x56 dimensions
+		this.mobSpawner.addRule(new SpawnRule(mc.sayda.mcraze.entity.EntityZombie.class, 20, 1, 2, true, 28, 56,
+				mc.sayda.mcraze.world.Biome.PLAINS, mc.sayda.mcraze.world.Biome.FOREST,
+				mc.sayda.mcraze.world.Biome.MOUNTAIN, mc.sayda.mcraze.world.Biome.DESERT,
+				mc.sayda.mcraze.world.Biome.SNOW));
 
 		// Generate world
 		System.out.println("SharedWorld: Generating world '" + worldName + "' (" + worldWidth + " wide)...");
@@ -126,6 +144,21 @@ public class SharedWorld {
 		this.players = new CopyOnWriteArrayList<>();
 		this.world = world;
 		this.worldAccess = new WorldAccess(world);
+
+		// Initialize spawner with rules
+		this.mobSpawner = new MobSpawner(this);
+		// Sheep rule: Weight 50, Group 1-3, Non-hostile, Biomes: Plains, Forest,
+		// Mountain
+		// Sheep rule: 32x32 dimensions
+		this.mobSpawner.addRule(new SpawnRule(mc.sayda.mcraze.entity.EntitySheep.class, 50, 1, 3, false, 32, 32,
+				mc.sayda.mcraze.world.Biome.PLAINS, mc.sayda.mcraze.world.Biome.FOREST,
+				mc.sayda.mcraze.world.Biome.MOUNTAIN));
+
+		// Zombie rule: 28x56 dimensions (exact match to Player: 7*4, 14*4)
+		this.mobSpawner.addRule(new SpawnRule(mc.sayda.mcraze.entity.EntityZombie.class, 20, 1, 2, true, 28, 56,
+				mc.sayda.mcraze.world.Biome.PLAINS, mc.sayda.mcraze.world.Biome.FOREST,
+				mc.sayda.mcraze.world.Biome.MOUNTAIN, mc.sayda.mcraze.world.Biome.DESERT,
+				mc.sayda.mcraze.world.Biome.SNOW));
 
 		// Load chest data from disk
 		java.util.Map<String, mc.sayda.mcraze.world.ChestData> loadedChests = mc.sayda.mcraze.world.WorldSaveManager
@@ -615,6 +648,14 @@ public class SharedWorld {
 				packet.entityTypes[i] = "Item";
 				packet.itemIds[i] = ((Item) entity).itemId;
 				packet.playerNames[i] = null;
+			} else if (entity instanceof mc.sayda.mcraze.entity.EntitySheep) {
+				packet.entityTypes[i] = "Sheep";
+				packet.itemIds[i] = null;
+				packet.playerNames[i] = null;
+			} else if (entity instanceof mc.sayda.mcraze.entity.EntityZombie) {
+				packet.entityTypes[i] = "Zombie";
+				packet.itemIds[i] = null;
+				packet.playerNames[i] = null;
 			} else {
 				packet.entityTypes[i] = "Unknown";
 				packet.itemIds[i] = null;
@@ -714,6 +755,16 @@ public class SharedWorld {
 			return;
 
 		ticksRunning++;
+
+		// Spawning logic (every 1 second = 60 ticks)
+		if (mobSpawner != null && ticksRunning % 60 == 0) {
+			mobSpawner.tick();
+		}
+
+		// Despawn logic (every 5 seconds = 100 ticks)
+		if (mobSpawner != null && ticksRunning % 100 == 0) {
+			mobSpawner.despawnTick();
+		}
 
 		// Only log first few ticks in DEBUG mode
 		if (logger != null && ticksRunning <= 10) {
@@ -879,8 +930,17 @@ public class SharedWorld {
 				}
 			}
 
+			if (entity.dead) {
+				continue;
+			}
+
+			// Allow entities access to server context (e.g. for AI targeting)
+			if (entity instanceof LivingEntity) {
+				((LivingEntity) entity).tick(this);
+			}
+
 			// Update entity
-			entity.updatePosition(world, tileSize);
+			entity.updatePosition(world, Constants.TILE_SIZE);
 
 			// Check for death
 			if (entity instanceof LivingEntity) {
@@ -1126,6 +1186,10 @@ public class SharedWorld {
 				packet.playerNames[i] = null;
 			} else if (entity instanceof mc.sayda.mcraze.entity.EntitySheep) {
 				packet.entityTypes[i] = "Sheep";
+				packet.itemIds[i] = null;
+				packet.playerNames[i] = null;
+			} else if (entity instanceof mc.sayda.mcraze.entity.EntityZombie) {
+				packet.entityTypes[i] = "Zombie";
 				packet.itemIds[i] = null;
 				packet.playerNames[i] = null;
 			} else {
@@ -1502,6 +1566,70 @@ public class SharedWorld {
 			return;
 		}
 
+		// SAFETY CHECKS (Sword & UI)
+		mc.sayda.mcraze.item.Item held = player.inventory.selectedItem().getItem();
+
+		// 1. UI Check - Cannot build/break while inventory is open
+		if (player.inventory.isVisible()) {
+			// Re-sync client to prevent ghost blocks
+			Tile tile = worldAccess.getTile(packet.x, packet.y);
+			char tileId = (char) (tile != null && tile.type != null ? tile.type.name.ordinal() : 0);
+			playerConnection.getConnection().sendPacket(new PacketBlockChange(packet.x, packet.y, tileId, false));
+			return;
+		}
+
+		// 2. Sword Check - Swords cannot break blocks (anti-grief / combat focus)
+		if (packet.isBreak && held instanceof mc.sayda.mcraze.item.Tool) {
+			mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) held;
+			if (tool.toolType == mc.sayda.mcraze.item.Tool.ToolType.Sword) {
+				// Correction packet
+				playerConnection.getConnection().sendPacket(new PacketBreakingProgress(packet.x, packet.y, 0, 0));
+				return;
+			}
+		}
+
+		// HEALING / EATING SYSTEM (Right-click with food)
+		if (!packet.isBreak && held != null && held.itemId != null) {
+			int healAmount = 0;
+			boolean isFood = false;
+
+			if (held.itemId.equals("bread")) {
+				healAmount = 20; // 2 Hearts
+				isFood = true;
+			} else if (held.itemId.equals("apple")) {
+				healAmount = 10; // 1 Heart
+				isFood = true;
+			} else if (held.itemId.equals("golden_apple")) {
+				healAmount = 100; // Full heal (max HP)
+				isFood = true;
+			}
+
+			if (isFood) {
+				// EATING COOLDOWN CHECK
+				long currentTime = System.currentTimeMillis();
+				Long lastEat = interactCooldowns.get(player.username + "_eat"); // Separate key for eating
+				if (lastEat != null && currentTime - lastEat < 500) { // 500ms cooldown
+					return;
+				}
+
+				if (player.hitPoints < player.getMaxHP()) {
+					// Apply heal
+					player.heal(healAmount);
+					interactCooldowns.put(player.username + "_eat", currentTime);
+
+					// Consume item
+					player.inventory.selectedItem().remove(1);
+					broadcastInventoryUpdates();
+
+					// Feedback
+					playerConnection.getConnection().sendPacket(
+							new PacketChatMessage("Yum! Healed " + healAmount + " HP.",
+									new mc.sayda.mcraze.Color(100, 255, 100)));
+					return; // Consumed food, don't place block
+				}
+			}
+		}
+
 		// Dead players cannot break or place blocks
 		if (player.dead) {
 			return;
@@ -1511,6 +1639,14 @@ public class SharedWorld {
 		BreakingState breakingState = getBreakingState(player);
 
 		if (packet.isBreak) {
+			// CRITICAL FIX: Explicit STOP BREAKING signal
+			// When client releases mouse, it sends x=-1 to cancels breaking immediately
+			if (packet.x == -1) {
+				breakingState.reset();
+				playerConnection.getConnection().sendPacket(new PacketBreakingProgress(0, 0, 0, 0));
+				return;
+			}
+
 			// BACKDROP MODE: Break backdrop instead of foreground
 			if (player.backdropPlacementMode) {
 				if (world.hasBackdrop(packet.x, packet.y)) {
@@ -1705,10 +1841,18 @@ public class SharedWorld {
 						// Broadcast new time to all players
 						broadcastWorldTime();
 
+						// Heal player for sleeping
+						player.heal(20);
+
 						if (logger != null) {
 							logger.info("SharedWorld: Player " + player.username +
 									" used bed to skip night at (" + packet.x + ", " + packet.y + ")");
 						}
+
+						// Feedback
+						playerConnection.getConnection().sendPacket(
+								new PacketChatMessage("You slept and feel refreshed (+20 HP).",
+										new mc.sayda.mcraze.Color(100, 255, 100)));
 					} else {
 						// Can only sleep at night - add cooldown to prevent message spam
 						long currentTime = System.currentTimeMillis();
@@ -1796,6 +1940,25 @@ public class SharedWorld {
 						// If not on farmland, seeds will deny placement
 						return;
 					}
+				} else if (selectedItem.itemId.equals("bread")) {
+					// Only eat if not at full health
+					if (player.hitPoints < player.getMaxHP()) {
+						player.heal(5); // Heal 5 HP
+						player.inventory.selectedItem().remove(1); // Consume 1 bread
+						broadcastInventoryUpdates(); // Sync inventory
+
+						// Send feedback
+						if (logger != null) {
+							logger.info(
+									"SharedWorld: Player " + player.username + " ate bread. HP: " + player.hitPoints);
+						}
+						PacketChatMessage msg = new PacketChatMessage(
+								"You ate some bread. (+5 HP)",
+								new mc.sayda.mcraze.Color(100, 255, 100)); // Green color
+						playerConnection.getConnection().sendPacket(msg);
+
+					}
+					return; // Don't place block
 				}
 			}
 
@@ -2462,8 +2625,8 @@ public class SharedWorld {
 		}
 
 		// RANGE VALIDATION: Prevent infinite reach
-		// Using 5.0 tiles as a generous melee range (adjust as needed)
-		float maxReach = 5.0f;
+		// Using PLAYER_REACH tiles as a generous melee range (adjust as needed)
+		float maxReach = mc.sayda.mcraze.Constants.PLAYER_REACH;
 		float dx = attacker.x - target.x;
 		float dy = attacker.y - target.y;
 		float distSq = dx * dx + dy * dy;
@@ -2501,14 +2664,17 @@ public class SharedWorld {
 		}
 
 		// Calculate damage from held item
-		int damage = 0; // Default: no damage (fists/tools cannot attack)
+		int damage = 0; // Default: 0 damage (prevent attack unless sword)
 		mc.sayda.mcraze.item.InventoryItem heldItem = attacker.inventory.selectedItem();
+		boolean isSword = false;
+
 		if (heldItem != null && !heldItem.isEmpty() && heldItem.getItem() instanceof mc.sayda.mcraze.item.Tool) {
 			mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) heldItem.getItem();
 
-			// WEAPON RESTRICTION: Only swords can deal damage to entities
+			// Add tool damage if it's a weapon (Sword)
 			if (tool.toolType == mc.sayda.mcraze.item.Tool.ToolType.Sword) {
 				damage = tool.attackDamage;
+				isSword = true;
 
 				// Damage sword durability (swords lose 1 durability per hit)
 				tool.uses++;
@@ -2520,18 +2686,32 @@ public class SharedWorld {
 			}
 		}
 
-		// Only apply damage if holding a valid weapon
-		if (damage <= 0) {
-			GameLogger.get()
-					.debug("Player " + playerConnection.getPlayerName() + " attack rejected: damage=0 (heldItem: " +
-							(heldItem != null && !heldItem.isEmpty() ? heldItem.getItem().itemId : "empty") + ")");
+		// User Request: Only allow attacks with Swords
+		if (!isSword) {
+			// Reject attack
 			return;
 		}
+
+		// Only apply damage if holding a valid weapon or fist (damage > 0)
+		if (damage <= 0) {
+			GameLogger.get()
+					.debug("Player " + playerConnection.getPlayerName() + " attack rejected: damage=0");
+			return;
+		}
+
+		// DEBUG: Trace attack
+		System.out.println("DEBUG: Processing attack from " + playerConnection.getPlayerName() +
+				" on " + target.getClass().getSimpleName() + " (" + target.getUUID() + ")");
+		System.out.println("DEBUG: Target stats - HP: " + livingTarget.hitPoints +
+				", Dead: " + livingTarget.dead +
+				", Invuln: " + livingTarget.invulnerabilityTicks);
 
 		// Apply damage to target
 		GameLogger.get().info("Player " + playerConnection.getPlayerName() + " attacking " +
 				target.getClass().getSimpleName() + " (UUID: " + target.getUUID() + ") with damage " + damage);
 		livingTarget.takeDamage(damage);
+
+		System.out.println("DEBUG: Post-damage - HP: " + livingTarget.hitPoints + ", Dead: " + livingTarget.dead);
 
 		GameLogger.get().info("Player " + playerConnection.getPlayerName() + " attacked " +
 				target.getClass().getSimpleName() + " for " + damage + " damage");
@@ -2542,7 +2722,81 @@ public class SharedWorld {
 		// Check if target died
 		if (livingTarget.dead) {
 			GameLogger.get().info(target.getClass().getSimpleName() + " died from attack");
-			// Entity death handling will be in the entity's tick/update logic
+			System.out.println("DEBUG: Entity died. UUID: " + livingTarget.getUUID());
+
+			if (livingTarget instanceof mc.sayda.mcraze.entity.Player) {
+				mc.sayda.mcraze.entity.Player deadPlayer = (mc.sayda.mcraze.entity.Player) livingTarget;
+				System.out.println("DEBUG: Player died: " + deadPlayer.username);
+
+				// 1. Drop Items (Server Side) - Respect keepInventory gamerule
+				if (!world.keepInventory) {
+					java.util.ArrayList<mc.sayda.mcraze.item.Item> dropped = deadPlayer.dropAllItems(random);
+					if (dropped != null) {
+						for (mc.sayda.mcraze.item.Item item : dropped) {
+							addEntity(item);
+						}
+					}
+					broadcastInventoryUpdates(); // Sync empty inventory
+				} else {
+					System.out.println("DEBUG: keepInventory is ON. Items prevented from dropping.");
+				}
+
+				// 2. Find Connection and Send Death Packet (Unicast)
+				for (PlayerConnection pc : players) {
+					// CRITICAL FIX: Use UUID matching instead of reference equality
+					// Ensures we find the correct connection even if entity objects differ
+					if (pc.getPlayer() != null && pc.getPlayer().getUUID().equals(deadPlayer.getUUID())) {
+						System.out.println("DEBUG: Sending PacketPlayerDeath to " + pc.getPlayerName());
+						pc.getConnection().sendPacket(new mc.sayda.mcraze.network.packet.PacketPlayerDeath());
+						break;
+					}
+				}
+			} else {
+				// Mob Loot Logic
+				if (livingTarget instanceof mc.sayda.mcraze.entity.EntitySheep) {
+					System.out.println("DEBUG: Dropping wool for sheep");
+					// Drop 1-3 wool
+					int count = 1 + random.nextInt(3);
+					// CRITICAL FIX: Safe item lookup to prevent NPE
+					mc.sayda.mcraze.item.Item woolTemplate = Constants.itemTypes.get("white_wool");
+					if (woolTemplate != null) {
+						for (int i = 0; i < count; i++) {
+							mc.sayda.mcraze.item.Item wool = woolTemplate.clone();
+							wool.x = livingTarget.x + random.nextFloat() * 0.5f;
+							wool.y = livingTarget.y + random.nextFloat() * 0.5f;
+							wool.dy = -0.1f - random.nextFloat() * 0.1f;
+							addEntity(wool);
+							System.out.println("DEBUG: Dropped wool at " + wool.x + ", " + wool.y);
+						}
+					} else {
+						System.err.println("ERROR: 'white_wool' item not found in registry! Cannot drop loot.");
+					}
+				} else if (livingTarget instanceof mc.sayda.mcraze.entity.EntityZombie) {
+					// 20% chance to drop iron
+					if (random.nextFloat() < 0.2f) {
+						mc.sayda.mcraze.item.Item ironTemplate = mc.sayda.mcraze.Constants.itemTypes.get("iron_ore");
+						if (ironTemplate != null) {
+							mc.sayda.mcraze.item.Item iron = ironTemplate.clone();
+							iron.x = livingTarget.x + random.nextFloat() * 0.5f;
+							iron.y = livingTarget.y + random.nextFloat() * 0.5f;
+							iron.dy = -0.1f;
+							addEntity(iron);
+							if (GameLogger.get() != null)
+								GameLogger.get().info("Zombie dropped iron_ore");
+						}
+					}
+				}
+			}
+
+			// Remove entity
+			System.out.println("DEBUG: Removing entity from manager");
+			entityManager.remove(livingTarget);
+
+			// Broadcast removal
+			System.out.println("DEBUG: Broadcasting removal packet");
+			mc.sayda.mcraze.network.packet.PacketEntityRemove removePacket = new mc.sayda.mcraze.network.packet.PacketEntityRemove(
+					livingTarget.getUUID());
+			broadcastPacket(removePacket);
 		}
 	}
 
@@ -2575,9 +2829,9 @@ public class SharedWorld {
 		player.respawn(spawnX, spawnY);
 
 		// Broadcast immediate respawn state to all clients
-		// This ensures all clients see respawn instantly (symmetric with
-		// PacketPlayerDeath)
-		mc.sayda.mcraze.network.packet.PacketPlayerRespawn respawnPacket = new mc.sayda.mcraze.network.packet.PacketPlayerRespawn();
+		// Broadcast immediate respawn state to all clients
+		mc.sayda.mcraze.network.packet.PacketPlayerRespawn respawnPacket = new mc.sayda.mcraze.network.packet.PacketPlayerRespawn(
+				player.getUUID());
 		broadcastPacket(respawnPacket);
 
 		if (logger != null) {
@@ -2703,7 +2957,7 @@ public class SharedWorld {
 		if (broken == Constants.TileID.CHEST) {
 			mc.sayda.mcraze.world.ChestData chestData = world.getChest(x, y);
 			if (chestData != null) {
-				for (int cx = 0; cx < 9; cx++) {
+				for (int cx = 0; cx < 10; cx++) { // FIXED: 10 slots wide
 					for (int cy = 0; cy < 3; cy++) {
 						mc.sayda.mcraze.item.InventoryItem invItem = chestData.items[cx][cy];
 						if (invItem != null && !invItem.isEmpty()) {
@@ -2778,8 +3032,19 @@ public class SharedWorld {
 			dropId = Constants.TileID.DIRT;
 		if (broken == Constants.TileID.STONE)
 			dropId = Constants.TileID.COBBLE;
-		if (broken == Constants.TileID.LEAVES && random.nextDouble() < 0.1)
-			dropId = Constants.TileID.SAPLING;
+		if (broken == Constants.TileID.LEAVES) {
+			if (random.nextDouble() < 0.1) {
+				dropId = Constants.TileID.SAPLING;
+			}
+			// Apple drops (independent chance)
+			if (random.nextDouble() < 0.05) { // 5% chance
+				Item apple = Constants.itemTypes.get("apple").clone();
+				apple.x = x + random.nextFloat() * 0.5f;
+				apple.y = y + random.nextFloat() * 0.5f;
+				apple.dy = -0.07f;
+				entityManager.add(apple);
+			}
+		}
 
 		if (broken == Constants.TileID.TALL_GRASS) {
 			if (random.nextDouble() < 0.75) {

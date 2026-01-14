@@ -190,7 +190,7 @@ public class Game {
 		// Show loading screen
 		client.showLoadingScreen();
 		client.setLoadingStatus("Initializing...");
-		client.setLoadingProgress(10);
+		client.setLoadingProgressImmediate(10);
 		client.render(); // Force render to display loading screen
 
 		// If server is null (e.g., after returning from multiplayer), recreate
@@ -213,7 +213,7 @@ public class Game {
 			client.switchToMultiplayer(clientConnection, server); // Reuse this to reconnect
 		}
 
-		client.setLoadingProgress(30);
+		client.setLoadingProgressImmediate(30);
 		client.render(); // Update display
 
 		// Load or generate world
@@ -242,7 +242,7 @@ public class Game {
 			client.setLoadingStatus("Generating world...");
 			client.addLoadingMessage("Generating new world (" + width + " blocks wide)...");
 		}
-		client.setLoadingProgress(50);
+		client.setLoadingProgressImmediate(50);
 		client.render(); // Update display
 
 		server.startGame(width, worldName, username, password, loadedWorld);
@@ -765,10 +765,41 @@ public class Game {
 				System.err.println("Crash report saved to: " + crashFile);
 			}
 
-			// Close logger if initialized
+			// Stop server/client threads if possible to prevent interference
 			if (GameLogger.get() != null) {
 				GameLogger.get().error("Fatal crash occurred", t);
 				GameLogger.get().close();
+			}
+
+			// Try to show crash screen if graphics are available
+			try {
+				mc.sayda.mcraze.GraphicsHandler g = mc.sayda.mcraze.GraphicsHandler.get();
+				if (g == null) {
+					// Initialize graphics if not already (e.g. startup crash)
+					g = new mc.sayda.mcraze.awtgraphics.AwtGraphicsHandler();
+					((mc.sayda.mcraze.awtgraphics.AwtGraphicsHandler) g).initCrashDisplay("MCraze - Crash Report", 800,
+							600);
+				}
+
+				if (g != null) {
+					mc.sayda.mcraze.ui.CrashScreen crashScreen = new mc.sayda.mcraze.ui.CrashScreen(crashFile, t);
+
+					// Simple crash loop
+					while (g.isWindowOpen()) {
+						crashScreen.tick();
+						g.startDrawing();
+						crashScreen.draw(g, 0, 0); // Mouse coords ignored for now
+						g.finishDrawing();
+
+						try {
+							Thread.sleep(16);
+						} catch (Exception e) {
+						}
+					}
+				}
+			} catch (Throwable uiError) {
+				System.err.println("Failed to display crash screen: " + uiError.getMessage());
+				uiError.printStackTrace();
 			}
 
 			System.exit(1);

@@ -32,7 +32,7 @@ public abstract class LivingEntity extends Entity {
 
 	protected final float walkSpeed = .1f;
 	protected final float swimSpeed = .04f;
-	protected float armLength = Constants.ARM_LENGTH;
+	protected float armLength = Constants.PLAYER_REACH;
 	protected float moveDirection = 0;
 	public int ticksUnderwater = 0; // PUBLIC for network sync
 	public boolean jumping = false; // PUBLIC for network sync
@@ -76,6 +76,14 @@ public abstract class LivingEntity extends Entity {
 		} else {
 			dy = -maxWaterDY - .000001f;// BIG HACK
 		}
+	}
+
+	/**
+	 * AI/Logic tick with access to server context (e.g. other entities/players)
+	 * Called before updatePosition
+	 */
+	public void tick(mc.sayda.mcraze.server.SharedWorld sharedWorld) {
+		// Default implementation does nothing
 	}
 
 	@Override
@@ -240,9 +248,11 @@ public abstract class LivingEntity extends Entity {
 	public void takeDamage(int amount) {
 		// Respect invulnerability frames (cooldown)
 		if (invulnerabilityTicks > 0) {
+			System.out.println("DEBUG: takeDamage rejected - invulnerabilityTicks = " + invulnerabilityTicks);
 			return;
 		}
 
+		System.out.println("DEBUG: takeDamage applied " + amount + " damage. Old HP: " + this.hitPoints);
 		this.hitPoints -= amount;
 
 		// Trigger red flash and invulnerability cooldown
@@ -256,8 +266,11 @@ public abstract class LivingEntity extends Entity {
 			this.hitPoints = 0;
 		}
 
+		System.out.println("DEBUG: New HP: " + this.hitPoints + ", Dead: " + this.dead);
+
 		// Trigger death immediately when health reaches exactly 0
 		if (this.hitPoints == 0 && !dead) {
+			System.out.println("DEBUG: Entity is invalid/dying!");
 			dead = true; // Mark as dead before calling onDeath
 			onDeath();
 		}
