@@ -410,7 +410,7 @@ public class MainMenu {
 
 		// Create IP input field and load last used IP
 		ipInput = new TextInput("ip_input", startY, BUTTON_WIDTH, BUTTON_HEIGHT, 32);
-		String lastIP = mc.sayda.mcraze.util.CredentialManager.loadLastIP();
+		String lastIP = mc.sayda.mcraze.util.OptionsManager.get().getLastServerIP();
 		ipInput.setText(lastIP != null ? lastIP : "localhost:25565"); // Use last IP or default
 
 		// Connect button
@@ -569,8 +569,10 @@ public class MainMenu {
 
 			System.out.println("Connecting to " + host + ":" + port);
 
-			// Save the IP address for next time
-			mc.sayda.mcraze.util.CredentialManager.saveLastIP(address);
+			// Save the IP address for next time (using OptionsManager)
+			mc.sayda.mcraze.util.OptionsManager.get().setLastServerIP(address);
+			// Legacy fallback for now (optional)
+			// mc.sayda.mcraze.util.CredentialManager.saveLastIP(address);
 
 			game.connectMultiplayer(host, port);
 		} catch (NumberFormatException e) {

@@ -37,44 +37,40 @@ public class SharedSettings {
 
 		// Volume down button
 		Button volumeDownBtn = new Button(
-			"volume_down",
-			"-",
-			205,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(this::volumeDown);
+				"volume_down",
+				"-",
+				205,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::volumeDown);
 
 		// Volume up button
 		Button volumeUpBtn = new Button(
-			"volume_up",
-			"+",
-			205,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(this::volumeUp);
+				"volume_up",
+				"+",
+				205,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::volumeUp);
 
 		buttons.add(volumeDownBtn);
 		buttons.add(volumeUpBtn);
 
 		// Music toggle button
 		Button musicToggleBtn = new Button(
-			"music_toggle",
-			getMusicButtonText(),
-			260,
-			TOGGLE_BUTTON_WIDTH,
-			TOGGLE_BUTTON_HEIGHT
-		).setOnClick(this::toggleMusic);
+				"music_toggle",
+				getMusicButtonText(),
+				260,
+				TOGGLE_BUTTON_WIDTH,
+				TOGGLE_BUTTON_HEIGHT).setOnClick(this::toggleMusic);
 
 		buttons.add(musicToggleBtn);
 
 		// FPS toggle button
 		Button fpsToggleBtn = new Button(
-			"fps_toggle",
-			getFPSButtonText(),
-			310,
-			TOGGLE_BUTTON_WIDTH,
-			TOGGLE_BUTTON_HEIGHT
-		).setOnClick(this::toggleFPS);
+				"fps_toggle",
+				getFPSButtonText(),
+				310,
+				TOGGLE_BUTTON_WIDTH,
+				TOGGLE_BUTTON_HEIGHT).setOnClick(this::toggleFPS);
 
 		buttons.add(fpsToggleBtn);
 	}
@@ -83,9 +79,12 @@ public class SharedSettings {
 	 * Decrease volume by 10%
 	 */
 	private void volumeDown() {
+		float currentVolume = mc.sayda.mcraze.util.OptionsManager.get().getMusicVolume();
+		float newVolume = currentVolume - 0.1f;
+		mc.sayda.mcraze.util.OptionsManager.get().setMusicVolume(newVolume);
+
 		if (game.getClient() != null && game.getClient().musicPlayer != null) {
-			float currentVolume = game.getClient().musicPlayer.getVolume();
-			game.getClient().musicPlayer.setVolume(currentVolume - 0.1f);
+			game.getClient().musicPlayer.setVolume(newVolume);
 		}
 	}
 
@@ -93,9 +92,12 @@ public class SharedSettings {
 	 * Increase volume by 10%
 	 */
 	private void volumeUp() {
+		float currentVolume = mc.sayda.mcraze.util.OptionsManager.get().getMusicVolume();
+		float newVolume = currentVolume + 0.1f;
+		mc.sayda.mcraze.util.OptionsManager.get().setMusicVolume(newVolume);
+
 		if (game.getClient() != null && game.getClient().musicPlayer != null) {
-			float currentVolume = game.getClient().musicPlayer.getVolume();
-			game.getClient().musicPlayer.setVolume(currentVolume + 0.1f);
+			game.getClient().musicPlayer.setVolume(newVolume);
 		}
 	}
 
@@ -118,13 +120,27 @@ public class SharedSettings {
 	 * Toggle FPS display
 	 */
 	private void toggleFPS() {
-		if (game.getClient() != null) {
-			game.getClient().toggleFPS();
+		boolean current = mc.sayda.mcraze.util.OptionsManager.get().isShowFPS();
+		System.out.println("SharedSettings.toggleFPS: Current state=" + current);
 
-			// Update button text
-			if (buttons.size() >= 4) {
-				buttons.get(3).setText(getFPSButtonText());
-			}
+		if (game.getClient() != null) {
+			System.out.println("SharedSettings.toggleFPS: Delegating to Client");
+			game.getClient().toggleFPS();
+		} else {
+			System.out.println("SharedSettings.toggleFPS: Updating OptionsManager directly");
+			// Toggle option directly if client not running
+			boolean newState = !current;
+			mc.sayda.mcraze.util.OptionsManager.get().setShowFPS(newState);
+		}
+
+		// Update button text
+		if (buttons.size() >= 4) {
+			buttons.get(3).setText(getFPSButtonText());
+			System.out.println("SharedSettings.toggleFPS: Updated button text to " + buttons.get(3).getId()); // Should
+																												// log
+																												// text
+																												// logic
+																												// result
 		}
 	}
 
@@ -142,19 +158,19 @@ public class SharedSettings {
 	 * Get FPS button text based on current state
 	 */
 	private String getFPSButtonText() {
-		if (game.getClient() != null) {
-			return game.getClient().isShowingFPS() ? "Show FPS: On" : "Show FPS: Off";
-		}
-		return "Show FPS: Off";
+		// Read directly from options for consistency
+		boolean show = mc.sayda.mcraze.util.OptionsManager.get().isShowFPS();
+		return show ? "Show FPS: On" : "Show FPS: Off";
 	}
 
 	/**
 	 * Render the settings UI (shared between MainMenu and SettingsMenu)
 	 *
-	 * @param g Graphics handler
-	 * @param mouseX Mouse X position
-	 * @param mouseY Mouse Y position
-	 * @param handleClicks Whether to process clicks (set to false if caller handles clicks separately)
+	 * @param g            Graphics handler
+	 * @param mouseX       Mouse X position
+	 * @param mouseY       Mouse Y position
+	 * @param handleClicks Whether to process clicks (set to false if caller handles
+	 *                     clicks separately)
 	 */
 	public void renderSettings(GraphicsHandler g, int mouseX, int mouseY, boolean handleClicks) {
 		int screenWidth = g.getScreenWidth();
@@ -166,10 +182,13 @@ public class SharedSettings {
 		g.drawString(volumeLabel, volumeLabelX, 185);
 
 		// Get and display current volume
-		float currentVolume = 0.5f;
-		if (game.getClient() != null && game.getClient().musicPlayer != null) {
-			currentVolume = game.getClient().musicPlayer.getVolume();
-		}
+		float currentVolume = mc.sayda.mcraze.util.OptionsManager.get().getMusicVolume();
+		// If client exists, double check or just rely on options (since they should be
+		// synced)
+		// if (game.getClient() != null && game.getClient().musicPlayer != null) {
+		// currentVolume = game.getClient().musicPlayer.getVolume();
+		// }
+
 		int volumePercent = Math.round(currentVolume * 100);
 		String volumeText = volumePercent + "%";
 		int volumeTextX = screenWidth / 2 - g.getStringWidth(volumeText) / 2;
@@ -227,13 +246,13 @@ public class SharedSettings {
 
 			// Check volume down button click
 			if (mouseX >= centerX - 100 && mouseX <= centerX - 100 + BUTTON_WIDTH &&
-				mouseY >= btnY && mouseY <= btnY + BUTTON_HEIGHT) {
+					mouseY >= btnY && mouseY <= btnY + BUTTON_HEIGHT) {
 				volumeDown();
 			}
 
 			// Check volume up button click
 			if (mouseX >= centerX + 40 && mouseX <= centerX + 40 + BUTTON_WIDTH &&
-				mouseY >= btnY && mouseY <= btnY + BUTTON_HEIGHT) {
+					mouseY >= btnY && mouseY <= btnY + BUTTON_HEIGHT) {
 				volumeUp();
 			}
 
@@ -249,8 +268,8 @@ public class SharedSettings {
 	/**
 	 * Handle clicks on settings buttons (for external click handling)
 	 *
-	 * @param mouseX Mouse X position
-	 * @param mouseY Mouse Y position
+	 * @param mouseX      Mouse X position
+	 * @param mouseY      Mouse Y position
 	 * @param screenWidth Screen width for centering calculations
 	 * @return true if a button was clicked
 	 */
@@ -260,21 +279,23 @@ public class SharedSettings {
 
 		// Check volume down button click
 		if (mouseX >= centerX - 100 && mouseX <= centerX - 100 + BUTTON_WIDTH &&
-			mouseY >= btnY && mouseY <= btnY + BUTTON_HEIGHT) {
+				mouseY >= btnY && mouseY <= btnY + BUTTON_HEIGHT) {
 			volumeDown();
 			return true;
 		}
 
 		// Check volume up button click
 		if (mouseX >= centerX + 40 && mouseX <= centerX + 40 + BUTTON_WIDTH &&
-			mouseY >= btnY && mouseY <= btnY + BUTTON_HEIGHT) {
+				mouseY >= btnY && mouseY <= btnY + BUTTON_HEIGHT) {
 			volumeUp();
 			return true;
 		}
 
 		// Handle toggle buttons clicks
 		for (int i = 2; i < buttons.size(); i++) {
-			if (buttons.get(i).handleClick(mouseX, mouseY)) {
+			Button btn = buttons.get(i);
+			btn.updatePosition(screenWidth); // Ensure position is current
+			if (btn.handleClick(mouseX, mouseY)) {
 				return true;
 			}
 		}

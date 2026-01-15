@@ -42,15 +42,19 @@ public interface ClientPacketHandler {
 
     void handleBiomeData(PacketBiomeData packet);
 
-    void handleBackdropChange(PacketBackdropChange packet); // NEW: For backdrop sync
+    void handleBackdropChange(PacketBackdropChange packet);
 
-    void handleBackdropBatch(PacketBackdropBatch packet); // NEW: For batched backdrop sync
+    void handleBackdropBatch(PacketBackdropBatch packet);
 
-    void handleChestOpen(PacketChestOpen packet); // NEW: For opening chest UI
+    void handleChestOpen(PacketChestOpen packet);
 
-    void handleFurnaceOpen(PacketFurnaceOpen packet); // NEW: For opening furnace UI
+    void handleFurnaceOpen(PacketFurnaceOpen packet);
 
-    void handleGameruleUpdate(PacketGameruleUpdate packet); // NEW: For syncing gamerule changes
+    void handleGameruleUpdate(PacketGameruleUpdate packet);
 
-    void handlePong(PacketPong packet); // NEW: For latency measurement
+    void handlePong(PacketPong packet);
+
+    void handleItemTrigger(PacketItemTrigger packet); // NEW: For special item effects
+
+    void handlePlaySound(PacketPlaySound packet); // NEW: Play sound effects
 }

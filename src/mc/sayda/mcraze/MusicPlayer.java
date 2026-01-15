@@ -43,6 +43,10 @@ public class MusicPlayer {
 	private Random random;
 	private String currentContext = "menu"; // Current music context (menu/cave)
 
+	// State saving for one-time tracks (like Bad Apple)
+	private String savedContext = null;
+	private int savedTrackIndex = -1;
+
 	// Selected mixer for audio playback (avoids PortMixer)
 	private Mixer.Info selectedMixerInfo = null;
 
@@ -412,6 +416,63 @@ public class MusicPlayer {
 
 		// Play the new track
 		play();
+	}
+
+	/**
+	 * Play a one-time track (interrupts current playback, but saves state to
+	 * restore later)
+	 * Used for special events like Bad Apple
+	 * 
+	 * @param filename Path to the audio file
+	 */
+	public void playOneTimeTrack(String filename) {
+		// Save current state
+		savedContext = currentContext;
+		savedTrackIndex = currentTrackIndex;
+
+		// Load and play the one-time track
+		loadTrack(filename);
+		play();
+
+		System.out.println("Playing one-time track: " + filename);
+	}
+
+	/**
+	 * Restore normal playlist playback after a one-time track
+	 * Returns to the saved context and continues from there
+	 */
+	public void restoreNormalPlayback() {
+		// Stop the current one-time track first
+		if (currentClip != null) {
+			currentClip.stop();
+			currentClip.close();
+		}
+
+		if (savedContext != null) {
+			System.out.println("Restoring normal playback to context: " + savedContext);
+
+			// Restore context
+			currentContext = savedContext;
+			currentTrackIndex = savedTrackIndex;
+
+			// Clear saved state
+			savedContext = null;
+			savedTrackIndex = -1;
+
+			// Force reload of previous track
+			if (currentPlaylist != null && !currentPlaylist.isEmpty()) {
+				if (currentTrackIndex < 0 || currentTrackIndex >= currentPlaylist.size()) {
+					currentTrackIndex = 0;
+				}
+				loadTrack(currentPlaylist.get(currentTrackIndex));
+				play();
+			} else {
+				nextTrack();
+			}
+		} else {
+			// No saved state, just play next track from current playlist
+			nextTrack();
+		}
 	}
 
 	/**

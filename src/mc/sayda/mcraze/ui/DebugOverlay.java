@@ -41,6 +41,10 @@ public class DebugOverlay {
 		System.out.println("Debug overlay (F3): " + (visible ? "Enabled" : "Disabled"));
 	}
 
+	public void setVisible(boolean visible) {
+		this.visible = visible;
+	}
+
 	/**
 	 * Check if overlay is visible
 	 */

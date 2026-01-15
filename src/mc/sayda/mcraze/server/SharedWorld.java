@@ -973,28 +973,14 @@ public class SharedWorld {
 								for (Item item : droppedItems) {
 									entityManager.add(item);
 								}
-								// PERFORMANCE: Commented out console logging
-								// System.out.println("Player " + deadPlayer.username + " died and dropped " +
-								// droppedItems.size() + " items");
+								// TODO: Replace with GameLogger
+								System.out.println("Player " + deadPlayer.username + " died and dropped "
+										+ droppedItems.size() + " items");
 
 								// Broadcast empty inventory after death
 								broadcastInventoryUpdates();
 
 								break;
-							}
-						}
-					}
-					// Sheep drops
-					else if (entity instanceof EntitySheep) {
-						Item woolProto = Constants.itemTypes.get("white_wool");
-						if (woolProto != null) {
-							int count = 1 + random.nextInt(3); // 1-3 wool
-							for (int i = 0; i < count; i++) {
-								Item wool = woolProto.clone();
-								wool.x = entity.x + (random.nextFloat() - 0.5f) * 0.5f;
-								wool.y = entity.y + (random.nextFloat() - 0.5f) * 0.5f;
-								wool.dy = -0.1f;
-								entityManager.add(wool);
 							}
 						}
 					}
@@ -1606,6 +1592,13 @@ public class SharedWorld {
 			} else if (held.itemId.equals("golden_apple")) {
 				healAmount = 100; // Full heal (max HP)
 				isFood = true;
+			} else if (held.itemId.equals("bad_apple")) {
+				healAmount = 10; // 1 Heart
+				isFood = true;
+
+				// Trigger Bad Apple video on client via packet
+				playerConnection.getConnection().sendPacket(
+						new mc.sayda.mcraze.network.packet.PacketItemTrigger("bad_apple"));
 			}
 
 			if (isFood) {
@@ -1627,7 +1620,7 @@ public class SharedWorld {
 
 					// Feedback
 					playerConnection.getConnection().sendPacket(
-							new PacketChatMessage("Yum! Healed " + healAmount + " HP.",
+							new PacketChatMessage("Yummers! Healed " + healAmount + " HP.",
 									new mc.sayda.mcraze.Color(100, 255, 100)));
 					return; // Consumed food, don't place block
 				}
@@ -3059,6 +3052,9 @@ public class SharedWorld {
 				target.getClass().getSimpleName() + " (UUID: " + target.getUUID() + ") with damage " + damage);
 		livingTarget.takeDamage(damage);
 
+		// Play hit sound
+		broadcastPacket(new mc.sayda.mcraze.network.packet.PacketPlaySound("hit.wav"));
+
 		// Apply knockback to target (away from attacker)
 		// Attacker already defined in scope
 		float kbDx = livingTarget.x - attacker.x;
@@ -3077,8 +3073,8 @@ public class SharedWorld {
 		}
 
 		// Apply impulse
-		livingTarget.dx += kbDx * 0.5f;
-		livingTarget.dy = -0.3f; // Slight lift
+		livingTarget.dx += kbDx * 1.2f;
+		// livingTarget.dy = -0.3f; // Removed upward knockback
 
 		System.out.println("DEBUG: Post-damage - HP: " + livingTarget.hitPoints + ", Dead: " + livingTarget.dead);
 
@@ -3120,39 +3116,28 @@ public class SharedWorld {
 						break;
 					}
 				}
-			} else {
-				// Mob Loot Logic
-				if (livingTarget instanceof mc.sayda.mcraze.entity.EntitySheep) {
-					System.out.println("DEBUG: Dropping wool for sheep");
-					// Drop 1-3 wool
-					int count = 1 + random.nextInt(3);
-					// CRITICAL FIX: Safe item lookup to prevent NPE
-					mc.sayda.mcraze.item.Item woolTemplate = Constants.itemTypes.get("white_wool");
-					if (woolTemplate != null) {
-						for (int i = 0; i < count; i++) {
-							mc.sayda.mcraze.item.Item wool = woolTemplate.clone();
-							wool.x = livingTarget.x + random.nextFloat() * 0.5f;
-							wool.y = livingTarget.y + random.nextFloat() * 0.5f;
-							wool.dy = -0.1f - random.nextFloat() * 0.1f;
-							addEntity(wool);
-							System.out.println("DEBUG: Dropped wool at " + wool.x + ", " + wool.y);
-						}
-					} else {
-						System.err.println("ERROR: 'white_wool' item not found in registry! Cannot drop loot.");
-					}
-				} else if (livingTarget instanceof mc.sayda.mcraze.entity.EntityZombie) {
-					// 20% chance to drop iron
-					if (random.nextFloat() < 0.2f) {
-						mc.sayda.mcraze.item.Item ironTemplate = mc.sayda.mcraze.Constants.itemTypes.get("iron_ore");
-						if (ironTemplate != null) {
-							mc.sayda.mcraze.item.Item iron = ironTemplate.clone();
-							iron.x = livingTarget.x + random.nextFloat() * 0.5f;
-							iron.y = livingTarget.y + random.nextFloat() * 0.5f;
-							iron.dy = -0.1f;
-							addEntity(iron);
-							if (GameLogger.get() != null)
-								GameLogger.get().info("Zombie dropped iron_ore");
-						}
+			} else if (livingTarget instanceof mc.sayda.mcraze.entity.EntitySheep) {
+				// Sheep drops white wool
+				mc.sayda.mcraze.item.Item template = mc.sayda.mcraze.Constants.itemTypes.get("white_wool");
+				if (template != null) {
+					mc.sayda.mcraze.item.Item drop = template.clone();
+					drop.x = livingTarget.x;
+					drop.y = livingTarget.y;
+					drop.dx = (float) (Math.random() - 0.5) * 5;
+					drop.dy = (float) (Math.random() - 0.5) * 5;
+					addEntity(drop);
+				}
+			} else if (livingTarget instanceof mc.sayda.mcraze.entity.EntityZombie) {
+				// Zombie drops (20% chance for iron)
+				if (Math.random() < 0.2f) {
+					mc.sayda.mcraze.item.Item template = mc.sayda.mcraze.Constants.itemTypes.get("iron");
+					if (template != null) {
+						mc.sayda.mcraze.item.Item drop = template.clone();
+						drop.x = livingTarget.x;
+						drop.y = livingTarget.y;
+						drop.dx = (float) (Math.random() - 0.5) * 5;
+						drop.dy = (float) (Math.random() - 0.5) * 5;
+						addEntity(drop);
 					}
 				}
 			}

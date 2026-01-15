@@ -100,6 +100,9 @@ public class Client implements ClientPacketHandler {
 	// Audio
 	public MusicPlayer musicPlayer = new MusicPlayer("assets/sounds/music.ogg");
 
+	// Bad Apple easter egg
+	private mc.sayda.mcraze.ui.BadApplePlayer badApplePlayer;
+
 	// Client state
 	private boolean running = true;
 	private String myPlayerUUID = null; // UUID of this client's player entity
@@ -122,6 +125,7 @@ public class Client implements ClientPacketHandler {
 		chat = new Chat();
 		chestUI = new mc.sayda.mcraze.ui.ChestUI();
 		furnaceUI = new mc.sayda.mcraze.ui.FurnaceUI();
+		badApplePlayer = new mc.sayda.mcraze.ui.BadApplePlayer();
 		// Note: CommandHandler is created by Server after Client construction
 		menu = new MainMenu(null, uiRenderer); // Game reference set later via setGame()
 		pauseMenu = null; // Will be created when setGame() is called
@@ -140,6 +144,7 @@ public class Client implements ClientPacketHandler {
 		debugOverlay = new mc.sayda.mcraze.ui.DebugOverlay(game);
 		// Initialize graphics handler now that we have the Game reference
 		GraphicsHandler.get().init(game);
+		applyOptions();
 	}
 
 	/**
@@ -224,6 +229,23 @@ public class Client implements ClientPacketHandler {
 				// Unknown state, skip rendering
 				g.finishDrawing();
 				return;
+		}
+
+		// Bad Apple easter egg - hijack rendering if playing
+		if (badApplePlayer != null && badApplePlayer.isPlaying()) {
+			int screenWidth = g.getScreenWidth();
+			int screenHeight = g.getScreenHeight();
+
+			badApplePlayer.render(screenWidth, screenHeight);
+
+			// Draw "Press ESC to exit" hint
+			g.setColor(mc.sayda.mcraze.Color.white);
+			String hint = "Press ESC to exit";
+			int hintWidth = g.getStringWidth(hint);
+			g.drawString(hint, (screenWidth - hintWidth) / 2, 20);
+
+			g.finishDrawing();
+			return;
 		}
 
 		// From here on, we need the player for gameplay
@@ -472,7 +494,7 @@ public class Client implements ClientPacketHandler {
 		lastFrameTime = currentNanoTime;
 
 		// Render UI
-		if (viewFPS) {
+		if (isShowingFPS()) {
 			uiRenderer.drawFPS(g, frameDeltaMs);
 		}
 
@@ -913,14 +935,6 @@ public class Client implements ClientPacketHandler {
 
 	public void setRightClick(boolean pressed) {
 		rightClick = pressed;
-	}
-
-	public void toggleFPS() {
-		viewFPS = !viewFPS;
-	}
-
-	public boolean isShowingFPS() {
-		return viewFPS;
 	}
 
 	/**
@@ -2128,5 +2142,79 @@ public class Client implements ClientPacketHandler {
 
 		// Display ping result in chat
 		chat.addMessage("Pong! Latency: " + rtt + "ms", mc.sayda.mcraze.Color.orange);
+	}
+
+	/**
+	 * Start Bad Apple playback and music
+	 */
+	public void startBadApple() {
+		if (badApplePlayer != null) {
+			badApplePlayer.play();
+			// Play Bad Apple audio (saves current music state)
+			if (musicPlayer != null) {
+				musicPlayer.playOneTimeTrack("assets/sounds/music/bad_apple.wav");
+			}
+		}
+	}
+
+	/**
+	 * Stop Bad Apple playback
+	 */
+	public void stopBadApple() {
+		if (badApplePlayer != null && badApplePlayer.isPlaying()) {
+			badApplePlayer.stop();
+			// Restore normal music playback to previous context
+			if (musicPlayer != null) {
+				musicPlayer.restoreNormalPlayback();
+			}
+		}
+	}
+
+	/**
+	 * Check if Bad Apple is currently playing
+	 */
+	public boolean isBadApplePlaying() {
+		return badApplePlayer != null && badApplePlayer.isPlaying();
+	}
+
+	@Override
+	public void handleItemTrigger(mc.sayda.mcraze.network.packet.PacketItemTrigger packet) {
+		// Handle special item effects based on itemId
+		if (packet.itemId.equals("bad_apple")) {
+			startBadApple();
+		}
+	}
+
+	@Override
+	public void handlePlaySound(mc.sayda.mcraze.network.packet.PacketPlaySound packet) {
+		String path = packet.soundName;
+		if (!path.contains("/")) {
+			path = "assets/sounds/" + path;
+		}
+		mc.sayda.mcraze.SoundManager.playSound(path, packet.volume);
+	}
+
+	/**
+	 * Apply persistent options to game systems
+	 */
+	public void applyOptions() {
+		mc.sayda.mcraze.util.OptionsManager opts = mc.sayda.mcraze.util.OptionsManager.get();
+		if (musicPlayer != null) {
+			musicPlayer.setVolume(opts.getMusicVolume());
+		}
+		if (debugOverlay != null) {
+			debugOverlay.setVisible(opts.isShowFPS());
+		}
+	}
+
+	public void toggleFPS() {
+		boolean newState = !mc.sayda.mcraze.util.OptionsManager.get().isShowFPS();
+		System.out.println("Client.toggleFPS: Toggling to " + newState);
+		mc.sayda.mcraze.util.OptionsManager.get().setShowFPS(newState);
+		applyOptions();
+	}
+
+	public boolean isShowingFPS() {
+		return mc.sayda.mcraze.util.OptionsManager.get().isShowFPS();
 	}
 }

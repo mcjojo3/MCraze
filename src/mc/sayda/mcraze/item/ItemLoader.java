@@ -71,7 +71,6 @@ public class ItemLoader {
 		public RecipeDefinition recipe;
 		public SmeltingDefinition smelting;
 		public Integer fuel; // Burn time in ticks (null if not fuel)
-		public boolean shapeless;
 		public String requiredTool;
 		public String requiredPower;
 
@@ -82,6 +81,7 @@ public class ItemLoader {
 		public Item makeItem(int size) {
 			String[][] pattern = recipe != null ? recipe.pattern : null;
 			int yield = recipe != null ? recipe.yield : 0;
+			boolean shapeless = recipe != null ? recipe.shapeless : false;
 			Item item = new Item(spriteRef, size, itemId, name, pattern, yield, shapeless);
 			if (requiredTool != null) {
 				try {
@@ -112,6 +112,7 @@ public class ItemLoader {
 			int yield = recipe != null ? recipe.yield : 0;
 			Tool.ToolType t = null;
 			Tool.ToolPower p = null;
+			boolean shapeless = recipe != null ? recipe.shapeless : false;
 			try {
 				t = Tool.ToolType.valueOf(type);
 				p = Tool.ToolPower.valueOf(power);
@@ -126,6 +127,7 @@ public class ItemLoader {
 	public static class RecipeDefinition {
 		public String[][] pattern;
 		public int yield;
+		public boolean shapeless;
 	}
 
 	public static class SmeltingDefinition {

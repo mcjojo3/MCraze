@@ -113,6 +113,11 @@ public class EntityZombie extends LivingEntity {
                     // ATTACK!
                     ((LivingEntity) target).takeDamage(3);
 
+                    // Play hurt sound if target is player
+                    if (target instanceof mc.sayda.mcraze.entity.Player) {
+                        sharedWorld.broadcastPacket(new mc.sayda.mcraze.network.packet.PacketPlaySound("hurt.wav"));
+                    }
+
                     // Knockback removed
                     attackCooldown = 20; // 1 second cooldown
                 }

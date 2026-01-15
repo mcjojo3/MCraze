@@ -64,6 +64,8 @@ public class PacketRegistry {
         registerServerPacket(65, PacketBackdropBatch.class, PacketBackdropBatch::decode); // NEW - Batched backdrops
         registerServerPacket(66, PacketPong.class, PacketPong::decode);
         registerServerPacket(67, PacketFurnaceOpen.class, PacketFurnaceOpen::decode);
+        registerServerPacket(68, PacketItemTrigger.class, PacketItemTrigger::decode); // Item special effects
+        registerServerPacket(69, PacketPlaySound.class, PacketPlaySound::decode); // Sound effects
     }
 
     /**

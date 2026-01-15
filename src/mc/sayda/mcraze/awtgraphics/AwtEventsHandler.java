@@ -223,6 +223,13 @@ public class AwtEventsHandler {
 
 			// Handle ESC key for menus - check in priority order
 			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+				// Priority 0: Stop Bad Apple if playing
+				if (game.getClient() != null && game.getClient().isBadApplePlaying()) {
+					game.getClient().stopBadApple();
+					escUsedToCloseMenu = true; // Mark that ESC closed a menu
+					e.consume();
+					return;
+				}
 				// Priority 1: Close settings menu if open
 				if (game.getClient().isInSettingsMenu()) {
 					game.getClient().closeSettingsMenu();
