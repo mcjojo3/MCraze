@@ -46,10 +46,10 @@ public class Player extends LivingEntity {
 		super(gravityApplies, x, y, width, height);
 
 		// 3-frame walking animation: right foot → still → left foot → still
-		sprite = SpriteStore.get().getSprite("sprites/entities/player.png"); // Standing (both feet together)
-		rightFootSprite = SpriteStore.get().getSprite("sprites/entities/player_right.png"); // Right foot forward
-		leftFootSprite = SpriteStore.get().getSprite("sprites/entities/player_left.png"); // Left foot forward
-		sneakSprite = SpriteStore.get().getSprite("sprites/entities/player_sneak.png"); // Sneaking
+		sprite = SpriteStore.get().getSprite("assets/sprites/entities/player.png"); // Standing (both feet together)
+		rightFootSprite = SpriteStore.get().getSprite("assets/sprites/entities/player_right.png"); // Right foot forward
+		leftFootSprite = SpriteStore.get().getSprite("assets/sprites/entities/player_left.png"); // Left foot forward
+		sneakSprite = SpriteStore.get().getSprite("assets/sprites/entities/player_sneak.png"); // Sneaking
 	}
 
 	public void setHotbarItem(int hotbarIdx) {

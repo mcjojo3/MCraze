@@ -13,7 +13,7 @@ import java.util.List;
  */
 public class LoadingScreen {
 	// Background sprite
-	private static final Sprite BG_TILE = SpriteStore.get().getSprite("sprites/tiles/dirt.png");
+	private static final Sprite BG_TILE = SpriteStore.get().getSprite("assets/sprites/tiles/dirt.png");
 
 	// Loading messages
 	private List<String> messages;

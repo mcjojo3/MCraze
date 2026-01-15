@@ -40,9 +40,9 @@ public class ChestView {
 		}
 
 		// Calculate positions (matches ChestUI logic)
-		int chestPanelWidth = 9 * (TILE_SIZE + SEPARATION) + SEPARATION;
+		int chestPanelWidth = 10 * (TILE_SIZE + SEPARATION) + SEPARATION;
 		int chestPanelHeight = 3 * (TILE_SIZE + SEPARATION) + SEPARATION;
-		int playerPanelWidth = 9 * (TILE_SIZE + SEPARATION) + SEPARATION;
+		int playerPanelWidth = 10 * (TILE_SIZE + SEPARATION) + SEPARATION;
 		int playerPanelHeight = 4 * (TILE_SIZE + SEPARATION) + SEPARATION;
 
 		int totalHeight = chestPanelHeight + playerPanelHeight + SEPARATION;
@@ -56,7 +56,7 @@ public class ChestView {
 		g.fillRect(chestX, chestY, chestPanelWidth, chestPanelHeight);
 
 		for (int i = 0; i < 3; i++) {
-			for (int j = 0; j < 9; j++) {
+			for (int j = 0; j < 10; j++) {
 				int sx = chestX + SEPARATION + j * (TILE_SIZE + SEPARATION);
 				int sy = chestY + SEPARATION + i * (TILE_SIZE + SEPARATION);
 
@@ -66,7 +66,10 @@ public class ChestView {
 				g.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
 
 				if (chestItems != null && j < chestItems.length && i < chestItems[j].length) {
-					chestItems[j][i].draw(g, sx, sy, TILE_SIZE);
+					InventoryItem item = chestItems[j][i];
+					if (item != null && item.item != null && item.count > 0) {
+						item.draw(g, sx, sy, TILE_SIZE);
+					}
 				}
 			}
 		}
@@ -76,7 +79,7 @@ public class ChestView {
 		g.fillRect(playerX, playerY, playerPanelWidth, playerPanelHeight);
 
 		for (int i = 0; i < 4; i++) {
-			for (int j = 0; j < 9; j++) {
+			for (int j = 0; j < 10; j++) {
 				int sx = playerX + SEPARATION + j * (TILE_SIZE + SEPARATION);
 				int sy = playerY + SEPARATION + i * (TILE_SIZE + SEPARATION);
 
@@ -129,9 +132,9 @@ public class ChestView {
 	}
 
 	private InventoryItem getItemAtMouse(int mouseX, int mouseY) {
-		int chestPanelWidth = 9 * (TILE_SIZE + SEPARATION) + SEPARATION;
+		int chestPanelWidth = 10 * (TILE_SIZE + SEPARATION) + SEPARATION;
 		int chestPanelHeight = 3 * (TILE_SIZE + SEPARATION) + SEPARATION;
-		int playerPanelWidth = 9 * (TILE_SIZE + SEPARATION) + SEPARATION;
+		int playerPanelWidth = 10 * (TILE_SIZE + SEPARATION) + SEPARATION;
 		int playerPanelHeight = 4 * (TILE_SIZE + SEPARATION) + SEPARATION;
 
 		int totalHeight = chestPanelHeight + playerPanelHeight + SEPARATION;
@@ -147,7 +150,7 @@ public class ChestView {
 					mouseX - chestX, mouseY - chestY,
 					TILE_SIZE, SEPARATION,
 					SEPARATION, SEPARATION,
-					9, 3);
+					10, 3);
 			if (slot != null) {
 				return chestUI.getChestItems()[slot.x][slot.y];
 			}
@@ -160,7 +163,7 @@ public class ChestView {
 					mouseX - playerX, mouseY - playerY,
 					TILE_SIZE, SEPARATION,
 					SEPARATION, SEPARATION,
-					9, 4);
+					10, 4);
 			if (slot != null) {
 				int invRow = (slot.y < 3) ? (slot.y + 3) : 6;
 				return chestUI.getPlayerInventory().inventoryItems[slot.x][invRow];

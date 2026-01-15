@@ -17,6 +17,13 @@
         },
         {
             "type": "java",
+            "name": "MCraze3",
+            "request": "launch",
+            "mainClass": "mc.sayda.mcraze.Game",
+            "args": "--username Player2 --password 123"
+        },
+        {
+            "type": "java",
             "name": "MCraze Server",
             "request": "launch",
             "mainClass": "mc.sayda.mcraze.Game",

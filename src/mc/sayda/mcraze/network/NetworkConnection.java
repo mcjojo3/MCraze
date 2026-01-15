@@ -137,12 +137,12 @@ public class NetworkConnection implements Connection {
 				// Write packet data
 				out.write(packetData);
 
-				// CRITICAL: Flush immediately for networked connections (LAN/multiplayer)
-				// BufferedOutputStream has 8KB buffer - without flush, packets can sit for
-				// SECONDS
-				// This is essential for low-latency gameplay over network
-				// Note: LocalConnection doesn't need this (packets go directly to queue)
-				out.flush();
+				// SMART FLUSH: Only flush immediately for time-critical packets (player input)
+				// Broadcasts (entity updates) are batched for performance
+				if (packet.requiresImmediateFlush()) {
+					out.flush(); // Player input - must be immediate for responsive controls
+				}
+				// Otherwise, wait for batched flush from SharedWorld.flushAllConnections()
 
 				// Only log in debug mode (reduces console spam from 240+/sec to near zero)
 				GameLogger logger = GameLogger.get();

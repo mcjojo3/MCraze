@@ -1,0 +1,122 @@
+Now in 2D!
+Java Edition!
+Undefined Behavior!
+Agentic Coding!
+Also try Terraria!
+Also try Minecraft!
+Creeper? Aw man!
+1% Bug Free!
+Splash Text!
+Randomized!
+Hello World!
+Not Minecraft!
+Not Terraria!
+Contains pixels!
+Batteries not included!
+Keyboard compatible!
+Mouse supported!
+Internet optional!
+Made with Java!
+Open Source!
+Check the logs!
+Do not distribute!
+No warranties!
+Warning: Addictive!
+Time sink!
+Productivity killer!
+Pixel Art!
+Retro style!
+Procedur- I mean, generated!
+Infinite worlds!
+Crafting included!
+Mining optional!
+Zombies hate it!
+Sheep allow it!
+Never dig straight down!
+Watch your back!
+Behind you!
+Look up!
+It's a feature!
+Not a bug!
+Early Access!
+Alpha version!
+Microtransactions free!
+Loot boxes removed!
+Season pass denied!
+Battle royale mode disabled!
+MOBA elements missing!
+FPS unbound!
+VSync?
+Ray tracing off!
+4K ready!
+HDR missing!
+VR not supported!
+Touchscreen confused!
+Controller missing!
+Keyboard required!
+Mouse recommended!
+Headphones advised!
+Volume up!
+Music on!
+Sound checks!
+1... 2... 3...
+Testing!
+Is this thing on?
+Can you hear me?
+Hello?
+Anyone there?
+Echo...
+Void!
+NullPointerException!
+StackOverflowError!
+OutOfMemoryError!
+ClassCastException!
+ArrayIndexOutOfBoundsException!
+FileNotFoundException!
+IOException!
+InterruptedException!
+ExecutionException!
+TimeoutException!
+CancellationException!
+ConcurrentModificationException!
+IllegalStateException!
+IllegalArgumentException!
+UnsupportedOperationException!
+NotImplementedException!
+TODO!
+FIXME!
+HACK!
+XXX!
+BUG!
+GitHub issue #404!
+Pull request accepted!
+Merge conflict!
+Rebase hell!
+Git push force!
+Sudo rm -rf /!
+System32 deleted!
+Blue screen of death!
+Kernel panic!
+Segfault!
+Core dumped!
+Memory leak!
+Garbage collection!
+Daemon thread!
+Deadlock!
+Race condition!
+Heisenbug!
+Schroedinbug!
+Mandelbug!
+Bohrbug!
+Feature creep!
+Scope creep!
+Crunch time!
+Burnout!
+Pizza time!
+Coffee break!
+Energy drink!
+Sleep optional!
+Coding all night!
+The cake is a lie!
+Bread!
+Void!

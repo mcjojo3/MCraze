@@ -43,7 +43,7 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 
 		try {
 			// Fix deprecated URL constructor
-			ImageIcon ii = new ImageIcon(java.net.URI.create("file:sprites/other/mouse.png").toURL());
+			ImageIcon ii = new ImageIcon(java.net.URI.create("file:assets/sprites/other/mouse.png").toURL());
 			Image im = ii.getImage();
 			Toolkit tk = canvas.getToolkit();
 			myCursor = tk.createCustomCursor(im, new Point(8, 8), "MyCursor");
@@ -236,5 +236,39 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 	 */
 	public AwtEventsHandler getEventsHandler() {
 		return eventsHandler;
+	}
+
+	private java.util.Stack<java.awt.geom.AffineTransform> transformStack = new java.util.Stack<>();
+
+	@Override
+	public void rotate(double theta, double x, double y) {
+		g.rotate(theta, x, y);
+	}
+
+	@Override
+	public void scale(double sx, double sy) {
+		g.scale(sx, sy);
+	}
+
+	@Override
+	public void translate(double tx, double ty) {
+		g.translate(tx, ty);
+	}
+
+	@Override
+	public void pushState() {
+		transformStack.push(g.getTransform());
+	}
+
+	@Override
+	public void popState() {
+		if (!transformStack.isEmpty()) {
+			g.setTransform(transformStack.pop());
+		}
+	}
+
+	@Override
+	public void setFont(String name, int style, int size) {
+		g.setFont(new java.awt.Font(name, style, size));
 	}
 }

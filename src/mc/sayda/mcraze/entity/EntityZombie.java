@@ -43,11 +43,11 @@ public class EntityZombie extends LivingEntity {
         // Load sprites (Client side only really, server doesn't need them but won't
         // hurt if store is mocked/safe)
         try {
-            sprite_down = SpriteStore.get().getSprite("sprites/entities/zombie.png");
+            sprite_down = SpriteStore.get().getSprite("assets/sprites/entities/zombie.png");
             // Use zombie_left.png and zombie_right.png for walking frames
             // (Assuming these match player conventions of leg positions)
-            sprite_left_foot = SpriteStore.get().getSprite("sprites/entities/zombie_left.png");
-            sprite_right_foot = SpriteStore.get().getSprite("sprites/entities/zombie_right.png");
+            sprite_left_foot = SpriteStore.get().getSprite("assets/sprites/entities/zombie_left.png");
+            sprite_right_foot = SpriteStore.get().getSprite("assets/sprites/entities/zombie_right.png");
 
             currentSprite = sprite_down;
         } catch (Exception e) {
@@ -113,22 +113,7 @@ public class EntityZombie extends LivingEntity {
                     // ATTACK!
                     ((LivingEntity) target).takeDamage(3);
 
-                    // TODO: Reimplement KNOCKBACK better
-                    /*
-                     * float dx = target.x - x;
-                     * float dy = target.y - y;
-                     * // Normalize roughly
-                     * float len = (float) Math.sqrt(distSq);
-                     * if (len > 0) {
-                     * dx /= len;
-                     * dy /= len;
-                     * }
-                     */
-
-                    // Apply impulse
-                    // target.dx += dx * 0.5f;
-                    // target.dy = -0.3f; // Slight lift
-
+                    // Knockback removed
                     attackCooldown = 20; // 1 second cooldown
                 }
             }

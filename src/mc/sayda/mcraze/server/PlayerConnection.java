@@ -212,7 +212,6 @@ public class PlayerConnection implements ServerPacketHandler {
 
 	@Override
 	public void handleChestAction(mc.sayda.mcraze.network.packet.PacketChestAction packet) {
-		// TODO: Handle chest inventory interactions
 		// Delegate to SharedWorld for processing
 		GameLogger logger = GameLogger.get();
 		if (logger != null) {
@@ -220,6 +219,11 @@ public class PlayerConnection implements ServerPacketHandler {
 					" interacted with chest at (" + packet.chestX + ", " + packet.chestY + ")");
 		}
 		sharedWorld.handleChestAction(this, packet);
+	}
+
+	@Override
+	public void handleFurnaceAction(mc.sayda.mcraze.network.packet.PacketFurnaceAction packet) {
+		sharedWorld.handleFurnaceAction(this, packet);
 	}
 
 	@Override
@@ -314,5 +318,39 @@ public class PlayerConnection implements ServerPacketHandler {
 
 	public boolean isInitialWorldLoaded() {
 		return initialWorldLoaded;
+	}
+
+	// Track open furnace location
+	private int openedFurnaceX = -1;
+	private int openedFurnaceY = -1;
+
+	public void setOpenedFurnace(int x, int y) {
+		this.openedFurnaceX = x;
+		this.openedFurnaceY = y;
+	}
+
+	public int getOpenedFurnaceX() {
+		return openedFurnaceX;
+	}
+
+	public int getOpenedFurnaceY() {
+		return openedFurnaceY;
+	}
+
+	// Track open chest location
+	private int openedChestX = -1;
+	private int openedChestY = -1;
+
+	public void setOpenedChest(int x, int y) {
+		this.openedChestX = x;
+		this.openedChestY = y;
+	}
+
+	public int getOpenedChestX() {
+		return openedChestX;
+	}
+
+	public int getOpenedChestY() {
+		return openedChestY;
 	}
 }

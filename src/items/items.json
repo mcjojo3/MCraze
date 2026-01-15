@@ -2,7 +2,7 @@
   {
     "itemId": "dirt",
     "name": "Dirt",
-    "spriteRef": "sprites/tiles/dirt.png",
+    "spriteRef": "assets/sprites/tiles/dirt.png",
     "yield": 0,
     "requiredTool": "Shovel",
     "requiredPower": "Wood"
@@ -10,7 +10,7 @@
   {
     "itemId": "stone",
     "name": "Stone",
-    "spriteRef": "sprites/tiles/stone.png",
+    "spriteRef": "assets/sprites/tiles/stone.png",
     "yield": 0,
     "requiredTool": "Pick",
     "requiredPower": "Wood"
@@ -18,32 +18,34 @@
   {
     "itemId": "chest",
     "name": "Chest",
-    "spriteRef": "sprites/tiles/chest.png",
-    "yield": 1,
+    "spriteRef": "assets/sprites/tiles/chest.png",
     "requiredTool": "Axe",
     "requiredPower": "Wood",
-    "recipe": [
-      [
-        "plank",
-        "plank",
-        "plank"
+    "recipe": {
+      "pattern": [
+        [
+          "plank",
+          "plank",
+          "plank"
+        ],
+        [
+          "plank",
+          null,
+          "plank"
+        ],
+        [
+          "plank",
+          "plank",
+          "plank"
+        ]
       ],
-      [
-        "plank",
-        null,
-        "plank"
-      ],
-      [
-        "plank",
-        "plank",
-        "plank"
-      ]
-    ]
+      "yield": 1
+    }
   },
   {
     "itemId": "sand",
     "name": "Sand",
-    "spriteRef": "sprites/tiles/sand.png",
+    "spriteRef": "assets/sprites/tiles/sand.png",
     "yield": 0,
     "requiredTool": "Shovel",
     "requiredPower": "Wood"
@@ -51,93 +53,157 @@
   {
     "itemId": "iron_ore",
     "name": "Iron Ore",
-    "spriteRef": "sprites/entities/iron.png",
-    "yield": 9,
+    "spriteRef": "assets/sprites/tiles/iron_ore.png",
     "requiredTool": "Pick",
     "requiredPower": "Stone",
-    "recipe": [
-      [
-        "iron_block"
-      ]
-    ]
+    "recipe": {
+      "pattern": [
+        [
+          "iron_block"
+        ]
+      ],
+      "yield": 9
+    },
+    "smelting": {
+      "result": "iron",
+      "time": 200,
+      "yield": 1
+    }
   },
   {
     "itemId": "gold_ore",
     "name": "Gold Ore",
-    "spriteRef": "sprites/entities/gold.png",
-    "yield": 9,
+    "spriteRef": "assets/sprites/tiles/gold_ore.png",
     "requiredTool": "Pick",
     "requiredPower": "Iron",
-    "recipe": [
-      [
-        "gold_block"
-      ]
-    ]
+    "recipe": {
+      "pattern": [
+        [
+          "gold_block"
+        ]
+      ],
+      "yield": 9
+    },
+    "smelting": {
+      "result": "gold",
+      "time": 200,
+      "yield": 1
+    }
   },
   {
     "itemId": "coal_ore",
     "name": "Coal Ore",
-    "spriteRef": "sprites/entities/coal.png",
-    "yield": 9,
+    "spriteRef": "assets/sprites/tiles/coal_ore.png",
     "requiredTool": "Pick",
     "requiredPower": "Wood",
-    "recipe": [
-      [
-        "coal_block"
-      ]
-    ]
+    "recipe": {
+      "pattern": [
+        [
+          "coal_block"
+        ]
+      ],
+      "yield": 9
+    }
   },
   {
     "itemId": "diamond_ore",
     "name": "Diamond Ore",
-    "spriteRef": "sprites/entities/diamond.png",
-    "yield": 9,
+    "spriteRef": "assets/sprites/tiles/diamond_ore.png",
     "requiredTool": "Pick",
     "requiredPower": "Iron",
-    "recipe": [
-      [
-        "diamond_block"
-      ]
-    ]
+    "recipe": {
+      "pattern": [
+        [
+          "diamond_block"
+        ]
+      ],
+      "yield": 9
+    }
   },
   {
     "itemId": "lapis_ore",
     "name": "Lapis Ore",
-    "spriteRef": "sprites/entities/lapis.png",
-    "yield": 9,
+    "spriteRef": "assets/sprites/tiles/lapis_ore.png",
     "requiredTool": "Pick",
     "requiredPower": "Stone",
-    "recipe": [
-      [
-        "lapis_block"
-      ]
-    ]
+    "recipe": {
+      "pattern": [
+        [
+          "lapis_block"
+        ]
+      ],
+      "yield": 9
+    }
   },
   {
-    "itemId": "emerald_ore",
-    "name": "Emerald Ore",
-    "spriteRef": "sprites/entities/emerald.png",
-    "yield": 9,
+    "itemId": "ruby_ore",
+    "name": "Ruby Ore",
+    "spriteRef": "assets/sprites/tiles/ruby_ore.png",
     "requiredTool": "Pick",
     "requiredPower": "Iron",
-    "recipe": [
-      [
-        "emerald_block"
-      ]
-    ]
+    "recipe": {
+      "pattern": [
+        [
+          "ruby_block"
+        ]
+      ],
+      "yield": 9
+    }
+  },
+  {
+    "itemId": "iron",
+    "name": "Iron",
+    "spriteRef": "assets/sprites/entities/iron.png",
+    "yield": 0
+  },
+  {
+    "itemId": "gold",
+    "name": "Gold",
+    "spriteRef": "assets/sprites/entities/gold.png",
+    "yield": 0
+  },
+  {
+    "itemId": "coal",
+    "name": "Coal",
+    "spriteRef": "assets/sprites/entities/coal.png",
+    "yield": 0,
+    "fuel": 1600
+  },
+  {
+    "itemId": "diamond",
+    "name": "Diamond",
+    "spriteRef": "assets/sprites/entities/diamond.png",
+    "yield": 0
+  },
+  {
+    "itemId": "lapis",
+    "name": "Lapis Lazuli",
+    "spriteRef": "assets/sprites/entities/lapis.png",
+    "yield": 0
+  },
+  {
+    "itemId": "ruby",
+    "name": "Ruby",
+    "spriteRef": "assets/sprites/entities/ruby.png",
+    "yield": 0
   },
   {
     "itemId": "cobble",
     "name": "Cobblestone",
-    "spriteRef": "sprites/tiles/cobble.png",
+    "spriteRef": "assets/sprites/tiles/cobble.png",
     "yield": 0,
     "requiredTool": "Pick",
-    "requiredPower": "Wood"
+    "requiredPower": "Wood",
+    "smelting": {
+      "result": "stone",
+      "time": 100,
+      "yield": 1
+    }
   },
   {
     "itemId": "mossy_cobble",
     "name": "Mossy Cobblestone",
-    "spriteRef": "sprites/tiles/mossy_cobble.png",
+    "spriteRef": "assets/sprites/tiles/mossy_cobble.png",
     "yield": 0,
     "requiredTool": "Pick",
     "requiredPower": "Wood"
@@ -145,685 +211,763 @@
   {
     "itemId": "cactus",
     "name": "Cactus",
-    "spriteRef": "sprites/tiles/cactus.png",
+    "spriteRef": "assets/sprites/tiles/cactus.png",
     "yield": 0
   },
   {
     "itemId": "wood",
     "name": "Wood",
-    "spriteRef": "sprites/tiles/wood.png",
+    "spriteRef": "assets/sprites/tiles/wood.png",
     "yield": 1,
     "requiredTool": "Axe",
-    "requiredPower": "Wood"
+    "requiredPower": "Wood",
+    "fuel": 300
   },
   {
     "itemId": "sapling",
     "name": "Sapling",
-    "spriteRef": "sprites/tiles/sapling.png",
-    "yield": 0
+    "spriteRef": "assets/sprites/tiles/sapling.png",
+    "yield": 0,
+    "fuel": 100
   },
   {
     "itemId": "plank",
     "name": "Plank",
-    "spriteRef": "sprites/tiles/plank.png",
-    "yield": 4,
+    "spriteRef": "assets/sprites/tiles/plank.png",
     "requiredTool": "Axe",
     "requiredPower": "Wood",
-    "recipe": [
-      [
-        "wood"
-      ]
-    ]
+    "fuel": 300,
+    "recipe": {
+      "pattern": [
+        [
+          "wood"
+        ]
+      ],
+      "yield": 4
+    }
   },
   {
     "itemId": "workbench",
     "name": "Workbench",
-    "spriteRef": "sprites/tiles/workbench.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "plank",
-        "plank"
+    "spriteRef": "assets/sprites/tiles/workbench.png",
+    "recipe": {
+      "pattern": [
+        [
+          "plank",
+          "plank"
+        ],
+        [
+          "plank",
+          "plank"
+        ]
       ],
-      [
-        "plank",
-        "plank"
-      ]
-    ]
+      "yield": 1
+    }
   },
   {
     "itemId": "stick",
     "name": "Stick",
-    "spriteRef": "sprites/entities/stick.png",
-    "yield": 4,
-    "recipe": [
-      [
-        "plank"
+    "spriteRef": "assets/sprites/entities/stick.png",
+    "recipe": {
+      "pattern": [
+        [
+          "plank"
+        ],
+        [
+          "plank"
+        ]
       ],
-      [
-        "plank"
-      ]
-    ]
+      "yield": 4
+    }
   },
   {
     "itemId": "ladder",
     "name": "Ladder",
-    "spriteRef": "sprites/tiles/ladder.png",
-    "yield": 8,
-    "recipe": [
-      [
-        "stick",
-        null,
-        "stick"
+    "spriteRef": "assets/sprites/tiles/ladder.png",
+    "recipe": {
+      "pattern": [
+        [
+          "stick",
+          null,
+          "stick"
+        ],
+        [
+          "stick",
+          "stick",
+          "stick"
+        ],
+        [
+          "stick",
+          null,
+          "stick"
+        ]
       ],
-      [
-        "stick",
-        "stick",
-        "stick"
-      ],
-      [
-        "stick",
-        null,
-        "stick"
-      ]
-    ]
+      "yield": 8
+    }
   },
   {
     "itemId": "torch",
     "name": "Torch",
-    "spriteRef": "sprites/tiles/torch.png",
-    "yield": 4,
-    "recipe": [
-      [
-        "coal_ore"
+    "spriteRef": "assets/sprites/tiles/torch.png",
+    "recipe": {
+      "pattern": [
+        [
+          "coal"
+        ],
+        [
+          "stick"
+        ]
       ],
-      [
-        "stick"
-      ]
-    ],
+      "yield": 4
+    },
     "shapeless": true
   },
   {
     "itemId": "wall_torch",
     "name": "Wall Torch",
-    "spriteRef": "sprites/tiles/wall_torch.png",
+    "spriteRef": "assets/sprites/tiles/wall_torch.png",
     "yield": 0
   },
   {
     "itemId": "wheat_seeds",
     "name": "Wheat Seeds",
-    "spriteRef": "sprites/entities/wheat_seeds.png",
+    "spriteRef": "assets/sprites/entities/wheat_seeds.png",
     "yield": 0
   },
   {
     "itemId": "wheat",
     "name": "Wheat",
-    "spriteRef": "sprites/entities/wheat.png",
+    "spriteRef": "assets/sprites/entities/wheat.png",
     "yield": 0
   },
   {
     "itemId": "rose",
     "name": "Rose",
-    "spriteRef": "sprites/tiles/rose.png",
+    "spriteRef": "assets/sprites/tiles/rose.png",
     "yield": 0
   },
   {
     "itemId": "dandelion",
     "name": "Dandelion",
-    "spriteRef": "sprites/tiles/dandelion.png",
+    "spriteRef": "assets/sprites/tiles/dandelion.png",
     "yield": 0
   },
   {
     "itemId": "tall_grass",
     "name": "Tall Grass",
-    "spriteRef": "sprites/tiles/tall_grass.png",
+    "spriteRef": "assets/sprites/tiles/tall_grass.png",
     "yield": 0
   },
   {
     "itemId": "leaves",
     "name": "Leaves",
-    "spriteRef": "sprites/tiles/leaves.png",
+    "spriteRef": "assets/sprites/tiles/leaves.png",
     "yield": 0
   },
   {
     "itemId": "string",
     "name": "String",
-    "spriteRef": "sprites/entities/string.png",
+    "spriteRef": "assets/sprites/entities/string.png",
     "yield": 0
   },
   {
     "itemId": "iron_block",
     "name": "Iron Block",
-    "spriteRef": "sprites/tiles/iron_block.png",
-    "yield": 1,
+    "spriteRef": "assets/sprites/tiles/iron_block.png",
     "requiredTool": "Pick",
     "requiredPower": "Stone",
-    "recipe": [
-      [
-        "iron_ore",
-        "iron_ore",
-        "iron_ore"
+    "recipe": {
+      "pattern": [
+        [
+          "iron",
+          "iron",
+          "iron"
+        ],
+        [
+          "iron",
+          "iron",
+          "iron"
+        ],
+        [
+          "iron",
+          "iron",
+          "iron"
+        ]
       ],
-      [
-        "iron_ore",
-        "iron_ore",
-        "iron_ore"
-      ],
-      [
-        "iron_ore",
-        "iron_ore",
-        "iron_ore"
-      ]
-    ]
+      "yield": 1
+    }
   },
   {
     "itemId": "gold_block",
     "name": "Gold Block",
-    "spriteRef": "sprites/tiles/gold_block.png",
-    "yield": 1,
+    "spriteRef": "assets/sprites/tiles/gold_block.png",
     "requiredTool": "Pick",
     "requiredPower": "Iron",
-    "recipe": [
-      [
-        "gold_ore",
-        "gold_ore",
-        "gold_ore"
+    "recipe": {
+      "pattern": [
+        [
+          "gold",
+          "gold",
+          "gold"
+        ],
+        [
+          "gold",
+          "gold",
+          "gold"
+        ],
+        [
+          "gold",
+          "gold",
+          "gold"
+        ]
       ],
-      [
-        "gold_ore",
-        "gold_ore",
-        "gold_ore"
-      ],
-      [
-        "gold_ore",
-        "gold_ore",
-        "gold_ore"
-      ]
-    ]
+      "yield": 1
+    }
   },
   {
     "itemId": "diamond_block",
     "name": "Diamond Block",
-    "spriteRef": "sprites/tiles/diamond_block.png",
-    "yield": 1,
+    "spriteRef": "assets/sprites/tiles/diamond_block.png",
     "requiredTool": "Pick",
     "requiredPower": "Iron",
-    "recipe": [
-      [
-        "diamond_ore",
-        "diamond_ore",
-        "diamond_ore"
+    "recipe": {
+      "pattern": [
+        [
+          "diamond",
+          "diamond",
+          "diamond"
+        ],
+        [
+          "diamond",
+          "diamond",
+          "diamond"
+        ],
+        [
+          "diamond",
+          "diamond",
+          "diamond"
+        ]
       ],
-      [
-        "diamond_ore",
-        "diamond_ore",
-        "diamond_ore"
-      ],
-      [
-        "diamond_ore",
-        "diamond_ore",
-        "diamond_ore"
-      ]
-    ]
+      "yield": 1
+    }
   },
   {
     "itemId": "coal_block",
     "name": "Coal Block",
-    "spriteRef": "sprites/tiles/coal_block.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "coal_ore",
-        "coal_ore",
-        "coal_ore"
+    "spriteRef": "assets/sprites/tiles/coal_block.png",
+    "recipe": {
+      "pattern": [
+        [
+          "coal",
+          "coal",
+          "coal"
+        ],
+        [
+          "coal",
+          "coal",
+          "coal"
+        ],
+        [
+          "coal",
+          "coal",
+          "coal"
+        ]
       ],
-      [
-        "coal_ore",
-        "coal_ore",
-        "coal_ore"
-      ],
-      [
-        "coal_ore",
-        "coal_ore",
-        "coal_ore"
-      ]
-    ]
+      "yield": 1
+    }
   },
   {
     "itemId": "lapis_block",
     "name": "Lapis Block",
-    "spriteRef": "sprites/tiles/lapis_block.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "lapis_ore",
-        "lapis_ore",
-        "lapis_ore"
+    "spriteRef": "assets/sprites/tiles/lapis_block.png",
+    "recipe": {
+      "pattern": [
+        [
+          "lapis",
+          "lapis",
+          "lapis"
+        ],
+        [
+          "lapis",
+          "lapis",
+          "lapis"
+        ],
+        [
+          "lapis",
+          "lapis",
+          "lapis"
+        ]
       ],
-      [
-        "lapis_ore",
-        "lapis_ore",
-        "lapis_ore"
-      ],
-      [
-        "lapis_ore",
-        "lapis_ore",
-        "lapis_ore"
-      ]
-    ]
+      "yield": 1
+    }
   },
   {
-    "itemId": "emerald_block",
-    "name": "Emerald Block",
-    "spriteRef": "sprites/tiles/emerald_block.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "emerald_ore",
-        "emerald_ore",
-        "emerald_ore"
+    "itemId": "ruby_block",
+    "name": "Ruby Block",
+    "spriteRef": "assets/sprites/tiles/ruby_block.png",
+    "recipe": {
+      "pattern": [
+        [
+          "ruby",
+          "ruby",
+          "ruby"
+        ],
+        [
+          "ruby",
+          "ruby",
+          "ruby"
+        ],
+        [
+          "ruby",
+          "ruby",
+          "ruby"
+        ]
       ],
-      [
-        "emerald_ore",
-        "emerald_ore",
-        "emerald_ore"
-      ],
-      [
-        "emerald_ore",
-        "emerald_ore",
-        "emerald_ore"
-      ]
-    ]
+      "yield": 1
+    }
   },
   {
     "itemId": "hay_block",
     "name": "Hay Block",
-    "spriteRef": "sprites/tiles/hay_block.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "wheat",
-        "wheat",
-        "wheat"
+    "spriteRef": "assets/sprites/tiles/hay_block.png",
+    "recipe": {
+      "pattern": [
+        [
+          "wheat",
+          "wheat",
+          "wheat"
+        ],
+        [
+          "wheat",
+          "wheat",
+          "wheat"
+        ],
+        [
+          "wheat",
+          "wheat",
+          "wheat"
+        ]
       ],
-      [
-        "wheat",
-        "wheat",
-        "wheat"
-      ],
-      [
-        "wheat",
-        "wheat",
-        "wheat"
-      ]
-    ]
+      "yield": 1
+    }
   },
   {
     "itemId": "red_dye",
     "name": "Red Dye",
-    "spriteRef": "sprites/entities/red_dye.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "rose"
-      ]
-    ]
+    "spriteRef": "assets/sprites/entities/red_dye.png",
+    "recipe": {
+      "pattern": [
+        [
+          "rose"
+        ]
+      ],
+      "yield": 1
+    }
   },
   {
     "itemId": "orange_dye",
     "name": "Orange Dye",
-    "spriteRef": "sprites/entities/orange_dye.png",
-    "yield": 2,
-    "recipe": [
-      [
-        "yellow_dye",
-        "red_dye"
-      ]
-    ]
+    "spriteRef": "assets/sprites/entities/orange_dye.png",
+    "recipe": {
+      "pattern": [
+        [
+          "yellow_dye",
+          "red_dye"
+        ]
+      ],
+      "yield": 2
+    }
   },
   {
     "itemId": "yellow_dye",
     "name": "Yellow Dye",
-    "spriteRef": "sprites/entities/yellow_dye.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "dandelion"
-      ]
-    ]
+    "spriteRef": "assets/sprites/entities/yellow_dye.png",
+    "recipe": {
+      "pattern": [
+        [
+          "dandelion"
+        ]
+      ],
+      "yield": 1
+    }
   },
   {
     "itemId": "green_dye",
     "name": "Green Dye",
-    "spriteRef": "sprites/entities/green_dye.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "cactus"
-      ]
-    ]
+    "spriteRef": "assets/sprites/entities/green_dye.png",
+    "recipe": {
+      "pattern": [
+        [
+          "cactus"
+        ]
+      ],
+      "yield": 1
+    }
   },
   {
     "itemId": "black_dye",
     "name": "Black Dye",
-    "spriteRef": "sprites/entities/black_dye.png",
+    "spriteRef": "assets/sprites/entities/black_dye.png",
     "yield": 0
   },
   {
     "itemId": "purple_dye",
     "name": "Purple Dye",
-    "spriteRef": "sprites/entities/purple_dye.png",
+    "spriteRef": "assets/sprites/entities/purple_dye.png",
     "yield": 0
   },
   {
     "itemId": "gray_dye",
     "name": "Gray Dye",
-    "spriteRef": "sprites/entities/gray_dye.png",
+    "spriteRef": "assets/sprites/entities/gray_dye.png",
     "yield": 0
   },
   {
     "itemId": "white_wool",
     "name": "White Wool",
-    "spriteRef": "sprites/tiles/white_wool.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "string",
-        "string"
+    "spriteRef": "assets/sprites/tiles/white_wool.png",
+    "recipe": {
+      "pattern": [
+        [
+          "string",
+          "string"
+        ],
+        [
+          "string",
+          "string"
+        ]
       ],
-      [
-        "string",
-        "string"
-      ]
-    ],
+      "yield": 1
+    },
     "shapeless": true
   },
   {
     "itemId": "black_wool",
     "name": "Black Wool",
-    "spriteRef": "sprites/tiles/black_wool.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "white_wool",
-        "black_dye"
-      ]
-    ],
+    "spriteRef": "assets/sprites/tiles/black_wool.png",
+    "recipe": {
+      "pattern": [
+        [
+          "white_wool",
+          "black_dye"
+        ]
+      ],
+      "yield": 1
+    },
     "shapeless": true
   },
   {
     "itemId": "red_wool",
     "name": "Red Wool",
-    "spriteRef": "sprites/tiles/red_wool.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "white_wool",
-        "red_dye"
-      ]
-    ]
+    "spriteRef": "assets/sprites/tiles/red_wool.png",
+    "recipe": {
+      "pattern": [
+        [
+          "white_wool",
+          "red_dye"
+        ]
+      ],
+      "yield": 1
+    },
+    "shapeless": true
   },
   {
     "itemId": "green_wool",
     "name": "Green Wool",
-    "spriteRef": "sprites/tiles/green_wool.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "white_wool",
-        "green_dye"
-      ]
-    ]
+    "spriteRef": "assets/sprites/tiles/green_wool.png",
+    "recipe": {
+      "pattern": [
+        [
+          "white_wool",
+          "green_dye"
+        ]
+      ],
+      "yield": 1
+    },
+    "shapeless": true
   },
   {
     "itemId": "orange_wool",
     "name": "Orange Wool",
-    "spriteRef": "sprites/tiles/orange_wool.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "white_wool",
-        "orange_dye"
-      ]
-    ]
+    "spriteRef": "assets/sprites/tiles/orange_wool.png",
+    "recipe": {
+      "pattern": [
+        [
+          "white_wool",
+          "orange_dye"
+        ]
+      ],
+      "yield": 1
+    },
+    "shapeless": true
   },
   {
     "itemId": "yellow_wool",
     "name": "Yellow Wool",
-    "spriteRef": "sprites/tiles/yellow_wool.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "white_wool",
-        "yellow_dye"
-      ]
-    ]
+    "spriteRef": "assets/sprites/tiles/yellow_wool.png",
+    "recipe": {
+      "pattern": [
+        [
+          "white_wool",
+          "yellow_dye"
+        ]
+      ],
+      "yield": 1
+    },
+    "shapeless": true
   },
   {
     "itemId": "bread",
     "name": "Bread",
-    "spriteRef": "sprites/entities/bread.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "wheat",
-        "wheat",
-        "wheat"
-      ]
-    ]
+    "spriteRef": "assets/sprites/entities/bread.png",
+    "recipe": {
+      "pattern": [
+        [
+          "wheat",
+          "wheat",
+          "wheat"
+        ]
+      ],
+      "yield": 1
+    }
   },
   {
     "itemId": "purple_wool",
     "name": "Purple Wool",
-    "spriteRef": "sprites/tiles/purple_wool.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "white_wool",
-        "purple_dye"
-      ]
-    ]
+    "spriteRef": "assets/sprites/tiles/purple_wool.png",
+    "recipe": {
+      "pattern": [
+        [
+          "white_wool",
+          "purple_dye"
+        ]
+      ],
+      "yield": 1
+    },
+    "shapeless": true
   },
   {
     "itemId": "blue_wool",
     "name": "Blue Wool",
-    "spriteRef": "sprites/tiles/blue_wool.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "white_wool",
-        "lapis_ore"
-      ]
-    ]
+    "spriteRef": "assets/sprites/tiles/blue_wool.png",
+    "recipe": {
+      "pattern": [
+        [
+          "white_wool",
+          "lapis"
+        ]
+      ],
+      "yield": 1
+    },
+    "shapeless": true
   },
   {
     "itemId": "cyan_wool",
     "name": "Cyan Wool",
-    "spriteRef": "sprites/tiles/cyan_wool.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "green_wool",
-        "lapis_ore"
-      ]
-    ]
+    "spriteRef": "assets/sprites/tiles/cyan_wool.png",
+    "recipe": {
+      "pattern": [
+        [
+          "green_wool",
+          "lapis"
+        ]
+      ],
+      "yield": 1
+    },
+    "shapeless": true
   },
   {
     "itemId": "pink_wool",
     "name": "Pink Wool",
-    "spriteRef": "sprites/tiles/pink_wool.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "white_wool",
-        "red_dye"
-      ]
-    ]
+    "spriteRef": "assets/sprites/tiles/pink_wool.png",
+    "recipe": {
+      "pattern": [
+        [
+          "white_wool",
+          "red_dye"
+        ]
+      ],
+      "yield": 1
+    }
   },
   {
     "itemId": "lime_wool",
     "name": "Lime Wool",
-    "spriteRef": "sprites/tiles/lime_wool.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "white_wool",
-        "green_dye"
-      ]
-    ]
+    "spriteRef": "assets/sprites/tiles/lime_wool.png",
+    "recipe": {
+      "pattern": [
+        [
+          "white_wool",
+          "green_dye"
+        ]
+      ],
+      "yield": 1
+    }
   },
   {
     "itemId": "gray_wool",
     "name": "Gray Wool",
-    "spriteRef": "sprites/tiles/gray_wool.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "white_wool",
-        "black_wool"
-      ]
-    ]
+    "spriteRef": "assets/sprites/tiles/gray_wool.png",
+    "recipe": {
+      "pattern": [
+        [
+          "white_wool",
+          "black_wool"
+        ]
+      ],
+      "yield": 1
+    }
   },
   {
     "itemId": "apple",
     "name": "Apple",
-    "spriteRef": "sprites/entities/apple.png",
+    "spriteRef": "assets/sprites/entities/apple.png",
     "yield": 1
   },
   {
     "itemId": "golden_apple",
     "name": "Golden Apple",
-    "spriteRef": "sprites/entities/golden_apple.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "gold_ore",
-        "gold_ore",
-        "gold_ore"
+    "spriteRef": "assets/sprites/entities/golden_apple.png",
+    "recipe": {
+      "pattern": [
+        [
+          "gold",
+          "gold",
+          "gold"
+        ],
+        [
+          "gold",
+          "apple",
+          "gold"
+        ],
+        [
+          "gold",
+          "gold",
+          "gold"
+        ]
       ],
-      [
-        "gold_ore",
-        "apple",
-        "gold_ore"
-      ],
-      [
-        "gold_ore",
-        "gold_ore",
-        "gold_ore"
-      ]
-    ]
+      "yield": 1
+    }
   },
   {
     "itemId": "stone_bricks",
     "name": "Stone Bricks",
-    "spriteRef": "sprites/tiles/stone_bricks.png",
-    "yield": 4,
-    "recipe": [
-      [
-        "stone",
-        "stone"
+    "spriteRef": "assets/sprites/tiles/stone_bricks.png",
+    "recipe": {
+      "pattern": [
+        [
+          "stone",
+          "stone"
+        ],
+        [
+          "stone",
+          "stone"
+        ]
       ],
-      [
-        "stone",
-        "stone"
-      ]
-    ]
+      "yield": 4
+    }
   },
   {
     "itemId": "carved_stone_bricks",
     "name": "Carved Stone Bricks",
-    "spriteRef": "sprites/tiles/carved_stone_bricks.png",
+    "spriteRef": "assets/sprites/tiles/carved_stone_bricks.png",
     "yield": 0
   },
   {
     "itemId": "bricks",
     "name": "Bricks",
-    "spriteRef": "sprites/tiles/bricks.png",
+    "spriteRef": "assets/sprites/tiles/bricks.png",
     "yield": 0
   },
   {
     "itemId": "glass",
     "name": "Glass",
-    "spriteRef": "sprites/tiles/glass.png",
+    "spriteRef": "assets/sprites/tiles/glass.png",
     "yield": 0
   },
   {
     "itemId": "bookshelf",
     "name": "Bookshelf",
-    "spriteRef": "sprites/tiles/bookshelf.png",
+    "spriteRef": "assets/sprites/tiles/bookshelf.png",
     "yield": 0
   },
   {
     "itemId": "furnace",
     "name": "Furnace",
-    "spriteRef": "sprites/tiles/furnace.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "cobble",
-        "cobble",
-        "cobble"
+    "spriteRef": "assets/sprites/tiles/furnace.png",
+    "recipe": {
+      "pattern": [
+        [
+          "cobble",
+          "cobble",
+          "cobble"
+        ],
+        [
+          "cobble",
+          null,
+          "cobble"
+        ],
+        [
+          "cobble",
+          "cobble",
+          "cobble"
+        ]
       ],
-      [
-        "cobble",
-        null,
-        "cobble"
-      ],
-      [
-        "cobble",
-        "cobble",
-        "cobble"
-      ]
-    ]
+      "yield": 1
+    }
   },
   {
     "itemId": "spawner",
     "name": "Spawner",
-    "spriteRef": "sprites/tiles/spawner.png",
+    "spriteRef": "assets/sprites/tiles/spawner.png",
     "yield": 0
   },
   {
     "itemId": "crazy_hamburger",
     "name": "Crazy Hamburger",
-    "spriteRef": "sprites/entities/crazy_hamburger.png",
+    "spriteRef": "assets/sprites/entities/crazy_hamburger.png",
     "yield": 1
   },
   {
     "itemId": "door",
     "name": "Door",
-    "spriteRef": "sprites/tiles/door_bot.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "plank",
-        "plank"
+    "spriteRef": "assets/sprites/tiles/door_bot.png",
+    "recipe": {
+      "pattern": [
+        [
+          "plank",
+          "plank"
+        ],
+        [
+          "plank",
+          "plank"
+        ],
+        [
+          "plank",
+          "plank"
+        ]
       ],
-      [
-        "plank",
-        "plank"
-      ],
-      [
-        "plank",
-        "plank"
-      ]
-    ]
+      "yield": 1
+    }
   },
   {
     "itemId": "bed",
     "name": "Bed",
-    "spriteRef": "sprites/tiles/bed_top.png",
-    "yield": 1,
-    "recipe": [
-      [
-        "plank",
-        "plank",
-        "plank"
+    "spriteRef": "assets/sprites/tiles/bed_top.png",
+    "recipe": {
+      "pattern": [
+        [
+          "plank",
+          "plank",
+          "plank"
+        ],
+        [
+          "white_wool",
+          "white_wool",
+          "white_wool"
+        ]
       ],
-      [
-        "white_wool",
-        "white_wool",
-        "white_wool"
-      ]
-    ]
+      "yield": 1
+    }
   }
 ]

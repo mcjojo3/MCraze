@@ -20,6 +20,13 @@ import com.google.gson.Gson;
 import mc.sayda.mcraze.util.StockMethods;
 
 public class ItemLoader {
+	private static ItemDefinition[] itemDefs;
+	private static java.util.Map<String, ItemDefinition> itemDefMap = new java.util.HashMap<>();
+
+	public static ItemDefinition getItemDefinition(String itemId) {
+		return itemDefMap.get(itemId);
+	}
+
 	private static final Gson gson = new Gson();
 
 	public static HashMap<String, Item> loadItems(int size) {
@@ -33,6 +40,15 @@ public class ItemLoader {
 					.fromJson(StockMethods.readFile("items/items.json"), ItemDefinition[].class);
 		} catch (IOException e) {
 		}
+
+		// Store definitions for furnace recipe lookup
+		itemDefs = items;
+		for (ItemDefinition def : items) {
+			if (def.itemId != null) {
+				itemDefMap.put(def.itemId, def);
+			}
+		}
+
 		if (tools == null || items == null) {
 			System.err.println("Failed to load items from json.");
 			System.exit(5);
@@ -47,59 +63,74 @@ public class ItemLoader {
 		}
 		return itemTypes;
 	}
-}
 
-class ItemDefinition {
-	String itemId;
-	String name;
-	String spriteRef;
-	String[][] recipe;
-	int yield;
-	boolean shapeless;
-	String requiredTool;
-	String requiredPower;
+	public static class ItemDefinition {
+		public String itemId;
+		public String name;
+		public String spriteRef;
+		public RecipeDefinition recipe;
+		public SmeltingDefinition smelting;
+		public Integer fuel; // Burn time in ticks (null if not fuel)
+		public boolean shapeless;
+		public String requiredTool;
+		public String requiredPower;
 
-	public ItemDefinition(String id, String n, String s, String[][] t, int y, boolean sh) {
-		itemId = id;
-		name = n;
-		spriteRef = s;
-		recipe = t;
-		yield = y;
-		shapeless = sh;
-	}
-
-	public Item makeItem(int size) {
-		Item item = new Item(spriteRef, size, itemId, name, recipe, yield, shapeless);
-		if (requiredTool != null) {
-			try {
-				item.requiredToolType = Tool.ToolType.valueOf(requiredTool);
-			} catch (IllegalArgumentException e) {
-				System.err.println("Invalid requiredTool: " + requiredTool + " for " + itemId);
-			}
+		// No-arg constructor for Gson
+		public ItemDefinition() {
 		}
-		if (requiredPower != null) {
-			try {
-				item.requiredToolPower = Tool.ToolPower.valueOf(requiredPower);
-			} catch (IllegalArgumentException e) {
-				System.err.println("Invalid requiredPower: " + requiredPower + " for " + itemId);
+
+		public Item makeItem(int size) {
+			String[][] pattern = recipe != null ? recipe.pattern : null;
+			int yield = recipe != null ? recipe.yield : 0;
+			Item item = new Item(spriteRef, size, itemId, name, pattern, yield, shapeless);
+			if (requiredTool != null) {
+				try {
+					item.requiredToolType = Tool.ToolType.valueOf(requiredTool);
+				} catch (IllegalArgumentException e) {
+					System.err.println("Invalid requiredTool: " + requiredTool + " for " + itemId);
+				}
 			}
+			if (requiredPower != null) {
+				try {
+					item.requiredToolPower = Tool.ToolPower.valueOf(requiredPower);
+				} catch (IllegalArgumentException e) {
+					System.err.println("Invalid requiredPower: " + requiredPower + " for " + itemId);
+				}
+			}
+			// Set fuel burn time (0 if not fuel)
+			item.fuelBurnTime = (fuel != null) ? fuel : 0;
+			return item;
 		}
-		return item;
-	}
-}
-
-class ToolDefinition extends ItemDefinition {
-	Tool.ToolType type;
-	Tool.ToolPower power;
-
-	public ToolDefinition(String id, String n, String s, String[][] t, int y, boolean sh, Tool.ToolType tt,
-			Tool.ToolPower tp) {
-		super(id, n, s, t, y, sh);
-		type = tt;
-		power = tp;
 	}
 
-	public Tool makeTool(int size) {
-		return new Tool(spriteRef, size, itemId, name, recipe, yield, type, power, shapeless);
+	public static class ToolDefinition extends ItemDefinition {
+		public String type;
+		public String power;
+
+		public Tool makeTool(int size) {
+			String[][] pattern = recipe != null ? recipe.pattern : null;
+			int yield = recipe != null ? recipe.yield : 0;
+			Tool.ToolType t = null;
+			Tool.ToolPower p = null;
+			try {
+				t = Tool.ToolType.valueOf(type);
+				p = Tool.ToolPower.valueOf(power);
+			} catch (IllegalArgumentException e) {
+				System.err.println("Invalid tool type or power: " + type + ", " + power);
+			}
+			return new Tool(spriteRef, size, itemId, name, pattern, yield, t, p, shapeless);
+		}
+	}
+
+	// Helper classes for nested JSON deserialization
+	public static class RecipeDefinition {
+		public String[][] pattern;
+		public int yield;
+	}
+
+	public static class SmeltingDefinition {
+		public String result;
+		public int time;
+		public int yield;
 	}
 }

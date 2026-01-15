@@ -7,6 +7,9 @@ import mc.sayda.mcraze.SpriteStore;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.Scanner;
+import java.io.InputStream;
 
 /**
  * Main menu system with dynamic button support
@@ -23,9 +26,11 @@ public class MainMenu {
 	}
 
 	// Menu sprites
-	private static final Sprite MENU_BG_TILE = SpriteStore.get().getSprite("sprites/tiles/dirt.png");
-	private static final Sprite MENU_LOGO = SpriteStore.get().getSprite("sprites/menus/title.png");
-	private static final Sprite MENU_TAG = SpriteStore.get().getSprite("sprites/menus/tag.png");
+	private static final Sprite MENU_BG_TILE = SpriteStore.get().getSprite("assets/sprites/tiles/dirt.png");
+	private static final Sprite MENU_LOGO = SpriteStore.get().getSprite("assets/sprites/menus/title.png");
+	// private static final Sprite MENU_TAG =
+	// SpriteStore.get().getSprite("assets/sprites/menus/tag.png"); // Removed in
+	// favor of text
 
 	// Button constants
 	private static final int BUTTON_WIDTH = 200;
@@ -41,22 +46,49 @@ public class MainMenu {
 	private UIRenderer uiRenderer;
 	private MenuState currentState;
 	private List<Button> currentButtons;
-	private TextInput ipInput;  // For multiplayer connection
-	private TextInput worldNameInput;  // For world creation
-	private int selectedWorldSize = WORLD_SIZE_MEDIUM;  // Default world size
+	private TextInput ipInput; // For multiplayer connection
+	private TextInput worldNameInput; // For world creation
+	private int selectedWorldSize = WORLD_SIZE_MEDIUM; // Default world size
 	private long ticksRunning = 0;
-	private SharedSettings sharedSettings;  // Shared settings component
+	private SharedSettings sharedSettings; // Shared settings component
+	private String currentSplash; // Dynamic splash text
 
 	// World selection state
 	private ScrollableList<mc.sayda.mcraze.world.WorldSaveManager.WorldMetadata> worldList;
-	private List<Button> worldActionButtons;  // Load, Rename, Delete buttons
+	private List<Button> worldActionButtons; // Load, Rename, Delete buttons
 
 	public MainMenu(Game g, UIRenderer uiRenderer) {
 		this.game = g;
 		this.uiRenderer = uiRenderer;
 		this.currentState = MenuState.MAIN;
 		this.currentButtons = new ArrayList<>();
+		loadSplashes(); // Load random splash
 		buildMainMenu();
+	}
+
+	private void loadSplashes() {
+		List<String> splashes = new ArrayList<>();
+		try {
+			InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream("assets/splashes.txt");
+			if (in != null) {
+				try (Scanner scanner = new Scanner(in)) {
+					while (scanner.hasNextLine()) {
+						String line = scanner.nextLine().trim();
+						if (!line.isEmpty()) {
+							splashes.add(line);
+						}
+					}
+				}
+			}
+		} catch (Exception e) {
+			System.err.println("Failed to load splashes: " + e.getMessage());
+		}
+
+		if (splashes.isEmpty()) {
+			currentSplash = "Now in 2D!";
+		} else {
+			currentSplash = splashes.get(new Random().nextInt(splashes.size()));
+		}
 	}
 
 	/**
@@ -93,48 +125,43 @@ public class MainMenu {
 
 		// Singleplayer button
 		Button singleplayerBtn = new Button(
-			"singleplayer",
-			"Singleplayer",
-			startY,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(this::showSingleplayerMenu);
+				"singleplayer",
+				"Singleplayer",
+				startY,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::showSingleplayerMenu);
 
 		// Multiplayer button
 		Button multiplayerBtn = new Button(
-			"multiplayer",
-			"Multiplayer",
-			startY + BUTTON_HEIGHT + BUTTON_SPACING,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(this::showMultiplayerMenu);
+				"multiplayer",
+				"Multiplayer",
+				startY + BUTTON_HEIGHT + BUTTON_SPACING,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::showMultiplayerMenu);
 
 		// Options button
 		Button optionsBtn = new Button(
-			"options",
-			"Options",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 2,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(this::showOptionsMenu);
+				"options",
+				"Options",
+				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 2,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::showOptionsMenu);
 
 		// Logout button
 		Button logoutBtn = new Button(
-			"logout",
-			"Logout",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(() -> game.logout());
+				"logout",
+				"Logout",
+				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(() -> game.logout());
 
 		// Exit button
 		Button exitBtn = new Button(
-			"exit",
-			"Exit Game",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 4,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(() -> game.quit());
+				"exit",
+				"Exit Game",
+				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 4,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(() -> game.quit());
 
 		currentButtons.add(singleplayerBtn);
 		currentButtons.add(multiplayerBtn);
@@ -154,30 +181,27 @@ public class MainMenu {
 
 		// Create New World button
 		Button createBtn = new Button(
-			"create",
-			"Create New World",
-			startY,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(this::showWorldCreationMenu);
+				"create",
+				"Create New World",
+				startY,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::showWorldCreationMenu);
 
 		// Load World button
 		Button loadBtn = new Button(
-			"load",
-			"Load World",
-			startY + BUTTON_HEIGHT + BUTTON_SPACING,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(this::showWorldSelectionMenu);
+				"load",
+				"Load World",
+				startY + BUTTON_HEIGHT + BUTTON_SPACING,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::showWorldSelectionMenu);
 
 		// Back button
 		Button backBtn = new Button(
-			"back",
-			"Back",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(this::buildMainMenu);
+				"back",
+				"Back",
+				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::buildMainMenu);
 
 		currentButtons.add(createBtn);
 		currentButtons.add(loadBtn);
@@ -199,46 +223,42 @@ public class MainMenu {
 
 		// World size buttons
 		Button mediumBtn = new Button(
-			"medium",
-			"Medium (512x256)",
-			startY + BUTTON_HEIGHT + BUTTON_SPACING * 3,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(() -> {
-			selectedWorldSize = WORLD_SIZE_MEDIUM;
-			createNewWorld();
-		});
+				"medium",
+				"Medium (512x256)",
+				startY + BUTTON_HEIGHT + BUTTON_SPACING * 3,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(() -> {
+					selectedWorldSize = WORLD_SIZE_MEDIUM;
+					createNewWorld();
+				});
 
 		Button largeBtn = new Button(
-			"large",
-			"Large (1024x256)",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 2 + BUTTON_SPACING * 2,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(() -> {
-			selectedWorldSize = WORLD_SIZE_LARGE;
-			createNewWorld();
-		});
+				"large",
+				"Large (1024x256)",
+				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 2 + BUTTON_SPACING * 2,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(() -> {
+					selectedWorldSize = WORLD_SIZE_LARGE;
+					createNewWorld();
+				});
 
 		Button hugeBtn = new Button(
-			"huge",
-			"Huge (2048x256)",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3 + BUTTON_SPACING * 2,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(() -> {
-			selectedWorldSize = WORLD_SIZE_HUGE;
-			createNewWorld();
-		});
+				"huge",
+				"Huge (2048x256)",
+				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3 + BUTTON_SPACING * 2,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(() -> {
+					selectedWorldSize = WORLD_SIZE_HUGE;
+					createNewWorld();
+				});
 
 		// Back button
 		Button backBtn = new Button(
-			"back",
-			"Back",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 5,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(this::showSingleplayerMenu);
+				"back",
+				"Back",
+				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 5,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::showSingleplayerMenu);
 
 		currentButtons.add(mediumBtn);
 		currentButtons.add(largeBtn);
@@ -255,13 +275,13 @@ public class MainMenu {
 		worldNameInput = null;
 
 		// Get available worlds
-		List<mc.sayda.mcraze.world.WorldSaveManager.WorldMetadata> availableWorlds =
-			mc.sayda.mcraze.world.WorldSaveManager.getAvailableWorlds();
+		List<mc.sayda.mcraze.world.WorldSaveManager.WorldMetadata> availableWorlds = mc.sayda.mcraze.world.WorldSaveManager
+				.getAvailableWorlds();
 
 		// Create scrollable list positioned to the left
 		int listWidth = 400;
 		int listHeight = 200;
-		int listY = 200;  // Centered vertically
+		int listY = 200; // Centered vertically
 		// Position list offset to the left, centered as a group with buttons
 		worldList = new ScrollableList<>(-100, listY, listWidth, listHeight, 35);
 
@@ -287,50 +307,46 @@ public class MainMenu {
 		// List is at x=-100 (offset from center), width=400
 		// List right edge is at: -100 + 400 = 300 from center
 		// Buttons centered as a group with the list
-		int buttonOffsetX = 210;  // Positions group center at screen center
-		int startY = 200;  // Same Y as list for vertical centering
+		int buttonOffsetX = 210; // Positions group center at screen center
+		int startY = 200; // Same Y as list for vertical centering
 		int buttonWidth = 180;
 
 		boolean hasSelection = (worldList != null && worldList.getSelectedIndex() >= 0);
 
 		Button loadBtn = new Button(
-			"load_world",
-			"Load World",
-			startY,
-			buttonWidth,
-			BUTTON_HEIGHT
-		).setOnClick(this::loadSelectedWorld)
-		 .setEnabled(hasSelection)
-		 .setOffsetX(buttonOffsetX);
+				"load_world",
+				"Load World",
+				startY,
+				buttonWidth,
+				BUTTON_HEIGHT).setOnClick(this::loadSelectedWorld)
+				.setEnabled(hasSelection)
+				.setOffsetX(buttonOffsetX);
 
 		Button renameBtn = new Button(
-			"rename_world",
-			"Rename World",
-			startY + BUTTON_HEIGHT + BUTTON_SPACING,
-			buttonWidth,
-			BUTTON_HEIGHT
-		).setOnClick(this::renameSelectedWorld)
-		 .setEnabled(hasSelection)
-		 .setOffsetX(buttonOffsetX);
+				"rename_world",
+				"Rename World",
+				startY + BUTTON_HEIGHT + BUTTON_SPACING,
+				buttonWidth,
+				BUTTON_HEIGHT).setOnClick(this::renameSelectedWorld)
+				.setEnabled(hasSelection)
+				.setOffsetX(buttonOffsetX);
 
 		Button deleteBtn = new Button(
-			"delete_world",
-			"Delete World",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 2,
-			buttonWidth,
-			BUTTON_HEIGHT
-		).setOnClick(this::deleteSelectedWorld)
-		 .setEnabled(hasSelection)
-		 .setOffsetX(buttonOffsetX);
+				"delete_world",
+				"Delete World",
+				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 2,
+				buttonWidth,
+				BUTTON_HEIGHT).setOnClick(this::deleteSelectedWorld)
+				.setEnabled(hasSelection)
+				.setOffsetX(buttonOffsetX);
 
 		Button backBtn = new Button(
-			"back",
-			"Back",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3,
-			buttonWidth,
-			BUTTON_HEIGHT
-		).setOnClick(this::showSingleplayerMenu)
-		 .setOffsetX(buttonOffsetX);
+				"back",
+				"Back",
+				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3,
+				buttonWidth,
+				BUTTON_HEIGHT).setOnClick(this::showSingleplayerMenu)
+				.setOffsetX(buttonOffsetX);
 
 		worldActionButtons.add(loadBtn);
 		worldActionButtons.add(renameBtn);
@@ -395,25 +411,23 @@ public class MainMenu {
 		// Create IP input field and load last used IP
 		ipInput = new TextInput("ip_input", startY, BUTTON_WIDTH, BUTTON_HEIGHT, 32);
 		String lastIP = mc.sayda.mcraze.util.CredentialManager.loadLastIP();
-		ipInput.setText(lastIP != null ? lastIP : "localhost:25565");  // Use last IP or default
+		ipInput.setText(lastIP != null ? lastIP : "localhost:25565"); // Use last IP or default
 
 		// Connect button
 		Button connectBtn = new Button(
-			"connect",
-			"Connect",
-			startY + BUTTON_HEIGHT + BUTTON_SPACING * 2,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(this::connectToServer);
+				"connect",
+				"Connect",
+				startY + BUTTON_HEIGHT + BUTTON_SPACING * 2,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::connectToServer);
 
 		// Back button
 		Button backBtn = new Button(
-			"back",
-			"Back",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 4,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(this::buildMainMenu);
+				"back",
+				"Back",
+				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 4,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::buildMainMenu);
 
 		currentButtons.add(connectBtn);
 		currentButtons.add(backBtn);
@@ -425,7 +439,7 @@ public class MainMenu {
 	private void showOptionsMenu() {
 		currentButtons.clear();
 		currentState = MenuState.OPTIONS;
-		ipInput = null;  // Clear IP input when leaving multiplayer menu
+		ipInput = null; // Clear IP input when leaving multiplayer menu
 		worldNameInput = null;
 
 		// Initialize shared settings if not already done
@@ -433,12 +447,11 @@ public class MainMenu {
 
 		// Back button (positioned below settings UI)
 		Button backBtn = new Button(
-			"back",
-			"Back",
-			380,  // Same Y position as in-game settings
-			200,
-			40
-		).setOnClick(this::buildMainMenu);
+				"back",
+				"Back",
+				380, // Same Y position as in-game settings
+				200,
+				40).setOnClick(this::buildMainMenu);
 
 		currentButtons.add(backBtn);
 	}
@@ -458,8 +471,8 @@ public class MainMenu {
 		}
 
 		// Check if world already exists
-		List<mc.sayda.mcraze.world.WorldSaveManager.WorldMetadata> worlds =
-			mc.sayda.mcraze.world.WorldSaveManager.getAvailableWorlds();
+		List<mc.sayda.mcraze.world.WorldSaveManager.WorldMetadata> worlds = mc.sayda.mcraze.world.WorldSaveManager
+				.getAvailableWorlds();
 		for (mc.sayda.mcraze.world.WorldSaveManager.WorldMetadata world : worlds) {
 			if (world.worldName.equalsIgnoreCase(worldName)) {
 				System.err.println("World '" + worldName + "' already exists!");
@@ -489,8 +502,8 @@ public class MainMenu {
 
 		// Pre-validate: Check if playerdata exists and password matches
 		if (mc.sayda.mcraze.world.PlayerDataManager.exists(worldName, username)) {
-			mc.sayda.mcraze.world.PlayerData data =
-				mc.sayda.mcraze.world.PlayerDataManager.authenticate(worldName, username, password);
+			mc.sayda.mcraze.world.PlayerData data = mc.sayda.mcraze.world.PlayerDataManager.authenticate(worldName,
+					username, password);
 			if (data == null) {
 				// Wrong password
 				System.err.println("Wrong password for world '" + worldName + "'");
@@ -499,11 +512,12 @@ public class MainMenu {
 		}
 		// If playerdata doesn't exist, it will auto-register
 
-		game.startGame(worldName, true, WORLD_SIZE_MEDIUM, username, password);  // Size doesn't matter for loading
+		game.startGame(worldName, true, WORLD_SIZE_MEDIUM, username, password); // Size doesn't matter for loading
 	}
 
 	/**
 	 * Start a new game with the specified world size (legacy method)
+	 * 
 	 * @deprecated Use createNewWorld() instead
 	 */
 	@Deprecated
@@ -516,6 +530,7 @@ public class MainMenu {
 
 	/**
 	 * Load an existing world (legacy method)
+	 * 
 	 * @deprecated Use loadExistingWorld() instead
 	 */
 	@Deprecated
@@ -530,7 +545,8 @@ public class MainMenu {
 	 * Connect to multiplayer server
 	 */
 	private void connectToServer() {
-		if (ipInput == null) return;
+		if (ipInput == null)
+			return;
 
 		String address = ipInput.getText().trim();
 		if (address.isEmpty()) {
@@ -570,29 +586,63 @@ public class MainMenu {
 	 */
 	public void draw(GraphicsHandler g) {
 		ticksRunning++;
+		int screenWidth = g.getScreenWidth();
 
 		// Draw tiled background
 		uiRenderer.drawTileBackground(g, MENU_BG_TILE, 32);
 
 		// Draw logo
-		uiRenderer.drawCenteredX(g, MENU_LOGO, 70, 397, 50);
+		int logoX = (screenWidth - 349) / 2;
+		int logoY = 70;
+		uiRenderer.drawCenteredX(g, MENU_LOGO, logoY, 349, 78);
 
-		// Draw animated tag
-		float tagScale = ((float) Math.abs((ticksRunning % 100) - 50)) / 50 + 1;
-		MENU_TAG.draw(g, 570, 70, (int) (60 * tagScale), (int) (37 * tagScale));
+		// Draw splash text
+		if (currentSplash != null) {
+			g.setColor(new mc.sayda.mcraze.Color(255, 255, 0)); // Yellow
+			g.setFont("Dialog", GraphicsHandler.FONT_BOLD, 20); // Bold and slightly larger
+
+			// Pulse and simple animation (time-based for smoothness)
+			// Cycle every 1.5 seconds (1500ms)
+			double timeScale = (System.currentTimeMillis() % 1500L) / 1500.0 * Math.PI * 2;
+			float scale = 1.0f + (float) Math.sin(timeScale) * 0.1f;
+			int splashWidth = g.getStringWidth(currentSplash);
+
+			// Position relative to logo (center point for rotation)
+			// Moved slightly more to the right (+300 instead of +270)
+			int centerX = logoX + 300;
+			int centerY = logoY + 60;
+
+			g.pushState();
+
+			// Translate to center, rotate, scale, then translate back
+			g.translate(centerX, centerY);
+			g.rotate(Math.toRadians(-20), 0, 0);
+			g.scale(scale, scale);
+
+			// Draw centered on current local origin
+			g.drawString(currentSplash, -splashWidth / 2, 0);
+
+			g.popState();
+
+			// Reset font? AwtGraphicsHandler doesn't expose getFont, so we might effect
+			// others.
+			// Ideally we reset to default, but we don't know it.
+			// Assuming other components set their own font or rely on default.
+			// Let's set it back to plain 12 just in case.
+			g.setFont("Dialog", GraphicsHandler.FONT_PLAIN, 12);
+		}
 
 		// Draw menu title based on state
 		g.setColor(mc.sayda.mcraze.Color.white);
 		String menuTitle = getMenuTitle();
 		if (menuTitle != null) {
-			int titleX = g.getScreenWidth() / 2 - g.getStringWidth(menuTitle) / 2;
+			int titleX = screenWidth / 2 - g.getStringWidth(menuTitle) / 2;
 			g.drawString(menuTitle, titleX, 150);
 		}
 
 		// Update button positions and draw them
 		int mouseX = game.getClient().screenMousePos.x;
 		int mouseY = game.getClient().screenMousePos.y;
-		int screenWidth = g.getScreenWidth();
 
 		// Draw IP input if in multiplayer menu
 		if (currentState == MenuState.MULTIPLAYER && ipInput != null) {
@@ -629,7 +679,7 @@ public class MainMenu {
 		} else {
 			// Draw regular buttons for other menus
 			for (Button button : currentButtons) {
-				button.updatePosition(screenWidth);  // Center buttons dynamically
+				button.updatePosition(screenWidth); // Center buttons dynamically
 				button.updateHover(mouseX, mouseY);
 				button.draw(g);
 			}
@@ -684,7 +734,7 @@ public class MainMenu {
 			if (!settingsClicked) {
 				for (Button button : currentButtons) {
 					if (button.handleClick(mouseX, mouseY)) {
-						break;  // Only handle one click
+						break; // Only handle one click
 					}
 				}
 			}
@@ -728,7 +778,7 @@ public class MainMenu {
 	private String getMenuTitle() {
 		switch (currentState) {
 			case MAIN:
-				return null;  // No title for main menu (logo is shown)
+				return null; // No title for main menu (logo is shown)
 			case SINGLEPLAYER:
 				return "Singleplayer";
 			case WORLD_CREATE:

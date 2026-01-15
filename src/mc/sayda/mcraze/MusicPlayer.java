@@ -50,11 +50,11 @@ public class MusicPlayer {
 		this.random = new Random();
 
 		// Load separate playlists
-		this.menuPlaylist = loadPlaylistFromFolder("sounds/menu");
-		this.dayPlaylist = loadPlaylistFromFolder("sounds/day");
-		this.nightPlaylist = loadPlaylistFromFolder("sounds/night");
-		this.cavePlaylist = loadPlaylistFromFolder("sounds/cave");
-		this.musicPlaylist = loadPlaylistFromFolder("sounds/music");
+		this.menuPlaylist = loadPlaylistFromFolder("assets/sounds/menu");
+		this.dayPlaylist = loadPlaylistFromFolder("assets/sounds/day");
+		this.nightPlaylist = loadPlaylistFromFolder("assets/sounds/night");
+		this.cavePlaylist = loadPlaylistFromFolder("assets/sounds/cave");
+		this.musicPlaylist = loadPlaylistFromFolder("assets/sounds/music");
 
 		// Start with menu playlist
 		this.currentPlaylist = menuPlaylist;

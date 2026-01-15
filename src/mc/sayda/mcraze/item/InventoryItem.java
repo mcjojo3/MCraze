@@ -87,6 +87,8 @@ public class InventoryItem implements java.io.Serializable, Cloneable {
 		if (this.getCount() <= 0) {
 			return;
 		}
+		// Fix for invisible items: Reset color to white (opacity 1.0) before drawing
+		g.setColor(Color.white);
 		this.getItem().sprite.draw(g, x, y, tileSize, tileSize);
 		if (this.getCount() > 1) {
 			g.setColor(Color.white);

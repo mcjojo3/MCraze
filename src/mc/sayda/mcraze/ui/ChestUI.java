@@ -20,7 +20,7 @@ import mc.sayda.mcraze.network.packet.PacketChestAction;
 import mc.sayda.mcraze.util.Int2;
 
 /**
- * UI for chest inventory - shows 9x3 chest grid above player inventory
+ * UI for chest inventory - shows 10x3 chest grid above player inventory
  * No crafting functionality (simplified from Inventory)
  */
 public class ChestUI {
@@ -30,11 +30,11 @@ public class ChestUI {
 	private Inventory playerInventory;
 
 	// Display grids (references to chest data and player inventory)
-	private InventoryItem[][] chestItems = new InventoryItem[9][3]; // 9 wide, 3 tall
+	private InventoryItem[][] chestItems = new InventoryItem[10][3]; // 10 wide, 3 tall
 
 	public ChestUI() {
 		// Initialize empty chest items
-		for (int i = 0; i < 9; i++) {
+		for (int i = 0; i < 10; i++) {
 			for (int j = 0; j < 3; j++) {
 				chestItems[i][j] = new InventoryItem(null);
 			}
@@ -97,7 +97,7 @@ public class ChestUI {
 	 * Update chest inventory items from packet
 	 */
 	public void updateChestItems(InventoryItem[][] items) {
-		if (items != null && items.length == 9 && items[0].length == 3) {
+		if (items != null && items.length == 10 && items[0].length == 3) {
 			this.chestItems = items;
 		}
 	}
@@ -121,11 +121,11 @@ public class ChestUI {
 			playerInventory.holdingY = mousePos.y - tileSize / 2;
 		}
 
-		// Calculate chest panel dimensions (9 wide x 3 tall)
+		// Calculate chest panel dimensions (10 wide x 3 tall)
 		int chestPanelWidth = 10 * (tileSize + separation) + separation;
 		int chestPanelHeight = 3 * (tileSize + separation) + separation;
 
-		// Calculate player inventory panel dimensions (9 wide x 4 tall)
+		// Calculate player inventory panel dimensions (10 wide x 4 tall)
 		int playerPanelWidth = 10 * (tileSize + separation) + separation;
 		int playerPanelHeight = 4 * (tileSize + separation) + separation;
 
@@ -143,7 +143,7 @@ public class ChestUI {
 			if (leftClick || rightClick) {
 				// Calculate clicked slot in chest
 				Int2 slot = mouseToSlot(mousePos.x - chestX, mousePos.y - chestY, separation, tileSize);
-				if (slot != null && slot.x < 9 && slot.y < 3) {
+				if (slot != null && slot.x < 10 && slot.y < 3) {
 					// Send chest action packet (chest slot)
 					if (connection != null) {
 						PacketChestAction packet = new PacketChestAction(
@@ -186,7 +186,7 @@ public class ChestUI {
 				relX, relY,
 				tileSize, separation,
 				separation, separation,
-				10, 4); // ChestUI handles grids up to 9x4 (Chest 9x3, Player Inv 9x4)
+				10, 4); // ChestUI handles grids up to 10x4 (Chest 10x3, Player Inv 10x4)
 	}
 
 }

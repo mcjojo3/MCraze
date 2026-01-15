@@ -51,9 +51,21 @@ public class CrashScreen {
         int w = g.getScreenWidth();
         int h = g.getScreenHeight();
 
-        // Red background
-        g.setColor(new Color(40, 0, 0));
-        g.fillRect(0, 0, w, h);
+        // Dirt pattern background (like other menus)
+        mc.sayda.mcraze.Sprite dirtSprite = mc.sayda.mcraze.SpriteStore.get()
+                .getSprite("assets/sprites/tiles/dirt.png");
+        if (dirtSprite != null) {
+            int tileSize = 32;
+            for (int x = 0; x < w; x += tileSize) {
+                for (int y = 0; y < h; y += tileSize) {
+                    dirtSprite.draw(g, x, y, tileSize, tileSize);
+                }
+            }
+        } else {
+            // Fallback to dark background
+            g.setColor(new Color(40, 0, 0));
+            g.fillRect(0, 0, w, h);
+        }
 
         // Header
         g.setColor(Color.white);

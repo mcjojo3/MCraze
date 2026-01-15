@@ -250,6 +250,24 @@ public class AwtEventsHandler {
 				// Priority 4: Close chest UI if open
 				if (game.getClient().isChestUIOpen()) {
 					game.getClient().closeChestUI();
+					// CRITICAL FIX: Send packet to server to ensure state is synchronized
+					mc.sayda.mcraze.network.packet.PacketInteract packet = new mc.sayda.mcraze.network.packet.PacketInteract(
+							0, 0,
+							mc.sayda.mcraze.network.packet.PacketInteract.InteractionType.TOGGLE_INVENTORY);
+					game.getClient().connection.sendPacket(packet);
+					escUsedToCloseMenu = true; // Mark that ESC closed a menu
+					e.consume();
+					return;
+				}
+
+				// Priority 5: Close furnace UI if open
+				if (game.getClient().isFurnaceUIOpen()) {
+					game.getClient().closeFurnaceUI();
+					// CRITICAL FIX: Send packet to server to ensure state is synchronized
+					mc.sayda.mcraze.network.packet.PacketInteract packet = new mc.sayda.mcraze.network.packet.PacketInteract(
+							0, 0,
+							mc.sayda.mcraze.network.packet.PacketInteract.InteractionType.TOGGLE_INVENTORY);
+					game.getClient().connection.sendPacket(packet);
 					escUsedToCloseMenu = true; // Mark that ESC closed a menu
 					e.consume();
 					return;
@@ -418,7 +436,9 @@ public class AwtEventsHandler {
 					if (!game.getClient().isInPauseMenu() &&
 							!game.getClient().isInSettingsMenu() &&
 							!game.getClient().chat.isOpen() &&
-							!game.getClient().isChestUIOpen()) {
+							!game.getClient().chat.isOpen() &&
+							!game.getClient().isChestUIOpen() &&
+							!game.getClient().isFurnaceUIOpen()) {
 						mc.sayda.mcraze.entity.Player player = getLocalPlayer();
 						// Only if inventory is also not visible
 						if (player == null || !player.inventory.isVisible()) {
@@ -501,19 +521,20 @@ public class AwtEventsHandler {
 					sendInputPacket();
 					break;
 				case 'e':
-					// E key: Toggle inventory or close chest if open
+					// E key: Toggle inventory or close container UI if open
+					// Closing priority: Chest > Furnace > Main Inventory
 					if (game.getClient().isChestUIOpen()) {
-						// Close chest UI if open (client-side UI)
 						game.getClient().closeChestUI();
-					} else {
-						// CRITICAL FIX: Send packet to server to toggle inventory
-						// (server-authoritative)
-						// This prevents desync where server overwrites client's visibility state
-						mc.sayda.mcraze.network.packet.PacketInteract packet = new mc.sayda.mcraze.network.packet.PacketInteract(
-								0, 0,
-								mc.sayda.mcraze.network.packet.PacketInteract.InteractionType.TOGGLE_INVENTORY);
-						game.getClient().connection.sendPacket(packet);
+					} else if (game.getClient().isFurnaceUIOpen()) {
+						game.getClient().closeFurnaceUI();
 					}
+
+					// ALWAYS send packet to server to ensure state is synchronized
+					// (Server will clear openedFurnaceX/openedChestX or toggle main inventory)
+					mc.sayda.mcraze.network.packet.PacketInteract togglePacket = new mc.sayda.mcraze.network.packet.PacketInteract(
+							0, 0,
+							mc.sayda.mcraze.network.packet.PacketInteract.InteractionType.TOGGLE_INVENTORY);
+					game.getClient().connection.sendPacket(togglePacket);
 					break;
 				case '=':
 				case '+':
@@ -521,7 +542,10 @@ public class AwtEventsHandler {
 					game.getClient().zoomIn();
 					break;
 				case 'p':
-					// TODO: Implement pause
+					// Open pause menu if not already open
+					if (!game.getClient().isInPauseMenu()) {
+						game.getClient().openPauseMenu();
+					}
 					break;
 				case 'm':
 					game.getClient().musicPlayer.toggleSound();

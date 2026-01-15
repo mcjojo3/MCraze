@@ -20,7 +20,7 @@ public class Tool extends Item {
 	};
 
 	public enum ToolPower {
-		Wood, Stone, Gold, Iron, Diamond
+		Wood, Stone, Gold, Iron, Diamond, Dev
 	};
 
 	public int totalUses;

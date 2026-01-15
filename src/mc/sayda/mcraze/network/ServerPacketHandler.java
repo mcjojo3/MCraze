@@ -41,6 +41,8 @@ public interface ServerPacketHandler {
 
     void handleChestAction(PacketChestAction packet); // NEW: For chest inventory actions
 
+    void handleFurnaceAction(PacketFurnaceAction packet); // NEW: For furnace inventory actions
+
     void handleEntityAttack(PacketEntityAttack packet); // NEW: For entity attacks (combat)
 
     void handlePing(PacketPing packet); // NEW: For latency measurement

@@ -31,7 +31,7 @@ public class EntitySheep extends LivingEntity {
         // Sheep are 32x32 pixels
         super(true, x, y, 32, 32);
         // Load sheep sprite
-        this.sprite = mc.sayda.mcraze.SpriteStore.get().getSprite("sprites/entities/sheep.png");
+        this.sprite = mc.sayda.mcraze.SpriteStore.get().getSprite("assets/sprites/entities/sheep.png");
 
         // Set initial health
         this.hitPoints = 8; // Standard health (4 hearts)

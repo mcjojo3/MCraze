@@ -804,7 +804,7 @@ public class CommandHandler {
         if (id.equals("dummy")) {
             LivingEntity dummy = new LivingEntity(true, x, y, 16, 16) {
             };
-            dummy.sprite = mc.sayda.mcraze.SpriteStore.get().getSprite("sprites/entities/player.png");
+            dummy.sprite = mc.sayda.mcraze.SpriteStore.get().getSprite("assets/sprites/entities/player.png");
             sharedWorld.addEntity(dummy);
             sendMessage("Summoned dummy entity", Color.green);
             return;

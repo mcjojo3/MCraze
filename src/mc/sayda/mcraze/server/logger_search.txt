@@ -1,0 +1,181 @@
+﻿
+LineNumber Line                                                                                                        
+---------- ----                                                                                                        
+       113 		if (logger != null) {                                                                                     
+       114 			logger.info("SharedWorld: Generating world '" + worldName + "' (" + worldWidth + " wide)");              
+       115 			logger.debug("SharedWorld.<init>: Using CopyOnWriteArrayList for thread-safe player list");              
+       124 		if (logger != null) {                                                                                     
+       125 			logger.info("SharedWorld: World generated successfully - " + worldWidth + "x" + worldWidth);             
+       126 			logger.debug("SharedWorld.<init>: Spawn location: " + world.spawnLocation.x + ", " + world.spawnLocati...
+       127 			logger.debug("SharedWorld.<init>: WorldAccess wrapper created for thread-safe tile access");             
+       170 			if (logger != null) {                                                                                    
+       171 				logger.info("SharedWorld: Loaded " + loadedChests.size() + " chests");                                  
+       177 		if (logger != null) {                                                                                     
+       178 			logger.info("SharedWorld: Loaded existing world '" + worldName + "' - " + world.width + "x" + world.he...
+       179 			logger.debug("SharedWorld.<init>: Spawn location: " + world.spawnLocation.x + ", " + world.spawnLocati...
+       180 			logger.debug("SharedWorld.<init>: WorldAccess wrapper created for thread-safe tile access");             
+       202 		if (logger != null) {                                                                                     
+       203 			logger.info("SharedWorld: Adding player: " + username);                                                  
+       204 			logger.debug(                                                                                            
+       211 			if (logger != null)                                                                                      
+       212 				logger.warn("SharedWorld: Rejected duplicate username: " + username);                                   
+       224 				if (logger != null)                                                                                     
+       225 					logger.warn("SharedWorld: Authentication failed for " + username);                                     
+       234 				if (logger != null)                                                                                     
+       235 					logger.warn("SharedWorld: Authentication failed for " + username);                                     
+       241 		if (logger != null)                                                                                       
+       242 			logger.debug("SharedWorld.addPlayer: Creating player entity...");                                        
+       250 		if (logger != null)                                                                                       
+       251 			logger.debug("SharedWorld.addPlayer: Player entity created for " + username);                            
+       260 			if (logger != null)                                                                                      
+       261 				logger.info("SharedWorld: Auto-registered new player: " + username);                                    
+       266 			if (logger != null)                                                                                      
+       267 				logger.info("SharedWorld: Loaded playerdata for " + username);                                          
+       271 		if (logger != null)                                                                                       
+       272 			logger.debug("SharedWorld.addPlayer: Creating PlayerConnection...");                                     
+       274 		if (logger != null)                                                                                       
+       275 			logger.debug("SharedWorld.addPlayer: PlayerConnection created");                                         
+       278 		if (logger != null)                                                                                       
+       279 			logger.debug("SharedWorld.addPlayer: Adding to players list...");                                        
+       282 		if (logger != null)                                                                                       
+       283 			logger.debug("SharedWorld.addPlayer: Added to players list (size now: " + players.size() + ")");         
+       286 		if (logger != null)                                                                                       
+       287 			logger.debug("SharedWorld.addPlayer: Sending initial world state...");                                   
+       289 		if (logger != null)                                                                                       
+       290 			logger.debug("SharedWorld.addPlayer: Initial world state sent");                                         
+       294 		if (logger != null)                                                                                       
+       295 			logger.info("SharedWorld: Player " + username + " successfully added (" + players.size() + " total)");   
+       306 		if (logger != null)                                                                                       
+       307 			logger.info("SharedWorld: Removing player: " + playerConnection.getPlayerName());                        
+       322 			if (logger != null)                                                                                      
+       323 				logger.info("SharedWorld: Removed player entity for " + playerConnection.getPlayerName());              
+       329 			if (logger != null)                                                                                      
+       330 				logger.debug("SharedWorld: Broadcasted entity removal for UUID: " + playerEntity.getUUID());            
+       339 		if (logger != null)                                                                                       
+       340 			logger.info("SharedWorld: Player removed (" + players.size() + " remaining)");                           
+       382 		if (logger != null)                                                                                       
+       383 			logger.info("SharedWorld: Sending initial world state to " + playerConnection.getPlayerName());          
+       384 		if (logger != null) {                                                                                     
+       385 			logger.info("SharedWorld: Sending initial world state to " + playerConnection.getPlayerName());          
+       386 			logger.debug("SharedWorld.sendInitialWorldState: World dimensions: " + world.width + "x" + world.height);
+       391 		if (logger != null)                                                                                       
+       392 			logger.debug("SharedWorld.sendInitialWorldState: Collecting non-air tiles...");                          
+       426 		if (logger != null) {                                                                                     
+       427 			logger.debug("SharedWorld.sendInitialWorldState: Collected " + changedX.size() + " non-air tiles");      
+       428 			logger.info("SharedWorld: Tile range - X:" + minX + "-" + maxX + ", Y:" + minY + "-" + maxY);            
+       440 		if (logger != null)                                                                                       
+       441 			logger.debug("SharedWorld.sendInitialWorldState: Sending PacketWorldInit...");                           
+       445 		if (logger != null)                                                                                       
+       446 			logger.debug("SharedWorld.sendInitialWorldState: Player UUID: " + playerUUID);                           
+       461 		if (logger != null)                                                                                       
+       462 			logger.debug("SharedWorld.sendInitialWorldState: PacketWorldInit sent with playerUUID=" + playerUUID     
+       466 		if (logger != null)                                                                                       
+       467 			logger.debug("SharedWorld.sendInitialWorldState: Sending PacketBiomeData...");                           
+       471 		if (logger != null)                                                                                       
+       472 			logger.debug("SharedWorld.sendInitialWorldState: PacketBiomeData sent (" +                               
+       480 		if (logger != null)                                                                                       
+       481 			logger.debug("SharedWorld.sendInitialWorldState: Flushed initial packets (WorldInit + BiomeData)");      
+       484 		if (logger != null)                                                                                       
+       485 			logger.debug("SharedWorld.sendInitialWorldState: Sending " + numChunks + " chunks of world data...");    
+       504 			if (logger != null)                                                                                      
+       505 				logger.debug("SharedWorld.sendInitialWorldState: Sent chunk " + chunkNum + "/" + numChunks + " ("       
+       514 				if (logger != null)                                                                                     
+       515 					logger.debug(                                                                                          
+       519 		if (logger != null)                                                                                       
+       520 			logger.debug("SharedWorld.sendInitialWorldState: All world data chunks sent");                           
+       523 		if (logger != null)                                                                                       
+       524 			logger.debug("SharedWorld.sendInitialWorldState: Collecting backdrop tiles...");                         
+       540 		if (logger != null)                                                                                       
+       541 			logger.debug("SharedWorld.sendInitialWorldState: Collected " + backdropX.size() + " backdrop tiles");    
+       545 		if (logger != null)                                                                                       
+       546 			logger.debug(                                                                                            
+       567 			if (logger != null)                                                                                      
+       568 				logger.debug("SharedWorld.sendInitialWorldState: Sent backdrop batch " + chunkNum + "/" + backdropChunks
+       572 		if (logger != null)                                                                                       
+       573 			logger.debug(                                                                                            
+       578 		if (logger != null)                                                                                       
+       579 			logger.debug("SharedWorld.sendInitialWorldState: Flushed after backdrop data");                          
+       582 		if (logger != null)                                                                                       
+       583 			logger.debug("SharedWorld.sendInitialWorldState: Sending initial entity update directly to "             
+       586 		if (logger != null) {                                                                                     
+       587 			logger.info("SharedWorld.sendInitialWorldState: Initial entity update sent to "                          
+       589 			logger.info("SharedWorld: Initial world state complete for " + playerConnection.getPlayerName() + " ("   
+       598 		if (logger != null) {                                                                                     
+       599 			logger.debug(                                                                                            
+       605 		if (logger != null) {                                                                                     
+       606 			logger.info("Player " + playerConnection.getPlayerName()                                                 
+       618 			if (logger != null)                                                                                      
+       619 				logger.warn("SharedWorld.sendEntityUpdateToPlayer: No entities to send!");                              
+       623 		if (logger != null) {                                                                                     
+       624 			logger.debug("SharedWorld.sendEntityUpdateToPlayer: Sending " + allEntities.size() + " entities to "     
+       734 			if (logger != null && i == 0) {                                                                          
+       735 				logger.debug("SharedWorld.sendEntityUpdateToPlayer: Entity 0 pos: " + entity.x + ", " + entity.y);      
+       740 		if (logger != null) {                                                                                     
+       741 			logger.debug("SharedWorld.sendEntityUpdateToPlayer: Sending packet to " + playerConnection.getPlayerNa...
+       744 		if (logger != null) {                                                                                     
+       745 			logger.info("SharedWorld.sendEntityUpdateToPlayer: Packet sent successfully to "                         
+       771 		if (logger != null && ticksRunning <= 10) {                                                               
+       772 			logger.debug("SharedWorld.tick: Tick " + ticksRunning + " - " + players.size() + " players");            
+       784 		if (logger != null && ticksRunning <= 5) {                                                                
+       785 			logger.debug("SharedWorld.tick: Processing packets from " + players.size() + " players...");             
+       790 		if (logger != null && ticksRunning <= 5) {                                                                
+       791 			logger.debug("SharedWorld.tick: Packets processed");                                                     
+       870 				if (logger != null && ticksRunning <= 10 && !blockChanges.isEmpty()) {                                  
+       871 					logger.debug("SharedWorld.tick: Broadcast " + blockChanges.size() + " world physics changes");         
+       881 		if (logger != null && ticksRunning <= 5) {                                                                
+       882 			logger.debug("SharedWorld.tick: Updating " + allEntities.size() + " entities...");                       
+       914 							if (logger != null && ticksRunning <= 10) {                                                          
+       915 								logger.debug(                                                                                       
+       922 							if (logger != null && ticksRunning <= 10) {                                                          
+       923 								logger.debug("SharedWorld.tick: Player " + pc.getPlayerName()                                       
+       961 					if (logger != null)                                                                                    
+       962 						logger.info("SharedWorld.tick: Entity died - type: " + entity.getClass().getSimpleName());            
+      1020 			if (logger != null && ticksRunning <= 10) {                                                              
+      1021 				logger.debug("SharedWorld.tick: Removed " + entitiesToRemove.size() + " entities from world");          
+      1025 		if (logger != null && ticksRunning <= 5) {                                                                
+      1026 			logger.debug("SharedWorld.tick: Entities updated");                                                      
+      1033 		if (logger != null && ticksRunning <= 15) {                                                               
+      1034 			logger.debug("SharedWorld.tick: Broadcasting entity update (tick " + ticksRunning + ")");                
+      1062 			// PERFORMANCE: Commented out console logging (use logger instead)                                       
+      1067 			if (logger != null)                                                                                      
+      1068 				logger.info("SharedWorld: Auto-saved " + players.size() + " players");                                  
+      1112 			if (!despawnedItemsCache.isEmpty() && logger != null) {                                                  
+      1113 				logger.info("SharedWorld: Despawned " + despawnedItemsCache.size() + " items");                         
+      1159 		if (logger != null && ticksRunning <= 15) {                                                               
+      1160 			logger.debug("SharedWorld.broadcastEntityUpdate: Broadcasting " + allEntities.size() + " entities");     
+      1272 			if (logger != null && ticksRunning <= 5 && i == 0) {                                                     
+      1273 				logger.debug("SharedWorld.broadcastEntityUpdate: Entity 0 pos: " + entity.x + ", " + entity.y           
+      1288 		if (logger != null && ticksRunning <= 15) {                                                               
+      1289 			logger.debug("SharedWorld.broadcastEntityUpdate: Broadcast complete");                                   
+      1527 							if (logger != null)                                                                                  
+      1528 								logger.debug("SharedWorld: " + blockAbove + " broke at (" + x + ", " + aboveY                       
+      1759 				if (logger != null) {                                                                                   
+      1760 					logger.info("SharedWorld: Player " + player.username +                                                 
+      1848 					if (logger != null) {                                                                                  
+      1849 						logger.debug("SharedWorld: Player " + player.username +                                               
+      1878 						if (logger != null) {                                                                                 
+      1879 							logger.info("SharedWorld: Player " + player.username +                                               
+      1896 							if (logger != null) {                                                                                
+      1897 								logger.debug("SharedWorld: Player " + player.username +                                             
+      1941 									logger.debug(                                                                                      
+      1982 						if (logger != null) {                                                                                 
+      1983 							logger.info(                                                                                         
+      2076 						if (logger != null) {                                                                                 
+      2077 							logger.debug("SharedWorld: Auto-placed door top at (" + packet.x + ", " + topY + ")");               
+      2090 						if (logger != null) {                                                                                 
+      2091 							logger.debug("SharedWorld: Auto-placed bed right at (" + rightX + ", " + packet.y + ")");            
+      2797 				if (logger != null && logger.isDebugEnabled()) {                                                        
+      2798 					logger.debug("Picked up entire stack");                                                                
+      2805 				if (logger != null && logger.isDebugEnabled()) {                                                        
+      2806 					logger.debug("Split stack - holding " + inv.holding.getCount() + ", slot has " + slot.getCount());     
+      3116 			if (logger != null) {                                                                                    
+      3117 				logger.warn("SharedWorld.respawnPlayer: Cannot respawn " + playerConn.getPlayerName() +                 
+      3127 		if (logger != null) {                                                                                     
+      3128 			logger.info("SharedWorld.respawnPlayer: Respawning " + playerConn.getPlayerName() +                      
+      3141 		if (logger != null) {                                                                                     
+      3142 			logger.info("SharedWorld.respawnPlayer: Broadcast respawn state for " + playerConn.getPlayerName());     
+      3145 		// PERFORMANCE: Commented out console logging (use logger instead)                                        
+      3279 				if (logger != null) {                                                                                   
+      3280 					logger.debug("SharedWorld: Chest broken at (" + x + ", " + y + "), items dropped");                    
+
+

@@ -25,6 +25,9 @@ public class Item extends Entity implements Cloneable {
 	public Tool.ToolType requiredToolType;
 	public Tool.ToolPower requiredToolPower;
 
+	// Fuel properties (null/0 if not fuel)
+	public int fuelBurnTime = 0; // In ticks
+
 	// Item despawn timer (prevents entity accumulation in world)
 	private long spawnTime;
 	private static final long DESPAWN_TIME_MS = 300000; // 5 minutes

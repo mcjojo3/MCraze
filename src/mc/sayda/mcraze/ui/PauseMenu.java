@@ -13,7 +13,7 @@ import java.util.List;
  */
 public class PauseMenu {
 	// Menu sprites
-	private static final Sprite MENU_BG_TILE = SpriteStore.get().getSprite("sprites/tiles/dirt.png");
+	private static final Sprite MENU_BG_TILE = SpriteStore.get().getSprite("assets/sprites/tiles/dirt.png");
 
 	// Button constants
 	private static final int BUTTON_WIDTH = 200;
@@ -42,58 +42,54 @@ public class PauseMenu {
 
 		// Continue button
 		Button continueBtn = new Button(
-			"continue",
-			"Continue",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * buttonIndex++,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(this::resumeGame);
+				"continue",
+				"Continue",
+				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * buttonIndex++,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::resumeGame);
 
 		// Settings button
 		Button settingsBtn = new Button(
-			"settings",
-			"Settings",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * buttonIndex++,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(this::openSettings);
+				"settings",
+				"Settings",
+				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * buttonIndex++,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::openSettings);
 
 		buttons.add(continueBtn);
 		buttons.add(settingsBtn);
 
-		// Open to LAN button (only for integrated servers - not available on remote servers)
+		// Open to LAN button (only for integrated servers - not available on remote
+		// servers)
 		// Disabled if connected as client (no local server)
 		boolean isHost = (game.getServer() != null);
 		if (isHost) {
 			Button lanBtn = new Button(
-				"lan",
-				getLANButtonText(),
-				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * buttonIndex++,
-				BUTTON_WIDTH,
-				BUTTON_HEIGHT
-			).setOnClick(this::toggleLAN)
-			 .setEnabled(true);  // Always enabled for hosts
+					"lan",
+					getLANButtonText(),
+					startY + (BUTTON_HEIGHT + BUTTON_SPACING) * buttonIndex++,
+					BUTTON_WIDTH,
+					BUTTON_HEIGHT).setOnClick(this::toggleLAN)
+					.setEnabled(true); // Always enabled for hosts
 			buttons.add(lanBtn);
 		} else {
 			// Show disabled LAN button for clients
 			Button lanBtn = new Button(
-				"lan",
-				"Open to LAN (Host Only)",
-				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * buttonIndex++,
-				BUTTON_WIDTH,
-				BUTTON_HEIGHT
-			).setEnabled(false);  // Grayed out for clients
+					"lan",
+					"Open to LAN (Host Only)",
+					startY + (BUTTON_HEIGHT + BUTTON_SPACING) * buttonIndex++,
+					BUTTON_WIDTH,
+					BUTTON_HEIGHT).setEnabled(false); // Grayed out for clients
 			buttons.add(lanBtn);
 		}
 
 		// Exit button
 		Button exitBtn = new Button(
-			"exit",
-			"Exit to Main Menu",
-			startY + (BUTTON_HEIGHT + BUTTON_SPACING) * buttonIndex++,
-			BUTTON_WIDTH,
-			BUTTON_HEIGHT
-		).setOnClick(this::exitToMainMenu);
+				"exit",
+				"Exit to Main Menu",
+				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * buttonIndex++,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::exitToMainMenu);
 
 		buttons.add(exitBtn);
 	}
@@ -154,7 +150,8 @@ public class PauseMenu {
 			} else {
 				System.err.println("Failed to enable LAN server");
 				if (game.getClient() != null && game.getClient().chat != null) {
-					game.getClient().chat.addMessage("Failed to open LAN server", new mc.sayda.mcraze.Color(255, 100, 100));
+					game.getClient().chat.addMessage("Failed to open LAN server",
+							new mc.sayda.mcraze.Color(255, 100, 100));
 				}
 			}
 		}
@@ -208,7 +205,7 @@ public class PauseMenu {
 
 			for (Button button : buttons) {
 				if (button.handleClick(mouseX, mouseY)) {
-					break;  // Only handle one click
+					break; // Only handle one click
 				}
 			}
 		}

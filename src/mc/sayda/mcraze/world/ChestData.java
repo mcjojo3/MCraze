@@ -23,15 +23,15 @@ public class ChestData implements java.io.Serializable {
 
 	public final int x;
 	public final int y;
-	public InventoryItem[][] items; // 9 wide x 3 tall grid with counts
+	public InventoryItem[][] items; // 10 wide x 3 tall grid with counts
 
 	public ChestData(int x, int y) {
 		this.x = x;
 		this.y = y;
-		this.items = new InventoryItem[9][3]; // 9 columns, 3 rows
+		this.items = new InventoryItem[10][3]; // 10 columns, 3 rows
 
 		// Initialize all slots with empty InventoryItems
-		for (int i = 0; i < 9; i++) {
+		for (int i = 0; i < 10; i++) {
 			for (int j = 0; j < 3; j++) {
 				items[i][j] = new InventoryItem(null);
 			}
@@ -42,7 +42,7 @@ public class ChestData implements java.io.Serializable {
 	 * Get item at chest slot
 	 */
 	public Item getItem(int slotX, int slotY) {
-		if (slotX < 0 || slotX >= 9 || slotY < 0 || slotY >= 3)
+		if (slotX < 0 || slotX >= 10 || slotY < 0 || slotY >= 3)
 			return null;
 		InventoryItem invItem = items[slotX][slotY];
 		return (invItem != null && !invItem.isEmpty()) ? invItem.getItem() : null;
@@ -52,7 +52,7 @@ public class ChestData implements java.io.Serializable {
 	 * Get inventory item at chest slot (with count)
 	 */
 	public InventoryItem getInventoryItem(int slotX, int slotY) {
-		if (slotX < 0 || slotX >= 9 || slotY < 0 || slotY >= 3)
+		if (slotX < 0 || slotX >= 10 || slotY < 0 || slotY >= 3)
 			return null;
 		return items[slotX][slotY];
 	}
@@ -61,7 +61,7 @@ public class ChestData implements java.io.Serializable {
 	 * Set item at chest slot (backwards compatibility - sets count to 1)
 	 */
 	public void setItem(int slotX, int slotY, Item item) {
-		if (slotX < 0 || slotX >= 9 || slotY < 0 || slotY >= 3)
+		if (slotX < 0 || slotX >= 10 || slotY < 0 || slotY >= 3)
 			return;
 		if (item == null) {
 			items[slotX][slotY].setEmpty();
@@ -75,7 +75,7 @@ public class ChestData implements java.io.Serializable {
 	 * Set inventory item at chest slot (with count)
 	 */
 	public void setInventoryItem(int slotX, int slotY, InventoryItem invItem) {
-		if (slotX < 0 || slotX >= 9 || slotY < 0 || slotY >= 3)
+		if (slotX < 0 || slotX >= 10 || slotY < 0 || slotY >= 3)
 			return;
 		items[slotX][slotY] = invItem;
 	}
@@ -84,7 +84,7 @@ public class ChestData implements java.io.Serializable {
 	 * Check if chest is empty
 	 */
 	public boolean isEmpty() {
-		for (int x = 0; x < 9; x++) {
+		for (int x = 0; x < 10; x++) {
 			for (int y = 0; y < 3; y++) {
 				if (items[x][y] != null && !items[x][y].isEmpty()) {
 					return false;

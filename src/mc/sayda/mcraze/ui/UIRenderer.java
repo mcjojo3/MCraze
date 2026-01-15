@@ -32,10 +32,10 @@ import mc.sayda.mcraze.world.World;
  */
 public class UIRenderer {
 
-	//private Sprite builderIcon;
+	// private Sprite builderIcon;
 	private Sprite minerIcon;
-	private Sprite foregroundIcon;  // Indicator for normal block placement
-	private Sprite backdropIcon;    // Indicator for backdrop placement
+	private Sprite foregroundIcon; // Indicator for normal block placement
+	private Sprite backdropIcon; // Indicator for backdrop placement
 	private Sprite fullHeart;
 	private Sprite halfHeart;
 	private Sprite emptyHeart;
@@ -43,32 +43,29 @@ public class UIRenderer {
 	private Sprite emptyBubble;
 
 	public UIRenderer() {
-		loadSprites();
-	}
+		SpriteStore ss = SpriteStore.get();
 
-	/**
-	 * Load all UI sprites from the sprite store
-	 */
-	private void loadSprites() {
-		final SpriteStore ss = SpriteStore.get();
-		//builderIcon = ss.getSprite("sprites/other/builder.png");
-		//minerIcon = ss.getSprite("sprites/other/miner.png");
-		foregroundIcon = ss.getSprite("sprites/other/foreground.png");  // NEW
-		backdropIcon = ss.getSprite("sprites/other/backdrop.png");      // NEW
-		fullHeart = ss.getSprite("sprites/other/full_heart.png");
-		halfHeart = ss.getSprite("sprites/other/half_heart.png");
-		emptyHeart = ss.getSprite("sprites/other/empty_heart.png");
-		bubble = ss.getSprite("sprites/other/bubble.png");
-		// there's no empty bubble image, so we'll just use this for now
-		emptyBubble = ss.getSprite("sprites/other/bubble_pop2.png");
+		// Load UI sprites
+		// builderIcon = ss.getSprite("assets/sprites/other/builder.png");
+		// minerIcon = ss.getSprite("assets/sprites/other/miner.png");
+		foregroundIcon = ss.getSprite("assets/sprites/other/foreground.png"); // NEW
+		backdropIcon = ss.getSprite("assets/sprites/other/backdrop.png"); // NEW
+		fullHeart = ss.getSprite("assets/sprites/other/full_heart.png");
+		halfHeart = ss.getSprite("assets/sprites/other/half_heart.png");
+		emptyHeart = ss.getSprite("assets/sprites/other/empty_heart.png");
+		bubble = ss.getSprite("assets/sprites/other/bubble.png");
+		// halfBubble = ss.getSprite("assets/sprites/bubble_half.png");
+		emptyBubble = ss.getSprite("assets/sprites/other/bubble_pop2.png");
+
 	}
 
 	/**
 	 * Draw a sprite centered horizontally on the screen
-	 * @param g Graphics handler
-	 * @param s Sprite to draw
-	 * @param top Y position (top of sprite)
-	 * @param width Width to render sprite
+	 * 
+	 * @param g      Graphics handler
+	 * @param s      Sprite to draw
+	 * @param top    Y position (top of sprite)
+	 * @param width  Width to render sprite
 	 * @param height Height to render sprite
 	 */
 	public void drawCenteredX(GraphicsHandler g, Sprite s, int top, int width, int height) {
@@ -77,7 +74,8 @@ public class UIRenderer {
 
 	/**
 	 * Draw the mouse cursor as a white circle with black center
-	 * @param g Graphics handler
+	 * 
+	 * @param g   Graphics handler
 	 * @param pos Position to draw the cursor
 	 */
 	public void drawMouse(GraphicsHandler g, Int2 pos) {
@@ -89,8 +87,9 @@ public class UIRenderer {
 
 	/**
 	 * Fill the entire screen with a tiled sprite background
-	 * @param g Graphics handler
-	 * @param sprite Sprite to use as tile
+	 * 
+	 * @param g        Graphics handler
+	 * @param sprite   Sprite to use as tile
 	 * @param tileSize Size of each tile
 	 */
 	public void drawTileBackground(GraphicsHandler g, Sprite sprite, int tileSize) {
@@ -103,10 +102,11 @@ public class UIRenderer {
 
 	/**
 	 * Draw the builder and miner icons at the player's hand positions
-	 * @param g Graphics handler
-	 * @param player Player entity
-	 * @param cameraX Camera X position
-	 * @param cameraY Camera Y position
+	 * 
+	 * @param g        Graphics handler
+	 * @param player   Player entity
+	 * @param cameraX  Camera X position
+	 * @param cameraY  Camera Y position
 	 * @param tileSize Size of tiles in pixels
 	 */
 	public void drawBuildMineIcons(GraphicsHandler g, Player player, float cameraX, float cameraY, int tileSize) {
@@ -125,9 +125,10 @@ public class UIRenderer {
 
 	/**
 	 * Draw the health bar (hearts) at the bottom of the screen
-	 * @param g Graphics handler
-	 * @param player Player entity
-	 * @param screenWidth Screen width in pixels
+	 * 
+	 * @param g            Graphics handler
+	 * @param player       Player entity
+	 * @param screenWidth  Screen width in pixels
 	 * @param screenHeight Screen height in pixels
 	 */
 	public void drawHealthBar(GraphicsHandler g, Player player, int screenWidth, int screenHeight) {
@@ -148,11 +149,12 @@ public class UIRenderer {
 
 	/**
 	 * Draw air bubbles (oxygen indicator) when player is underwater
-	 * @param g Graphics handler
-	 * @param player Player entity
-	 * @param world Game world
-	 * @param tileSize Size of tiles in pixels
-	 * @param screenWidth Screen width in pixels
+	 * 
+	 * @param g            Graphics handler
+	 * @param player       Player entity
+	 * @param world        Game world
+	 * @param tileSize     Size of tiles in pixels
+	 * @param screenWidth  Screen width in pixels
 	 * @param screenHeight Screen height in pixels
 	 */
 	public void drawAirBubbles(GraphicsHandler g, Player player, World world, int tileSize,
@@ -174,7 +176,8 @@ public class UIRenderer {
 
 	/**
 	 * Draw FPS counter and memory usage in top-left corner
-	 * @param g Graphics handler
+	 * 
+	 * @param g     Graphics handler
 	 * @param delta Time delta in milliseconds
 	 */
 	public void drawFPS(GraphicsHandler g, long delta) {

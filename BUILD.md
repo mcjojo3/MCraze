@@ -148,7 +148,7 @@ MCraze/
    - No Java installation required
 
 2. **All Platforms**: Distribute `MCraze-standalone.jar`
-   - Users need Java 17+ installed
+   - Users need Java 21+ installed
    - Run with: `java -jar MCraze-standalone.jar`
 
 ### For Developers:

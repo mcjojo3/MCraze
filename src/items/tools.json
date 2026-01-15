@@ -4,524 +4,741 @@
     "power": "Wood",
     "itemId": "wood_sword",
     "name": "wSword",
-    "spriteRef": "sprites/tools/wSword.png",
-    "recipe": [
-      [
-        null,
-        "plank",
-        null
+    "spriteRef": "assets/sprites/tools/wSword.png",
+    "recipe": {
+      "pattern": [
+        [
+          null,
+          "plank",
+          null
+        ],
+        [
+          null,
+          "plank",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "plank",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Sword",
     "power": "Stone",
     "itemId": "stone_sword",
     "name": "sSword",
-    "spriteRef": "sprites/tools/sSword.png",
-    "recipe": [
-      [
-        null,
-        "cobble",
-        null
+    "spriteRef": "assets/sprites/tools/sSword.png",
+    "recipe": {
+      "pattern": [
+        [
+          null,
+          "cobble",
+          null
+        ],
+        [
+          null,
+          "cobble",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "cobble",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Sword",
     "power": "Iron",
     "itemId": "iron_sword",
     "name": "iSword",
-    "spriteRef": "sprites/tools/iSword.png",
-    "recipe": [
-      [
-        null,
-        "iron_ore",
-        null
+    "spriteRef": "assets/sprites/tools/iSword.png",
+    "recipe": {
+      "pattern": [
+        [
+          null,
+          "iron",
+          null
+        ],
+        [
+          null,
+          "iron",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "iron_ore",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Sword",
     "power": "Diamond",
     "itemId": "diamond_sword",
     "name": "dSword",
-    "spriteRef": "sprites/tools/dSword.png",
-    "recipe": [
-      [
-        null,
-        "diamond_ore",
-        null
+    "spriteRef": "assets/sprites/tools/dSword.png",
+    "recipe": {
+      "pattern": [
+        [
+          null,
+          "diamond",
+          null
+        ],
+        [
+          null,
+          "diamond",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "diamond_ore",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Pick",
     "power": "Wood",
     "itemId": "wood_pickaxe",
     "name": "wPick",
-    "spriteRef": "sprites/tools/wPic.png",
-    "recipe": [
-      [
-        "plank",
-        "plank",
-        "plank"
+    "spriteRef": "assets/sprites/tools/wPic.png",
+    "recipe": {
+      "pattern": [
+        [
+          "plank",
+          "plank",
+          "plank"
+        ],
+        [
+          null,
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "stick",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Pick",
     "power": "Stone",
     "itemId": "stone_pickaxe",
     "name": "sPick",
-    "spriteRef": "sprites/tools/sPic.png",
-    "recipe": [
-      [
-        "cobble",
-        "cobble",
-        "cobble"
+    "spriteRef": "assets/sprites/tools/sPic.png",
+    "recipe": {
+      "pattern": [
+        [
+          "cobble",
+          "cobble",
+          "cobble"
+        ],
+        [
+          null,
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "stick",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Pick",
     "power": "Iron",
     "itemId": "iron_pickaxe",
     "name": "iPick",
-    "spriteRef": "sprites/tools/iPic.png",
-    "recipe": [
-      [
-        "iron_ore",
-        "iron_ore",
-        "iron_ore"
+    "spriteRef": "assets/sprites/tools/iPic.png",
+    "recipe": {
+      "pattern": [
+        [
+          "iron",
+          "iron",
+          "iron"
+        ],
+        [
+          null,
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "stick",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Pick",
     "power": "Diamond",
     "itemId": "diamond_pickaxe",
     "name": "dPick",
-    "spriteRef": "sprites/tools/dPic.png",
-    "recipe": [
-      [
-        "diamond_ore",
-        "diamond_ore",
-        "diamond_ore"
+    "spriteRef": "assets/sprites/tools/dPic.png",
+    "recipe": {
+      "pattern": [
+        [
+          "diamond",
+          "diamond",
+          "diamond"
+        ],
+        [
+          null,
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "stick",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Axe",
     "power": "Wood",
     "itemId": "wood_axe",
     "name": "wAxe",
-    "spriteRef": "sprites/tools/wAxe.png",
-    "recipe": [
-      [
-        "plank",
-        "plank",
-        null
+    "spriteRef": "assets/sprites/tools/wAxe.png",
+    "recipe": {
+      "pattern": [
+        [
+          "plank",
+          "plank",
+          null
+        ],
+        [
+          "plank",
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        "plank",
-        "stick",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Axe",
     "power": "Stone",
     "itemId": "stone_axe",
     "name": "sAxe",
-    "spriteRef": "sprites/tools/sAxe.png",
-    "recipe": [
-      [
-        "cobble",
-        "cobble",
-        null
+    "spriteRef": "assets/sprites/tools/sAxe.png",
+    "recipe": {
+      "pattern": [
+        [
+          "cobble",
+          "cobble",
+          null
+        ],
+        [
+          "cobble",
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        "cobble",
-        "stick",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Axe",
     "power": "Iron",
     "itemId": "iron_axe",
     "name": "iAxe",
-    "spriteRef": "sprites/tools/iAxe.png",
-    "recipe": [
-      [
-        "iron_ore",
-        "iron_ore",
-        null
+    "spriteRef": "assets/sprites/tools/iAxe.png",
+    "recipe": {
+      "pattern": [
+        [
+          "iron",
+          "iron",
+          null
+        ],
+        [
+          "iron",
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        "iron_ore",
-        "stick",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Axe",
     "power": "Diamond",
     "itemId": "diamond_axe",
     "name": "dAxe",
-    "spriteRef": "sprites/tools/dAxe.png",
-    "recipe": [
-      [
-        "diamond_ore",
-        "diamond_ore",
-        null
+    "spriteRef": "assets/sprites/tools/dAxe.png",
+    "recipe": {
+      "pattern": [
+        [
+          "diamond",
+          "diamond",
+          null
+        ],
+        [
+          "diamond",
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        "diamond_ore",
-        "stick",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Hoe",
     "power": "Wood",
     "itemId": "wood_hoe",
     "name": "wHoe",
-    "spriteRef": "sprites/tools/wHoe.png",
-    "recipe": [
-      [
-        "plank",
-        "plank",
-        null
+    "spriteRef": "assets/sprites/tools/wHoe.png",
+    "recipe": {
+      "pattern": [
+        [
+          "plank",
+          "plank",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "stick",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Hoe",
     "power": "Stone",
     "itemId": "stone_hoe",
     "name": "sHoe",
-    "spriteRef": "sprites/tools/sHoe.png",
-    "recipe": [
-      [
-        "cobble",
-        "cobble",
-        null
+    "spriteRef": "assets/sprites/tools/sHoe.png",
+    "recipe": {
+      "pattern": [
+        [
+          "cobble",
+          "cobble",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "stick",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Hoe",
     "power": "Iron",
     "itemId": "iron_hoe",
     "name": "iHoe",
-    "spriteRef": "sprites/tools/iHoe.png",
-    "recipe": [
-      [
-        "iron_ore",
-        "iron_ore",
-        null
+    "spriteRef": "assets/sprites/tools/iHoe.png",
+    "recipe": {
+      "pattern": [
+        [
+          "iron",
+          "iron",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "stick",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Hoe",
     "power": "Diamond",
     "itemId": "diamond_hoe",
     "name": "dHoe",
-    "spriteRef": "sprites/tools/dHoe.png",
-    "recipe": [
-      [
-        "diamond_ore",
-        "diamond_ore",
-        null
+    "spriteRef": "assets/sprites/tools/dHoe.png",
+    "recipe": {
+      "pattern": [
+        [
+          "diamond",
+          "diamond",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "stick",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Shovel",
     "power": "Wood",
     "itemId": "wood_shovel",
     "name": "wShov",
-    "spriteRef": "sprites/tools/wShovel.png",
-    "recipe": [
-      [
-        null,
-        "plank",
-        null
+    "spriteRef": "assets/sprites/tools/wShovel.png",
+    "recipe": {
+      "pattern": [
+        [
+          null,
+          "plank",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "stick",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Shovel",
     "power": "Stone",
     "itemId": "stone_shovel",
     "name": "sShov",
-    "spriteRef": "sprites/tools/sShovel.png",
-    "recipe": [
-      [
-        null,
-        "cobble",
-        null
+    "spriteRef": "assets/sprites/tools/sShovel.png",
+    "recipe": {
+      "pattern": [
+        [
+          null,
+          "cobble",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "stick",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Shovel",
     "power": "Iron",
     "itemId": "iron_shovel",
     "name": "iShov",
-    "spriteRef": "sprites/tools/iShovel.png",
-    "recipe": [
-      [
-        null,
-        "iron_ore",
-        null
+    "spriteRef": "assets/sprites/tools/iShovel.png",
+    "recipe": {
+      "pattern": [
+        [
+          null,
+          "iron",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "stick",
-        null
-      ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   },
   {
     "type": "Shovel",
     "power": "Diamond",
     "itemId": "diamond_shovel",
     "name": "dShov",
-    "spriteRef": "sprites/tools/dShovel.png",
-    "recipe": [
-      [
-        null,
-        "diamond_ore",
-        null
+    "spriteRef": "assets/sprites/tools/dShovel.png",
+    "recipe": {
+      "pattern": [
+        [
+          null,
+          "diamond",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "stick",
-        null
+      "yield": 1
+    }
+  },
+  {
+    "type": "Sword",
+    "power": "Gold",
+    "itemId": "gold_sword",
+    "name": "Gold Sword",
+    "spriteRef": "assets/sprites/tools/gSword.png",
+    "recipe": {
+      "pattern": [
+        [
+          null,
+          "gold",
+          null
+        ],
+        [
+          null,
+          "gold",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
       ],
-      [
-        null,
-        "stick",
-        null
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
+  },
+  {
+    "type": "Pick",
+    "power": "Gold",
+    "itemId": "gold_pickaxe",
+    "name": "Gold Pickaxe",
+    "spriteRef": "assets/sprites/tools/gPic.png",
+    "recipe": {
+      "pattern": [
+        [
+          "gold",
+          "gold",
+          "gold"
+        ],
+        [
+          null,
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
+      ],
+      "yield": 1
+    }
+  },
+  {
+    "type": "Axe",
+    "power": "Gold",
+    "itemId": "gold_axe",
+    "name": "Gold Axe",
+    "spriteRef": "assets/sprites/tools/gAxe.png",
+    "recipe": {
+      "pattern": [
+        [
+          "gold",
+          "gold",
+          null
+        ],
+        [
+          "gold",
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
+      ],
+      "yield": 1
+    }
+  },
+  {
+    "type": "Hoe",
+    "power": "Gold",
+    "itemId": "gold_hoe",
+    "name": "Gold Hoe",
+    "spriteRef": "assets/sprites/tools/gHoe.png",
+    "recipe": {
+      "pattern": [
+        [
+          "gold",
+          "gold",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
+      ],
+      "yield": 1
+    }
+  },
+  {
+    "type": "Shovel",
+    "power": "Gold",
+    "itemId": "gold_shovel",
+    "name": "Gold Shovel",
+    "spriteRef": "assets/sprites/tools/gShovel.png",
+    "recipe": {
+      "pattern": [
+        [
+          null,
+          "gold",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ],
+        [
+          null,
+          "stick",
+          null
+        ]
+      ],
+      "yield": 1
+    }
+  },
+  {
+    "type": "Sword",
+    "power": "Dev",
+    "itemId": "dev_sword",
+    "name": "Dev Sword",
+    "spriteRef": "assets/sprites/tools/devSword.png",
+    "yield": 0
+  },
+  {
+    "type": "Pick",
+    "power": "Dev",
+    "itemId": "dev_pickaxe",
+    "name": "Dev Pickaxe",
+    "spriteRef": "assets/sprites/tools/devPic.png",
+    "yield": 0
+  },
+  {
+    "type": "Axe",
+    "power": "Dev",
+    "itemId": "dev_axe",
+    "name": "Dev Axe",
+    "spriteRef": "assets/sprites/tools/devAxe.png",
+    "yield": 0
+  },
+  {
+    "type": "Hoe",
+    "power": "Dev",
+    "itemId": "dev_hoe",
+    "name": "Dev Hoe",
+    "spriteRef": "assets/sprites/tools/devHoe.png",
+    "yield": 0
+  },
+  {
+    "type": "Shovel",
+    "power": "Dev",
+    "itemId": "dev_shovel",
+    "name": "Dev Shovel",
+    "spriteRef": "assets/sprites/tools/devShovel.png",
+    "yield": 0
   },
   {
     "type": "Bow",
     "power": "Wood",
     "itemId": "wood_bow",
     "name": "wBow",
-    "spriteRef": "sprites/tools/wBow.png",
-    "recipe": [
-      [
-        null,
-        "stick",
-        "string"
+    "spriteRef": "assets/sprites/tools/wBow.png",
+    "recipe": {
+      "pattern": [
+        [
+          null,
+          "stick",
+          "string"
+        ],
+        [
+          "stick",
+          null,
+          "string"
+        ],
+        [
+          null,
+          "stick",
+          "string"
+        ]
       ],
-      [
-        "stick",
-        null,
-        "string"
-      ],
-      [
-        null,
-        "stick",
-        "string"
-      ]
-    ],
-    "yield": 1
+      "yield": 1
+    }
   }
 ]

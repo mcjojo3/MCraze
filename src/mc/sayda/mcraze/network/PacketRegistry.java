@@ -44,6 +44,7 @@ public class PacketRegistry {
         registerClientPacket(10, PacketChestAction.class, PacketChestAction::decode);
         registerClientPacket(11, PacketEntityAttack.class, PacketEntityAttack::decode);
         registerClientPacket(12, PacketPing.class, PacketPing::decode);
+        registerClientPacket(13, PacketFurnaceAction.class, PacketFurnaceAction::decode);
 
         // Server → Client packets (IDs 51-100)
         registerServerPacket(51, PacketWorldInit.class, PacketWorldInit::decode);
@@ -62,6 +63,7 @@ public class PacketRegistry {
         registerServerPacket(64, PacketGameruleUpdate.class, PacketGameruleUpdate::decode);
         registerServerPacket(65, PacketBackdropBatch.class, PacketBackdropBatch::decode); // NEW - Batched backdrops
         registerServerPacket(66, PacketPong.class, PacketPong::decode);
+        registerServerPacket(67, PacketFurnaceOpen.class, PacketFurnaceOpen::decode);
     }
 
     /**

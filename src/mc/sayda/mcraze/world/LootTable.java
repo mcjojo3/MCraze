@@ -64,7 +64,7 @@ public class LootTable {
 	 * Generate random loot items based on this table.
 	 *
 	 * @param random Random generator to use
-	 * @return List of items to add to chest (max 27 items for 9x3 grid)
+	 * @return List of items to add to chest (max 27 items for 10x3 grid)
 	 */
 	public List<InventoryItem> generate(Random random) {
 		List<InventoryItem> loot = new ArrayList<>();

@@ -14,6 +14,7 @@ package mc.sayda.mcraze.client;
 
 import mc.sayda.mcraze.Color;
 import mc.sayda.mcraze.Constants;
+import mc.sayda.mcraze.Constants.TileID;
 import mc.sayda.mcraze.GraphicsHandler;
 import mc.sayda.mcraze.MusicPlayer;
 import mc.sayda.mcraze.logging.GameLogger;
@@ -29,6 +30,7 @@ import mc.sayda.mcraze.ui.MainMenu;
 import mc.sayda.mcraze.ui.UIRenderer;
 import mc.sayda.mcraze.ui.view.InventoryView;
 import mc.sayda.mcraze.ui.view.ChestView;
+import mc.sayda.mcraze.ui.view.FurnaceView;
 import mc.sayda.mcraze.util.Int2;
 import mc.sayda.mcraze.util.StockMethods;
 import mc.sayda.mcraze.util.SystemTimer;
@@ -45,6 +47,9 @@ public class Client implements ClientPacketHandler {
 	private Server localServer; // For integrated server (singleplayer)
 	private mc.sayda.mcraze.Game game; // Reference to Game for save/load
 	Random random = new Random();
+
+	// Reusable collections for performance
+	private java.util.Map<String, mc.sayda.mcraze.entity.Entity> reusableEntityMap;
 
 	// Client-side breaking animation (visual only)
 	private int clientBreakingTicks = 0;
@@ -86,12 +91,14 @@ public class Client implements ClientPacketHandler {
 	private mc.sayda.mcraze.ui.DebugOverlay debugOverlay;
 	private mc.sayda.mcraze.ui.LoadingScreen loadingScreen;
 	private mc.sayda.mcraze.ui.ChestUI chestUI;
+	private mc.sayda.mcraze.ui.FurnaceUI furnaceUI;
 	private InventoryView inventoryView; // New declarative inventory view
 	private ChestView chestView; // New declarative chest view
+	private FurnaceView furnaceView; // New declarative furnace view
 	private boolean inSettingsMenu = false; // Settings is a substate of PAUSED (not in GameState enum)
 
 	// Audio
-	public MusicPlayer musicPlayer = new MusicPlayer("sounds/music.ogg");
+	public MusicPlayer musicPlayer = new MusicPlayer("assets/sounds/music.ogg");
 
 	// Client state
 	private boolean running = true;
@@ -107,13 +114,14 @@ public class Client implements ClientPacketHandler {
 		final mc.sayda.mcraze.SpriteStore ss = mc.sayda.mcraze.SpriteStore.get();
 		breakingSprites = new mc.sayda.mcraze.Sprite[8];
 		for (int i = 0; i < 8; i++) {
-			breakingSprites[i] = ss.getSprite("sprites/tiles/break" + i + ".png");
+			breakingSprites[i] = ss.getSprite("assets/sprites/tiles/break" + i + ".png");
 		}
 
 		// Initialize UI
 		uiRenderer = new UIRenderer();
 		chat = new Chat();
 		chestUI = new mc.sayda.mcraze.ui.ChestUI();
+		furnaceUI = new mc.sayda.mcraze.ui.FurnaceUI();
 		// Note: CommandHandler is created by Server after Client construction
 		menu = new MainMenu(null, uiRenderer); // Game reference set later via setGame()
 		pauseMenu = null; // Will be created when setGame() is called
@@ -345,26 +353,47 @@ public class Client implements ClientPacketHandler {
 				// If UI handled the click, consume the "just pressed" state too so we don't
 				// double proc
 				justPressedLeft = false;
+				justPressedRight = false;
+			}
+		}
+
+		// Update furnace UI (takes priority over inventory if open)
+		boolean furnaceFocus = false;
+		if (furnaceUI != null && furnaceUI.isVisible()) {
+			furnaceFocus = furnaceUI.update(screenWidth, screenHeight, screenMousePos,
+					justPressedLeft && !chatOpen,
+					justPressedRight && !chatOpen, connection);
+			if (furnaceFocus) {
+				leftClick = false;
+				rightClick = false;
+				justPressedLeft = false;
+				justPressedRight = false;
 			}
 		}
 
 		// Update inventory UI (with connection for packet sending)
+		// CRITICAL FIX: Don't process inventory clicks if container UI is open
 		boolean inventoryFocus = false;
 		if (player.inventory != null && player.inventory.inventoryItems != null) {
-			inventoryFocus = player.inventory.updateInventory(screenWidth, screenHeight,
-					screenMousePos, justPressedLeft && !chatOpen && canProcessUIClicks,
-					justPressedRight && !chatOpen && canProcessUIClicks, connection);
+			// Skip if chest or furnace UI is handling input
+			boolean containerOpen = (chestUI != null && chestUI.isVisible()) ||
+					(furnaceUI != null && furnaceUI.isVisible());
+			if (!containerOpen) {
+				inventoryFocus = player.inventory.updateInventory(screenWidth, screenHeight,
+						screenMousePos, justPressedLeft && !chatOpen && canProcessUIClicks,
+						justPressedRight && !chatOpen && canProcessUIClicks, connection);
+			}
 		}
 		if (inventoryFocus || chatOpen) {
 			leftClick = false;
 			rightClick = false;
 		}
 
-		// Handle block interactions (not if chest is open)
+		// Handle block interactions (not if chest or furnace is open)
 		// Always use packet-based communication with server (integrated or remote)
 		// This ensures identical behavior in singleplayer and multiplayer
 
-		if (justPressedLeft && connection != null && !chestFocus) {
+		if (justPressedLeft && connection != null && !chestFocus && !furnaceFocus) {
 			// Check if clicking on an entity first
 			boolean attackedEntity = false;
 			String clickedEntityUUID = getEntityUUIDAtMouse();
@@ -383,7 +412,7 @@ public class Client implements ClientPacketHandler {
 				// No client-side tracking needed - eliminates duplicate state and visual jitter
 				lastBreakPacketTime = currentTime;
 			}
-		} else if (leftClick && connection != null && !chestFocus) {
+		} else if (leftClick && connection != null && !chestFocus && !furnaceFocus) {
 			// CRITICAL FIX: Continuous breaking for VNC/High Latency
 			// Send "break" packet periodically while holding button to prevent server
 			// timeout
@@ -416,7 +445,7 @@ public class Client implements ClientPacketHandler {
 		wasLeftClick = leftClick;
 		wasRightClick = rightClick;
 
-		if (rightClick && connection != null && !chestFocus) {
+		if (rightClick && connection != null && !chestFocus && !furnaceFocus) {
 			if (currentTime - lastRightClickTime >= INTERACT_COOLDOWN_MS) {
 				lastRightClickTime = currentTime;
 				sendBlockChangePacket(false);
@@ -497,6 +526,21 @@ public class Client implements ClientPacketHandler {
 			// Render chest using legacy manual view
 			chestView.render(g, screenWidth, screenHeight,
 					chestUI.getChestItems(), chestUI.getPlayerInventory());
+		}
+
+		// Furnace UI (drawn over inventory)
+		if (furnaceUI != null && furnaceUI.isVisible()) {
+			// Initialize FurnaceView lazily (when furnace UI is available)
+			if (furnaceView == null) {
+				furnaceView = new FurnaceView(furnaceUI);
+			}
+
+			// Update tooltip based on mouse position
+			furnaceView.updateTooltip(screenMousePos.x, screenMousePos.y);
+
+			// Render furnace using manual view
+			furnaceView.render(g, screenWidth, screenHeight,
+					furnaceUI.getPlayerInventory());
 		}
 
 		// Debug overlay (F3)
@@ -600,7 +644,6 @@ public class Client implements ClientPacketHandler {
 					float dy = e.y - p.y;
 					// Center to center distance approximately
 					if (dx * dx + dy * dy < 5.0f * 5.0f) { // 5 tiles reach
-						System.out.println("Client: Attacking entity " + e.getUUID());
 						connection.sendPacket(new mc.sayda.mcraze.network.packet.PacketEntityAttack(e.getUUID()));
 						return; // Attack one at a time
 					}
@@ -637,6 +680,39 @@ public class Client implements ClientPacketHandler {
 		// Determine the tile ID for placing
 		char tileId = 0;
 		if (!isBreak) {
+			// CRITICAL FIX: Intercept interaction with interactable blocks (Furnace,
+			// Workbench, Chest)
+			// Instead of sending a Place/Change packet, send a dedicated INTERACT packet
+			if (localServer != null && localServer.world != null) {
+				mc.sayda.mcraze.world.Tile targetTile = localServer.world.getTile(targetX, targetY);
+				if (targetTile != null && targetTile.type != null) {
+					mc.sayda.mcraze.Constants.TileID type = targetTile.type.name;
+
+					if (type == mc.sayda.mcraze.Constants.TileID.FURNACE ||
+							type == mc.sayda.mcraze.Constants.TileID.FURNACE_LIT) {
+
+						mc.sayda.mcraze.network.packet.PacketInteract packet = new mc.sayda.mcraze.network.packet.PacketInteract(
+								targetX, targetY,
+								mc.sayda.mcraze.network.packet.PacketInteract.InteractionType.OPEN_FURNACE);
+						connection.sendPacket(packet);
+						return; // Stop processing block place
+					} else if (type == mc.sayda.mcraze.Constants.TileID.WORKBENCH) {
+						mc.sayda.mcraze.network.packet.PacketInteract packet = new mc.sayda.mcraze.network.packet.PacketInteract(
+								targetX, targetY,
+								mc.sayda.mcraze.network.packet.PacketInteract.InteractionType.OPEN_CRAFTING);
+						connection.sendPacket(packet);
+						return;
+					} else if (type == mc.sayda.mcraze.Constants.TileID.CHEST) {
+						mc.sayda.mcraze.network.packet.PacketInteract packet = new mc.sayda.mcraze.network.packet.PacketInteract(
+								targetX, targetY,
+								mc.sayda.mcraze.network.packet.PacketInteract.InteractionType.OPEN_CHEST);
+						connection.sendPacket(packet);
+						return;
+					}
+					// Add other interactable blocks here (Bed, Door, etc.)
+				}
+			}
+
 			// For placing/interacting, convert the held item to a tile ID
 			mc.sayda.mcraze.item.InventoryItem currentItem = player.inventory.selectedItem();
 
@@ -1078,6 +1154,22 @@ public class Client implements ClientPacketHandler {
 		}
 	}
 
+	/**
+	 * Check if furnace UI is open
+	 */
+	public boolean isFurnaceUIOpen() {
+		return furnaceUI != null && furnaceUI.isVisible();
+	}
+
+	/**
+	 * Close furnace UI
+	 */
+	public void closeFurnaceUI() {
+		if (furnaceUI != null) {
+			furnaceUI.close();
+		}
+	}
+
 	public boolean isRunning() {
 		return running;
 	}
@@ -1310,8 +1402,7 @@ public class Client implements ClientPacketHandler {
 					if (packet.changedTiles[i] == 0) {
 						world.removeTile(packet.changedX[i], packet.changedY[i]);
 					} else {
-						mc.sayda.mcraze.Constants.TileID tileId = mc.sayda.mcraze.Constants.TileID
-								.values()[packet.changedTiles[i]];
+						TileID tileId = TileID.values()[packet.changedTiles[i]];
 						world.addTile(packet.changedX[i], packet.changedY[i], tileId);
 					}
 				}
@@ -1350,11 +1441,16 @@ public class Client implements ClientPacketHandler {
 			return;
 		}
 
-		// Create a map of existing entities by UUID for fast lookup and stable tracking
-		java.util.Map<String, mc.sayda.mcraze.entity.Entity> existingEntities = new java.util.HashMap<>();
+		// PERF: Reused collections to avoid allocation churn
+		if (reusableEntityMap == null) {
+			reusableEntityMap = new java.util.HashMap<>();
+		} else {
+			reusableEntityMap.clear();
+		}
+
 		for (mc.sayda.mcraze.entity.Entity e : localServer.entities) {
 			if (e != null && e.getUUID() != null) {
-				existingEntities.put(e.getUUID(), e);
+				reusableEntityMap.put(e.getUUID(), e);
 			}
 		}
 
@@ -1365,7 +1461,7 @@ public class Client implements ClientPacketHandler {
 		// Update entity positions and velocities
 		for (int i = 0; i < packet.entityIds.length; i++) {
 			String entityUUID = packet.entityUUIDs[i];
-			mc.sayda.mcraze.entity.Entity entity = existingEntities.get(entityUUID);
+			mc.sayda.mcraze.entity.Entity entity = reusableEntityMap.get(entityUUID);
 
 			// Create entity if it doesn't exist
 			if (entity == null) {
@@ -1460,6 +1556,15 @@ public class Client implements ClientPacketHandler {
 					le.hitPoints = 0;
 					le.dead = true;
 					entity.dead = true; // Ensure base entity flag is also set
+				} else {
+					le.dead = false;
+					entity.dead = false;
+				}
+
+				// Sync to local player if UUID matches
+				if (localServer.player != null && localServer.player.getUUID().equals(entity.getUUID())) {
+					localServer.player.dead = le.dead;
+					localServer.player.hitPoints = le.hitPoints;
 				}
 
 				le.facingRight = packet.facingRight[i];
@@ -1885,11 +1990,11 @@ public class Client implements ClientPacketHandler {
 			logger.info("Client: Opening chest at (" + packet.chestX + ", " + packet.chestY + ")");
 		}
 
-		// Convert flattened item array to 9x3 grid with counts
-		mc.sayda.mcraze.item.InventoryItem[][] chestItems = new mc.sayda.mcraze.item.InventoryItem[9][3];
+		// Convert flattened item array to 10x3 grid with counts
+		mc.sayda.mcraze.item.InventoryItem[][] chestItems = new mc.sayda.mcraze.item.InventoryItem[10][3];
 		int idx = 0;
 		for (int slotY = 0; slotY < 3; slotY++) {
-			for (int slotX = 0; slotX < 9; slotX++) {
+			for (int slotX = 0; slotX < 10; slotX++) {
 				String itemId = packet.itemIds[idx];
 				int itemCount = packet.itemCounts[idx];
 				chestItems[slotX][slotY] = new mc.sayda.mcraze.item.InventoryItem(null);
@@ -1901,6 +2006,10 @@ public class Client implements ClientPacketHandler {
 						mc.sayda.mcraze.item.Item clonedItem = item.clone();
 						chestItems[slotX][slotY].setItem(clonedItem);
 						chestItems[slotX][slotY].setCount(itemCount);
+						// Restore tool durability from packet
+						if (clonedItem instanceof mc.sayda.mcraze.item.Tool) {
+							((mc.sayda.mcraze.item.Tool) clonedItem).uses = packet.toolUses[idx];
+						}
 					}
 				}
 				idx++;
@@ -1916,6 +2025,79 @@ public class Client implements ClientPacketHandler {
 			if (player.inventory != null) {
 				chestUI.open(packet.chestX, packet.chestY, player.inventory);
 			}
+		}
+	}
+
+	@Override
+	public void handleFurnaceOpen(PacketFurnaceOpen packet) {
+		GameLogger logger = GameLogger.get();
+		uiOpenTime = System.currentTimeMillis();
+
+		if (furnaceUI == null || localServer == null || localServer.player == null) {
+			if (logger != null)
+				logger.warn("Client.handleFurnaceOpen: furnaceUI or player is null");
+			return;
+		}
+
+		// Check player UUID match
+		mc.sayda.mcraze.entity.Player player = getLocalPlayer();
+		if (player == null)
+			return;
+
+		if (packet.targetPlayerUUID != null && !packet.targetPlayerUUID.equals(player.getUUID())) {
+			if (logger != null && logger.isDebugEnabled()) {
+				logger.debug("Client.handleFurnaceOpen: Ignoring furnace packet for different player");
+			}
+			return;
+		}
+
+		if (packet.isUpdate && !furnaceUI.isVisible()) {
+			return; // Ignore passive updates if UI is already closed
+		}
+
+		if (logger != null && !furnaceUI.isVisible()) {
+			logger.info("Client: Opening furnace at (" + packet.furnaceX + ", " + packet.furnaceY + ")");
+		}
+
+		// Convert flattened item array to 3x2 grid
+		mc.sayda.mcraze.item.InventoryItem[][] furnaceItems = new mc.sayda.mcraze.item.InventoryItem[3][2];
+		int idx = 0;
+		for (int slotY = 0; slotY < 2; slotY++) {
+			for (int slotX = 0; slotX < 3; slotX++) {
+				String itemId = packet.itemIds[idx];
+				int itemCount = packet.itemCounts[idx];
+				furnaceItems[slotX][slotY] = new mc.sayda.mcraze.item.InventoryItem(null);
+
+				if (itemId != null && itemCount > 0) {
+					mc.sayda.mcraze.item.Item item = mc.sayda.mcraze.Constants.itemTypes.get(itemId);
+					if (item != null) {
+						mc.sayda.mcraze.item.Item clonedItem = item.clone();
+						furnaceItems[slotX][slotY].setItem(clonedItem);
+						furnaceItems[slotX][slotY].setCount(itemCount);
+						// Restore tool durability from packet
+						if (clonedItem instanceof mc.sayda.mcraze.item.Tool) {
+							((mc.sayda.mcraze.item.Tool) clonedItem).uses = packet.toolUses[idx];
+						}
+					}
+				}
+				idx++;
+			}
+		}
+
+		// Update furnace UI with reconstructed items and state
+		mc.sayda.mcraze.item.InventoryItem[][] currentItems = furnaceUI.getFurnaceItems();
+		for (int y = 0; y < 2; y++) {
+			for (int x = 0; x < 3; x++) {
+				currentItems[x][y] = furnaceItems[x][y];
+			}
+		}
+		furnaceUI.setFuelTimeRemaining(packet.fuelTimeRemaining);
+		furnaceUI.setSmeltProgress(packet.smeltProgress);
+		furnaceUI.setSmeltTimeTotal(packet.smeltTimeTotal);
+
+		// Open the furnace UI if not already open
+		if (!furnaceUI.isVisible()) {
+			furnaceUI.open(localServer.player.inventory, packet.furnaceX, packet.furnaceY);
 		}
 	}
 

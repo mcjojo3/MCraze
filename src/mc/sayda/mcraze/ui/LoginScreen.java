@@ -25,8 +25,9 @@ import mc.sayda.mcraze.util.CredentialManager;
  */
 public class LoginScreen {
 	// Menu sprites
-	private static final Sprite MENU_BG_TILE = SpriteStore.get().getSprite("sprites/tiles/dirt.png");
-	private static final Sprite MENU_LOGO = SpriteStore.get().getSprite("sprites/menus/title.png");
+	// Menu sprites
+	private static final Sprite MENU_BG_TILE = SpriteStore.get().getSprite("assets/sprites/tiles/dirt.png");
+	private static final Sprite MENU_LOGO = SpriteStore.get().getSprite("assets/sprites/menus/title.png");
 
 	// UI constants
 	private static final int INPUT_WIDTH = 300;

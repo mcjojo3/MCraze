@@ -5,6 +5,11 @@ import mc.sayda.mcraze.awtgraphics.AwtGraphicsHandler;
 public abstract class GraphicsHandler {
 	public static final boolean awtMode = true;
 
+	// Font style constants
+	public static final int FONT_PLAIN = 0;
+	public static final int FONT_BOLD = 1;
+	public static final int FONT_ITALIC = 2;
+
 	protected static int screenWidth = 854; // 16:9 aspect ratio
 	protected static int screenHeight = 480;
 
@@ -56,4 +61,17 @@ public abstract class GraphicsHandler {
 	public abstract void drawImage(Sprite sprite, int x, int y, int width, int height, Color tint);
 
 	public abstract boolean isWindowOpen();
+
+	// Transform methods
+	public abstract void rotate(double theta, double x, double y);
+
+	public abstract void scale(double sx, double sy);
+
+	public abstract void translate(double tx, double ty);
+
+	public abstract void pushState();
+
+	public abstract void popState();
+
+	public abstract void setFont(String name, int style, int size);
 }

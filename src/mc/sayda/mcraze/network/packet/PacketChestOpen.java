@@ -13,8 +13,9 @@ import java.nio.ByteBuffer;
 public class PacketChestOpen extends ServerPacket {
 	public int chestX;
 	public int chestY;
-	public String[] itemIds; // Flattened 9x3 array (27 items)
-	public int[] itemCounts; // Flattened 9x3 array (27 counts)
+	public String[] itemIds; // Flattened 10x3 array (30 items)
+	public int[] itemCounts; // Flattened 10x3 array (30 counts)
+	public int[] toolUses; // Flattened 10x3 array (30 durability values)
 	public String targetPlayerUUID; // Fix for broadcasting issue
 
 	public PacketChestOpen() {
@@ -25,20 +26,27 @@ public class PacketChestOpen extends ServerPacket {
 		this.chestY = y;
 		this.targetPlayerUUID = targetPlayerUUID;
 
-		// Flatten 9x3 array into 27-element arrays
-		this.itemIds = new String[27];
-		this.itemCounts = new int[27];
+		// Flatten 10x3 array into 30-element arrays
+		this.itemIds = new String[30];
+		this.itemCounts = new int[30];
+		this.toolUses = new int[30];
 
 		int idx = 0;
 		for (int slotY = 0; slotY < 3; slotY++) {
-			for (int slotX = 0; slotX < 9; slotX++) {
+			for (int slotX = 0; slotX < 10; slotX++) {
 				InventoryItem invItem = items[slotX][slotY];
 				if (invItem != null && !invItem.isEmpty()) {
 					itemIds[idx] = invItem.getItem().itemId;
 					itemCounts[idx] = invItem.getCount();
+					if (invItem.getItem() instanceof mc.sayda.mcraze.item.Tool) {
+						toolUses[idx] = ((mc.sayda.mcraze.item.Tool) invItem.getItem()).uses;
+					} else {
+						toolUses[idx] = 0;
+					}
 				} else {
 					itemIds[idx] = null;
 					itemCounts[idx] = 0;
+					toolUses[idx] = 0;
 				}
 				idx++;
 			}
@@ -58,12 +66,13 @@ public class PacketChestOpen extends ServerPacket {
 	@Override
 	public byte[] encode() {
 		// Calculate size: 4 (x) + 4 (y) + itemIds encoding + itemCounts (4 bytes each)
-		// + UUID field
+		// + toolUses (4 bytes each) + UUID field
 		int size = 8;
 		for (String id : itemIds) {
 			size += 2 + (id != null ? id.length() : 0); // 2 bytes length + string
 		}
-		size += 27 * 4; // 27 counts, 4 bytes each
+		size += 30 * 4; // 30 counts, 4 bytes each
+		size += 30 * 4; // 30 tool uses, 4 bytes each
 
 		// Add size for UUID
 		size += 2 + (targetPlayerUUID != null ? targetPlayerUUID.length() : 0);
@@ -87,6 +96,11 @@ public class PacketChestOpen extends ServerPacket {
 			buf.putInt(count);
 		}
 
+		// Encode tool uses
+		for (int uses : toolUses) {
+			buf.putInt(uses);
+		}
+
 		// Encode UUID
 		if (targetPlayerUUID != null) {
 			buf.putShort((short) targetPlayerUUID.length());
@@ -103,10 +117,10 @@ public class PacketChestOpen extends ServerPacket {
 		packet.chestX = buf.getInt();
 		packet.chestY = buf.getInt();
 
-		packet.itemIds = new String[27];
+		packet.itemIds = new String[30];
 
 		// Decode item IDs
-		for (int i = 0; i < 27; i++) {
+		for (int i = 0; i < 30; i++) {
 			short length = buf.getShort();
 			if (length > 0) {
 				byte[] bytes = new byte[length];
@@ -118,9 +132,15 @@ public class PacketChestOpen extends ServerPacket {
 		}
 
 		// Decode item counts
-		packet.itemCounts = new int[27];
-		for (int i = 0; i < 27; i++) {
+		packet.itemCounts = new int[30];
+		for (int i = 0; i < 30; i++) {
 			packet.itemCounts[i] = buf.getInt();
+		}
+
+		// Decode tool uses
+		packet.toolUses = new int[30];
+		for (int i = 0; i < 30; i++) {
+			packet.toolUses[i] = buf.getInt();
 		}
 
 		// Decode UUID

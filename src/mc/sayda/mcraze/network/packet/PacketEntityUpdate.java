@@ -90,6 +90,9 @@ public class PacketEntityUpdate extends ServerPacket {
 
 		// Reuse arrays if they exist and are large enough, otherwise allocate new ones
 		if (entityIds == null || entityIds.length < size) {
+			// ALLOCATING NEW ARRAYS - invalidate cache
+			cachedData = null;
+
 			entityIds = new int[size];
 			entityTypes = new String[size];
 			entityUUIDs = new String[size];
@@ -120,8 +123,14 @@ public class PacketEntityUpdate extends ServerPacket {
 			damageFlashTicks = new int[size];
 		}
 		// If arrays exist and are large enough, we reuse them (no allocation!)
+		// DO NOT invalidate cache here - we're just reusing existing arrays
+	}
 
-		// Invalidate cache since we're about to modify the packet
+	/**
+	 * Manually invalidate the encoded cache after updating packet data
+	 * Call this after filling in new entity data before broadcasting
+	 */
+	public void invalidateCache() {
 		cachedData = null;
 	}
 
@@ -243,7 +252,6 @@ public class PacketEntityUpdate extends ServerPacket {
 		} else {
 			// Buffer was larger than needed, create right-sized array
 			byte[] result = new byte[actualSize];
-			System.arraycopy(buf.array(), 0, result, 0, actualSize);
 			System.arraycopy(buf.array(), 0, result, 0, actualSize);
 			cachedData = result; // Cache the result
 			return result;

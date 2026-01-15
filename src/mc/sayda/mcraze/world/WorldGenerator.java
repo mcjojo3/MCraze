@@ -668,8 +668,8 @@ public class WorldGenerator {
 				(int) (height * .9),
 				new TileID[] { TileID.DIRT, TileID.SAND, TileID.WATER, TileID.NONE }, random);
 
-		// Emerald ore: Extremely rare, very deep with small veins (85% to 100%)
-		uniformlyAddMinerals(world, TileID.EMERALD_ORE, Constants.ORE_EMERALD_FREQUENCY, (int) (height * .85), height,
+		// Ruby ore: Extremely rare, very deep with small veins (85% to 100%)
+		uniformlyAddMinerals(world, TileID.RUBY_ORE, Constants.ORE_RUBY_FREQUENCY, (int) (height * .85), height,
 				new TileID[] { TileID.DIRT, TileID.SAND, TileID.WATER, TileID.NONE }, random, 0.5, 1.5);
 
 		TileID[] caveIgnore = new TileID[] { TileID.DIRT, TileID.COAL_ORE, TileID.WATER,
@@ -782,7 +782,7 @@ public class WorldGenerator {
 							int slot = 0;
 							for (mc.sayda.mcraze.item.InventoryItem item : loot1) {
 								if (slot >= 27)
-									break; // 9x3 = 27 slots max
+									break; // 10x3 = 27 slots max
 								int slotX = slot % 9;
 								int slotY = slot / 9;
 								chest1.setInventoryItem(slotX, slotY, item);
@@ -794,7 +794,7 @@ public class WorldGenerator {
 							slot = 0;
 							for (mc.sayda.mcraze.item.InventoryItem item : loot2) {
 								if (slot >= 27)
-									break; // 9x3 = 27 slots max
+									break; // 10x3 = 27 slots max
 								int slotX = slot % 9;
 								int slotY = slot / 9;
 								chest2.setInventoryItem(slotX, slotY, item);

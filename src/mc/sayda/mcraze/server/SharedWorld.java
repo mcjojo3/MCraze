@@ -13,6 +13,7 @@ import mc.sayda.mcraze.network.packet.PacketBlockChange;
 import mc.sayda.mcraze.network.packet.PacketBreakingProgress;
 import mc.sayda.mcraze.network.packet.PacketChatMessage;
 import mc.sayda.mcraze.network.packet.PacketChestOpen;
+import mc.sayda.mcraze.network.packet.PacketFurnaceOpen;
 import mc.sayda.mcraze.network.packet.PacketEntityUpdate;
 import mc.sayda.mcraze.network.packet.PacketInteract;
 import mc.sayda.mcraze.network.packet.PacketInventoryUpdate;
@@ -870,6 +871,9 @@ public class SharedWorld {
 					logger.debug("SharedWorld.tick: Broadcast " + blockChanges.size() + " world physics changes");
 				}
 			}
+
+			// Tick furnaces (smelting logic)
+			tickFurnaces();
 		}
 
 		// Update all player entities
@@ -1030,23 +1034,18 @@ public class SharedWorld {
 			logger.debug("SharedWorld.tick: Broadcasting entity update (tick " + ticksRunning + ")");
 		}
 
-		// Entity updates at reduced rate (20 Hz)
-		// This significantly reduces bandwidth usage and CPU load for packet encoding
-		// 60 Hz -> 20 Hz = 66% less overhead
-		// Entity updates at 60Hz
+		// Entity updates at reduced rate (20 Hz) -> REVERTED: Causes visual stutter
+		// broadcasting at 60Hz for smoothness
 		broadcastEntityUpdate();
 		// NOTE: Inventory updates are NOT broadcast on timer - only when inventory
 		// actually changes
 		// This prevents packet spam. Inventory is broadcast via handleBlockChange,
 		// handleInventoryAction, etc.
 
-		// REMOVED: flushAllConnections() no longer needed -
-		// NetworkConnection.sendPacket() now auto-flushes
-		// This was causing lag because it batched ALL packets, preventing immediate
-		// delivery
-		// LocalConnection (singleplayer) doesn't need flush, NetworkConnection (LAN)
-		// does
-		// flushAllConnections();
+		// PERFORMANCE: Flush all connections once per tick to batch network I/O
+		// This prevents the progressive lag from 180 individual flushes/sec
+		// Now flushes 60 times/sec (once per tick) regardless of player count
+		flushAllConnections();
 
 		// PERFORMANCE FIX: Broadcast world time less frequently to reduce packet spam
 		// Changed from every 20 ticks to every 100 ticks (once per 5 seconds at 20 TPS)
@@ -1114,6 +1113,9 @@ public class SharedWorld {
 				logger.info("SharedWorld: Despawned " + despawnedItemsCache.size() + " items");
 			}
 		}
+
+		// Tick furnaces
+		tickFurnaces();
 	}
 
 	/**
@@ -1273,14 +1275,16 @@ public class SharedWorld {
 			}
 		}
 
+		// Invalidate cache NOW that we've updated the data
+		// This ensures encode() will regenerate the byte array on first send
+		// but reuse it for subsequent player connections
+		packet.invalidateCache();
+
 		// Broadcast to all players
-		if (logger != null && ticksRunning <= 15) {
-			logger.debug("SharedWorld.broadcastEntityUpdate: Broadcasting to " + players.size() + " players");
-		}
-		// CRITICAL: Flush immediately for entity updates to prevent lag in LAN
-		// multiplayer
-		// Entity position is time-sensitive - cannot wait for end-of-tick batch flush
-		broadcast(packet, true); // true = immediate flush
+		// PERFORMANCE: Use batched flush instead of immediate flush
+		// With 3 players, immediate flush = 180 flushes/sec causing progressive lag
+		// Batched flush = 60 flushes/sec (once per tick via flushAllConnections)
+		broadcast(packet, false); // false = batched flush at end of tick
 		if (logger != null && ticksRunning <= 15) {
 			logger.debug("SharedWorld.broadcastEntityUpdate: Broadcast complete");
 		}
@@ -1746,11 +1750,22 @@ public class SharedWorld {
 				}
 				interactCooldowns.put(player.username, currentTime);
 
+				// CRITICAL FIX: Track that this player has this chest open
+				// This is required for server-side validation of chest actions
+				playerConnection.setOpenedChest(packet.x, packet.y);
+
+				// CRITICAL FIX: Hide regular inventory when opening container
+				// This prevents dual input handling conflict
+				player.inventory.setVisible(false);
+
 				// Send chest open packet to this player (including UUID for client-side
 				// filtering)
 				PacketChestOpen chestPacket = new PacketChestOpen(packet.x, packet.y, chestData.items,
 						player.getUUID());
 				playerConnection.getConnection().sendPacket(chestPacket);
+
+				// Broadcast inventory state change to sync visibility
+				broadcastInventoryUpdates();
 
 				if (logger != null) {
 					logger.info("SharedWorld: Player " + player.username +
@@ -1759,6 +1774,49 @@ public class SharedWorld {
 				return;
 			}
 
+			// DOOR SYSTEM
+			// Check if clicking on a furnace block
+			if (clickedTile != null && clickedTile.type != null &&
+					clickedTile.type.name == Constants.TileID.FURNACE) {
+				// Get or create furnace data
+				mc.sayda.mcraze.world.FurnaceData furnaceData = world.getOrCreateFurnace(packet.x, packet.y);
+
+				// INTERACTION COOLDOWN CHECK
+				long currentTime = System.currentTimeMillis();
+				Long lastInteract = interactCooldowns.get(player.username);
+				if (lastInteract != null && currentTime - lastInteract < INTERACT_COOLDOWN_MS) {
+					return;
+				}
+				interactCooldowns.put(player.username, currentTime);
+
+				// CRITICAL FIX: Track that this player has this furnace open
+				// This is required for server-side validation of furnace actions
+				playerConnection.setOpenedFurnace(packet.x, packet.y);
+
+				// CRITICAL FIX: Hide regular inventory when opening container
+				// This prevents dual input handling conflict
+				player.inventory.setVisible(false);
+
+				// Send furnace open packet to this player
+				PacketFurnaceOpen furnacePacket = new PacketFurnaceOpen(
+						packet.x, packet.y,
+						furnaceData.items,
+						furnaceData.fuelTimeRemaining,
+						furnaceData.smeltProgress,
+						furnaceData.smeltTimeTotal,
+						player.getUUID(),
+						false);
+				playerConnection.getConnection().sendPacket(furnacePacket);
+
+				// Broadcast inventory state change to sync visibility
+				broadcastInventoryUpdates();
+
+				if (logger != null) {
+					logger.info("SharedWorld: Player " + player.username +
+							" opened furnace at (" + packet.x + ", " + packet.y + ")");
+				}
+				return;
+			}
 			// DOOR SYSTEM: Check if clicking on a door to toggle open/closed
 			Tile doorTile = worldAccess.getTile(packet.x, packet.y);
 			if (doorTile != null && doorTile.type != null) {
@@ -2189,87 +2247,8 @@ public class SharedWorld {
 			inv.holding.add((mc.sayda.mcraze.item.Item) craftedItem.clone(), craftedCount);
 			GameLogger.get().info("  Crafted " + craftedItem.itemId + " x" + craftedCount);
 		} else {
-			// Direct slot manipulation for regular inventory clicks
-			// This matches the logic from Inventory.updateInventory() lines 145-193
-
-			GameLogger.get().info("  Slot item: "
-					+ (inv.inventoryItems[slotX][slotY].item != null ? inv.inventoryItems[slotX][slotY].item.itemId
-							: "null")
-					+
-					" count=" + inv.inventoryItems[slotX][slotY].count);
-			GameLogger.get().info("  Holding: " + (inv.holding.item != null ? inv.holding.item.itemId : "null") +
-					" count=" + inv.holding.count + " isEmpty=" + inv.holding.isEmpty());
-
-			if (inv.holding.isEmpty()) {
-				// Picking up from slot
-				GameLogger.get().info("  Action: PICKUP from slot");
-				if (packet.leftClick || inv.inventoryItems[slotX][slotY].count <= 1) {
-					// Left click or single item: pick up entire stack
-					inv.holding.item = inv.inventoryItems[slotX][slotY].item;
-					inv.holding.count = inv.inventoryItems[slotX][slotY].count;
-					inv.inventoryItems[slotX][slotY].item = null;
-					inv.inventoryItems[slotX][slotY].count = 0;
-					GameLogger.get().info("  Result: Picked up "
-							+ (inv.holding.item != null ? inv.holding.item.itemId : "null") + " x" + inv.holding.count);
-				} else {
-					// Right click with multiple items: split stack
-					inv.holding.item = inv.inventoryItems[slotX][slotY].item;
-					inv.holding.count = (int) Math.ceil((double) inv.inventoryItems[slotX][slotY].count / 2);
-					inv.inventoryItems[slotX][slotY].count = (int) Math
-							.floor((double) inv.inventoryItems[slotX][slotY].count / 2);
-					GameLogger.get().info("  Result: Split stack - holding " + inv.holding.count + ", slot has "
-							+ inv.inventoryItems[slotX][slotY].count);
-				}
-			} else if (inv.inventoryItems[slotX][slotY].item == null) {
-				// Placing into empty slot
-				if (!packet.leftClick) {
-					// Right click: place one item
-					inv.inventoryItems[slotX][slotY].item = inv.holding.item;
-					inv.inventoryItems[slotX][slotY].count = 1;
-					inv.holding.count--;
-					if (inv.holding.count <= 0) {
-						inv.holding.item = null;
-					}
-				} else {
-					// Left click: place entire stack
-					inv.inventoryItems[slotX][slotY].item = inv.holding.item;
-					inv.inventoryItems[slotX][slotY].count = inv.holding.count;
-					inv.holding.item = null;
-					inv.holding.count = 0;
-				}
-			} else if (inv.holding.item.itemId.equals(inv.inventoryItems[slotX][slotY].item.itemId)
-					&& inv.inventoryItems[slotX][slotY].count < maxCount) {
-				// Merging stacks of same item
-				if ((inv.holding.item.getClass() == mc.sayda.mcraze.item.Tool.class)
-						|| (inv.inventoryItems[slotX][slotY].item.getClass() == mc.sayda.mcraze.item.Tool.class)) {
-					// Tools don't stack - do nothing
-				} else if (!packet.leftClick) {
-					// Right click: add one item
-					inv.inventoryItems[slotX][slotY].count++;
-					inv.holding.count--;
-					if (inv.holding.count <= 0) {
-						inv.holding.item = null;
-					}
-				} else {
-					// Left click: merge as much as possible
-					int spaceInSlot = maxCount - inv.inventoryItems[slotX][slotY].count;
-					int toTransfer = Math.min(spaceInSlot, inv.holding.count);
-					inv.inventoryItems[slotX][slotY].count += toTransfer;
-					inv.holding.count -= toTransfer;
-					if (inv.holding.count <= 0) {
-						inv.holding.item = null;
-						inv.holding.count = 0;
-					}
-				}
-			} else {
-				// Different items: swap
-				mc.sayda.mcraze.item.Item tempItem = inv.holding.item;
-				int tempCount = inv.holding.count;
-				inv.holding.item = inv.inventoryItems[slotX][slotY].item;
-				inv.holding.count = inv.inventoryItems[slotX][slotY].count;
-				inv.inventoryItems[slotX][slotY].item = tempItem;
-				inv.inventoryItems[slotX][slotY].count = tempCount;
-			}
+			// Use common slot interaction logic for consistency across all UIs
+			handleInventorySlotInteraction(inv, slotX, slotY, !packet.leftClick, GameLogger.get());
 		}
 
 		// Calculate craftable preview (what CAN be crafted from current grid)
@@ -2337,8 +2316,17 @@ public class SharedWorld {
 
 		// CRITICAL FIX: Handle E key inventory toggle (doesn't require tile validation)
 		if (packet.type == PacketInteract.InteractionType.TOGGLE_INVENTORY) {
-			// Toggle inventory visibility
-			player.inventory.setVisible(!player.inventory.isVisible());
+			// If player has a furnace or chest open, just close it (stop tracking) without
+			// toggling inventory
+			if (playerConnection.getOpenedFurnaceX() != -1 || playerConnection.getOpenedChestX() != -1) {
+				playerConnection.setOpenedFurnace(-1, -1);
+				playerConnection.setOpenedChest(-1, -1);
+				// Ensure inventory is closed on server side logic
+				player.inventory.setVisible(false);
+			} else {
+				// Normal E press: Toggle inventory visibility
+				player.inventory.setVisible(!player.inventory.isVisible());
+			}
 
 			// When closing inventory, reset to 2x2 crafting grid
 			if (!player.inventory.isVisible()) {
@@ -2376,8 +2364,55 @@ public class SharedWorld {
 
 			// Broadcast inventory update with crafting UI to all clients
 			broadcastInventoryUpdates();
+		} else if (packet.type == PacketInteract.InteractionType.OPEN_FURNACE) {
+			// Check if tile is a furnace
+			if (tile.type.name != Constants.TileID.FURNACE && tile.type.name != Constants.TileID.FURNACE_LIT) {
+				return;
+			}
+
+			// Track that this player has this furnace open
+			playerConnection.setOpenedFurnace(packet.blockX, packet.blockY);
+
+			// Hide regular inventory when opening container
+			player.inventory.setVisible(false);
+
+			// Send initial furnace data
+			mc.sayda.mcraze.world.FurnaceData furnaceData = world.getOrCreateFurnace(packet.blockX, packet.blockY);
+			mc.sayda.mcraze.network.packet.PacketFurnaceOpen refreshPacket = new mc.sayda.mcraze.network.packet.PacketFurnaceOpen(
+					packet.blockX, packet.blockY,
+					furnaceData.items,
+					furnaceData.fuelTimeRemaining,
+					furnaceData.smeltProgress,
+					furnaceData.smeltTimeTotal,
+					player.getUUID(),
+					false);
+			playerConnection.getConnection().sendPacket(refreshPacket);
+
+			// Broadcast inventory state change
+			broadcastInventoryUpdates();
+		} else if (packet.type == PacketInteract.InteractionType.OPEN_CHEST) {
+			// Check if tile is a chest
+			if (tile.type.name != Constants.TileID.CHEST) {
+				return;
+			}
+
+			// Track that this player has this chest open
+			playerConnection.setOpenedChest(packet.blockX, packet.blockY);
+
+			// Hide regular inventory when opening container
+			player.inventory.setVisible(false);
+
+			// Send initial chest data
+			mc.sayda.mcraze.world.ChestData chestData = world.getOrCreateChest(packet.blockX, packet.blockY);
+			mc.sayda.mcraze.network.packet.PacketChestOpen refreshPacket = new mc.sayda.mcraze.network.packet.PacketChestOpen(
+					packet.blockX, packet.blockY,
+					chestData.items,
+					player.getUUID());
+			playerConnection.getConnection().sendPacket(refreshPacket);
+
+			// Broadcast inventory state change
+			broadcastInventoryUpdates();
 		}
-		// Add more interaction types here (chests, furnaces, etc.)
 	}
 
 	/**
@@ -2396,12 +2431,17 @@ public class SharedWorld {
 			return;
 		}
 
-		GameLogger logger = GameLogger.get();
-		if (logger != null && logger.isDebugEnabled()) {
-			logger.debug("SharedWorld.handleChestAction: Player " + player.username +
-					" clicked chest at (" + packet.chestX + ", " + packet.chestY + ") slot (" +
-					packet.slotX + ", " + packet.slotY + ") isChest=" + packet.isChestSlot +
-					" rightClick=" + packet.isRightClick);
+		// SECURITY: Validate player has this chest open
+		// Prevent players from interacting with chests they don't have open
+		if (playerConnection.getOpenedChestX() != packet.chestX ||
+				playerConnection.getOpenedChestY() != packet.chestY) {
+			GameLogger logger = GameLogger.get();
+			if (logger != null) {
+				logger.warn("Player " + player.username + " tried to interact with chest at (" +
+						packet.chestX + "," + packet.chestY + ") but has chest at (" +
+						playerConnection.getOpenedChestX() + "," + playerConnection.getOpenedChestY() + ") open");
+			}
+			return;
 		}
 
 		// Get the chest data
@@ -2410,7 +2450,7 @@ public class SharedWorld {
 
 		if (packet.isChestSlot) {
 			// Clicked on chest slot - interact with chest
-			if (packet.slotX >= 0 && packet.slotX < 9 && packet.slotY >= 0 && packet.slotY < 3) {
+			if (packet.slotX >= 0 && packet.slotX < 10 && packet.slotY >= 0 && packet.slotY < 3) {
 				mc.sayda.mcraze.item.InventoryItem chestSlot = chestData.getInventoryItem(packet.slotX, packet.slotY);
 
 				if (inv.holding.isEmpty()) {
@@ -2477,8 +2517,8 @@ public class SharedWorld {
 		} else {
 			// Clicked on player inventory slot - use normal inventory interaction
 			// Map chest UI player inventory coords to actual inventory coords
-			// Chest UI shows 9x4 grid: 3 rows + hotbar
-			if (packet.slotX >= 0 && packet.slotX < 9 && packet.slotY >= 0 && packet.slotY < 4) {
+			// Chest UI shows 10x4 grid: 3 rows + hotbar
+			if (packet.slotX >= 0 && packet.slotX < 10 && packet.slotY >= 0 && packet.slotY < 4) {
 				int invX = packet.slotX;
 				// CRITICAL FIX: Map chest UI row index (0-3) to actual player inventory row
 				// index (3-6)
@@ -2488,7 +2528,11 @@ public class SharedWorld {
 				// Validate bounds
 				if (invX < inv.inventoryItems.length && invY < inv.inventoryItems[0].length) {
 					// Use same slot interaction logic as inventory
-					handleInventorySlotInteraction(inv, invX, invY, packet.isRightClick, logger);
+					handleInventorySlotInteraction(inv, invX, invY, packet.isRightClick, GameLogger.get());
+					// CRITICAL FIX: Ensure craftable preview is updated if any inventory slot
+					// changed
+					// (even during container interaction)
+					updateCraftablePreview(inv);
 				}
 			}
 		}
@@ -2505,9 +2549,304 @@ public class SharedWorld {
 	}
 
 	/**
+	 * Handle furnace inventory actions (server-authoritative)
+	 * Implements item transfer for 3-slot furnace: input, fuel, output
+	 */
+	public void handleFurnaceAction(PlayerConnection playerConnection,
+			mc.sayda.mcraze.network.packet.PacketFurnaceAction packet) {
+		Player player = playerConnection.getPlayer();
+		if (player == null || player.inventory == null) {
+			return;
+		}
+
+		// Dead players cannot interact
+		if (player.dead) {
+			return;
+		}
+
+		// SECURITY: Validate player has this furnace open
+		// Prevent players from interacting with furnaces they don't have open
+		if (playerConnection.getOpenedFurnaceX() != packet.furnaceX ||
+				playerConnection.getOpenedFurnaceY() != packet.furnaceY) {
+			GameLogger logger = GameLogger.get();
+			if (logger != null) {
+				logger.warn("Player " + player.username + " tried to interact with furnace at (" +
+						packet.furnaceX + "," + packet.furnaceY + ") but has furnace at (" +
+						playerConnection.getOpenedFurnaceX() + "," + playerConnection.getOpenedFurnaceY() + ") open");
+			}
+			return;
+		}
+
+		// Get the furnace data
+		mc.sayda.mcraze.world.FurnaceData furnaceData = world.getOrCreateFurnace(packet.furnaceX, packet.furnaceY);
+		mc.sayda.mcraze.ui.Inventory inv = player.inventory;
+
+		if (packet.isFurnaceSlot) {
+			// Clicked on furnace slot
+			if (packet.slotX >= 0 && packet.slotX < 3 && packet.slotY >= 0 && packet.slotY < 2) {
+				mc.sayda.mcraze.item.InventoryItem furnaceSlot = furnaceData.getInventoryItem(packet.slotX,
+						packet.slotY);
+
+				// Input slot (0,0) or Fuel slot (0,1) or Output slot (2,0)
+				boolean isInputSlot = (packet.slotX == 0 && packet.slotY == 0);
+				boolean isFuelSlot = (packet.slotX == 0 && packet.slotY == 1);
+				boolean isOutputSlot = (packet.slotX == 2 && packet.slotY == 0);
+
+				if (inv.holding.isEmpty()) {
+					// Picking up from furnace slot
+					if (!furnaceSlot.isEmpty()) {
+						if (packet.isRightClick && furnaceSlot.getCount() > 1 && !isOutputSlot) {
+							// Right click - pick up half (not for output)
+							int halfCount = (furnaceSlot.getCount() + 1) / 2;
+							inv.holding.setItem(furnaceSlot.getItem().clone());
+							inv.holding.setCount(halfCount);
+							furnaceSlot.setCount(furnaceSlot.getCount() - halfCount);
+						} else {
+							// Left click or output slot - pick up all
+							inv.holding.setItem(furnaceSlot.getItem());
+							inv.holding.setCount(furnaceSlot.getCount());
+							furnaceSlot.setEmpty();
+						}
+					}
+				} else {
+					// Placing into furnace slot
+
+					// Validate slot restrictions
+					boolean canPlace = true;
+					if (isFuelSlot) {
+						// Fuel slot: only accept items with fuelBurnTime > 0
+						canPlace = (inv.holding.getItem().fuelBurnTime > 0);
+					} else if (isOutputSlot) {
+						// Output slot: can only stack same items, not place new
+						canPlace = !furnaceSlot.isEmpty() &&
+								furnaceSlot.getItem().itemId.equals(inv.holding.getItem().itemId);
+					}
+					// Input slot accepts anything
+
+					if (!canPlace) {
+						return; // Invalid placement
+					}
+
+					if (furnaceSlot.isEmpty()) {
+						// Empty slot - place items
+						if (packet.isRightClick && !isOutputSlot) {
+							// Right click - place one
+							furnaceSlot.setItem(inv.holding.getItem().clone());
+							furnaceSlot.setCount(1);
+							inv.holding.remove(1);
+						} else {
+							// Left click - place all
+							furnaceSlot.setItem(inv.holding.getItem().clone());
+							furnaceSlot.setCount(inv.holding.getCount());
+							inv.holding.setEmpty();
+						}
+					} else if (furnaceSlot.getItem().itemId.equals(inv.holding.getItem().itemId)) {
+						// Same item type - try to stack
+						if (packet.isRightClick) {
+							// Right click - add one
+							int added = furnaceSlot.add(inv.holding.getItem(), 1);
+							if (added == 0) {
+								inv.holding.remove(1);
+							}
+						} else {
+							// Left click - add all
+							int leftover = furnaceSlot.add(inv.holding.getItem(), inv.holding.getCount());
+							inv.holding.setCount(leftover);
+							if (leftover == 0) {
+								inv.holding.setEmpty();
+							}
+						}
+					} else {
+						// Different item - swap (not for output slot)
+						if (!isOutputSlot) {
+							mc.sayda.mcraze.item.InventoryItem temp = new mc.sayda.mcraze.item.InventoryItem(null);
+							temp.setItem(inv.holding.getItem());
+							temp.setCount(inv.holding.getCount());
+
+							inv.holding.setItem(furnaceSlot.getItem());
+							inv.holding.setCount(furnaceSlot.getCount());
+
+							furnaceSlot.setItem(temp.getItem());
+							furnaceSlot.setCount(temp.getCount());
+						}
+					}
+				}
+			}
+		} else {
+			// Clicked on player inventory slot
+			if (packet.slotX >= 0 && packet.slotX < 10 && packet.slotY >= 0 && packet.slotY < 4) {
+				int invX = packet.slotX;
+				int invY = packet.slotY + 3; // Map to inventory rows
+
+				if (invX < inv.inventoryItems.length && invY < inv.inventoryItems[0].length) {
+					handleInventorySlotInteraction(inv, invX, invY, packet.isRightClick, GameLogger.get());
+					// CRITICAL FIX: Ensure craftable preview is updated if any inventory slot
+					// changed
+					updateCraftablePreview(inv);
+				}
+			}
+		}
+
+		// Send furnace update to player
+		PacketFurnaceOpen refreshPacket = new PacketFurnaceOpen(
+				packet.furnaceX, packet.furnaceY,
+				furnaceData.items,
+				furnaceData.fuelTimeRemaining,
+				furnaceData.smeltProgress,
+				furnaceData.smeltTimeTotal,
+				player.getUUID(),
+				true);
+		playerConnection.getConnection().sendPacket(refreshPacket);
+
+		// Broadcast inventory updates
+		broadcastInventoryUpdates();
+	}
+
+	/**
 	 * Handle inventory slot interaction (shared between chest UI and regular
 	 * inventory)
 	 */
+	/**
+	 * Tick all furnaces - called every server tick
+	 * Handles fuel consumption, smelting progress, and item transfer
+	 */
+	public void tickFurnaces() {
+		for (mc.sayda.mcraze.world.FurnaceData furnace : world.getAllFurnaces().values()) {
+			tickFurnace(furnace);
+		}
+	}
+
+	/**
+	 * Tick a single furnace
+	 */
+	private void tickFurnace(mc.sayda.mcraze.world.FurnaceData furnace) {
+		mc.sayda.mcraze.item.InventoryItem inputSlot = furnace.getInputSlot();
+		mc.sayda.mcraze.item.InventoryItem fuelSlot = furnace.getFuelSlot();
+		mc.sayda.mcraze.item.InventoryItem outputSlot = furnace.getOutputSlot();
+
+		// Check if input item has a smelting recipe
+		String recipeResult = null;
+		int recipeTime = 0;
+
+		if (!inputSlot.isEmpty() && inputSlot.getItem() != null) {
+			// Get smelting recipe from ItemLoader
+			mc.sayda.mcraze.item.ItemLoader.ItemDefinition def = mc.sayda.mcraze.item.ItemLoader
+					.getItemDefinition(inputSlot.getItem().itemId);
+			if (def != null && def.smelting != null) {
+				recipeResult = def.smelting.result;
+				recipeTime = def.smelting.time;
+			}
+		}
+
+		boolean hasRecipe = (recipeResult != null);
+		boolean canSmelt = hasRecipe;
+
+		// Check if output slot can accept result
+		if (hasRecipe && !outputSlot.isEmpty()) {
+			mc.sayda.mcraze.item.Item resultItem = mc.sayda.mcraze.Constants.itemTypes.get(recipeResult);
+			if (resultItem == null || !outputSlot.getItem().itemId.equals(recipeResult)) {
+				canSmelt = false; // Output blocked by different item
+			} else if (outputSlot.getCount() >= 64) {
+				canSmelt = false; // Output full
+			}
+		}
+
+		// Fuel consumption
+		if (furnace.fuelTimeRemaining > 0) {
+			furnace.fuelTimeRemaining--;
+		}
+
+		// Try to consume new fuel if needed
+		if (furnace.fuelTimeRemaining <= 0 && canSmelt && !fuelSlot.isEmpty()) {
+			mc.sayda.mcraze.item.Item fuel = fuelSlot.getItem();
+			if (fuel != null && fuel.fuelBurnTime > 0) {
+				// Consume one fuel item
+				furnace.fuelTimeRemaining = fuel.fuelBurnTime;
+				fuelSlot.remove(1);
+			}
+		}
+
+		// Smelting progress
+		if (canSmelt && furnace.fuelTimeRemaining > 0) {
+			// Start or continue smelting
+			if (furnace.currentRecipe == null || !furnace.currentRecipe.equals(recipeResult)) {
+				// New recipe, reset progress
+				furnace.currentRecipe = recipeResult;
+				furnace.smeltProgress = 0;
+				furnace.smeltTimeTotal = recipeTime;
+			}
+
+			furnace.smeltProgress++;
+
+			// Check if smelting is complete
+			if (furnace.smeltProgress >= furnace.smeltTimeTotal) {
+				// Transfer to output
+				mc.sayda.mcraze.item.Item resultItem = mc.sayda.mcraze.Constants.itemTypes.get(recipeResult);
+				if (resultItem != null) {
+					if (outputSlot.isEmpty()) {
+						outputSlot.setItem(resultItem.clone());
+						outputSlot.setCount(1);
+					} else {
+						outputSlot.add(resultItem, 1);
+					}
+
+					// Consume input
+					inputSlot.remove(1);
+
+					// Reset progress
+					furnace.smeltProgress = 0;
+					furnace.currentRecipe = null;
+					furnace.smeltTimeTotal = 0;
+				}
+			}
+		} else {
+			// No smelting happening, decay progress
+			if (furnace.smeltProgress > 0) {
+				furnace.smeltProgress--;
+				if (furnace.smeltProgress <= 0) {
+					furnace.currentRecipe = null;
+					furnace.smeltTimeTotal = 0;
+				}
+			}
+		}
+
+		// Update Visual State (Lit/Unlit)
+		if (furnace.fuelTimeRemaining > 0) {
+			// Should be lit
+			mc.sayda.mcraze.world.Tile tile = world.tiles[furnace.x][furnace.y];
+			if (tile != null && tile.type.name == mc.sayda.mcraze.Constants.TileID.FURNACE) {
+				// Switch to lit
+				world.changeTile(furnace.x, furnace.y, new mc.sayda.mcraze.world.Tile(
+						mc.sayda.mcraze.Constants.tileTypes.get(mc.sayda.mcraze.Constants.TileID.FURNACE_LIT).type));
+				broadcastBlockChange(furnace.x, furnace.y, mc.sayda.mcraze.Constants.TileID.FURNACE_LIT);
+			}
+		} else {
+			// Should be unlit
+			mc.sayda.mcraze.world.Tile tile = world.tiles[furnace.x][furnace.y];
+			if (tile != null && tile.type.name == mc.sayda.mcraze.Constants.TileID.FURNACE_LIT) {
+				// Switch to unlit
+				world.changeTile(furnace.x, furnace.y, new mc.sayda.mcraze.world.Tile(
+						mc.sayda.mcraze.Constants.tileTypes.get(mc.sayda.mcraze.Constants.TileID.FURNACE).type));
+				broadcastBlockChange(furnace.x, furnace.y, mc.sayda.mcraze.Constants.TileID.FURNACE);
+			}
+		}
+
+		// Broadcast updates to players who have this furnace open
+		for (PlayerConnection pc : players) {
+			if (pc.getOpenedFurnaceX() == furnace.x && pc.getOpenedFurnaceY() == furnace.y) {
+				mc.sayda.mcraze.network.packet.PacketFurnaceOpen updatePacket = new mc.sayda.mcraze.network.packet.PacketFurnaceOpen(
+						furnace.x, furnace.y,
+						furnace.items,
+						furnace.fuelTimeRemaining,
+						furnace.smeltProgress,
+						furnace.smeltTimeTotal,
+						pc.getPlayer().getUUID(),
+						true);
+				pc.getConnection().sendPacket(updatePacket);
+			}
+		}
+	}
+
 	private void handleInventorySlotInteraction(mc.sayda.mcraze.ui.Inventory inv, int slotX, int slotY,
 			boolean rightClick, GameLogger logger) {
 		int maxCount = 64;
@@ -2561,6 +2900,15 @@ public class SharedWorld {
 					slot.setCount(slot.getCount() + toTransfer);
 					inv.holding.remove(toTransfer);
 				}
+			} else {
+				// Tool case: Merge not possible, so swap instead (for better UX)
+				// This matches how Minecraft handles "stacking" non-stackables by swapping
+				Item tempItem = inv.holding.getItem();
+				int tempCount = inv.holding.count;
+				inv.holding.setItem(slot.getItem());
+				inv.holding.setCount(slot.getCount());
+				slot.setItem(tempItem);
+				slot.setCount(tempCount);
 			}
 		} else {
 			// Different items: swap
@@ -2686,7 +3034,7 @@ public class SharedWorld {
 			}
 		}
 
-		// User Request: Only allow attacks with Swords
+		// Only allow attacks with Swords
 		if (!isSword) {
 			// Reject attack
 			return;
@@ -2710,6 +3058,27 @@ public class SharedWorld {
 		GameLogger.get().info("Player " + playerConnection.getPlayerName() + " attacking " +
 				target.getClass().getSimpleName() + " (UUID: " + target.getUUID() + ") with damage " + damage);
 		livingTarget.takeDamage(damage);
+
+		// Apply knockback to target (away from attacker)
+		// Attacker already defined in scope
+		float kbDx = livingTarget.x - attacker.x;
+		float kbDy = livingTarget.y - attacker.y;
+		float kbDistSq = kbDx * kbDx + kbDy * kbDy;
+
+		// Normalize roughly
+		float kbLen = (float) Math.sqrt(kbDistSq);
+		if (kbLen > 0) {
+			kbDx /= kbLen;
+			kbDy /= kbLen;
+		} else {
+			// Overlapping? push randomly or x-axis
+			kbDx = 1.0f;
+			kbDy = 0.0f;
+		}
+
+		// Apply impulse
+		livingTarget.dx += kbDx * 0.5f;
+		livingTarget.dy = -0.3f; // Slight lift
 
 		System.out.println("DEBUG: Post-damage - HP: " + livingTarget.hitPoints + ", Dead: " + livingTarget.dead);
 
@@ -3030,8 +3399,30 @@ public class SharedWorld {
 		Constants.TileID dropId = broken;
 		if (broken == Constants.TileID.GRASS)
 			dropId = Constants.TileID.DIRT;
+
 		if (broken == Constants.TileID.STONE)
 			dropId = Constants.TileID.COBBLE;
+
+		if (broken == Constants.TileID.COAL_ORE) {
+			Item coal = Constants.itemTypes.get("coal").clone();
+			coal.x = x + random.nextFloat() * 0.5f;
+			coal.y = y + random.nextFloat() * 0.5f;
+			coal.dy = -0.07f;
+			entityManager.add(coal);
+		} else if (broken == Constants.TileID.DIAMOND_ORE) {
+			Item diamond = Constants.itemTypes.get("diamond").clone();
+			diamond.x = x + random.nextFloat() * 0.5f;
+			diamond.y = y + random.nextFloat() * 0.5f;
+			diamond.dy = -0.07f;
+			entityManager.add(diamond);
+		} else if (broken == Constants.TileID.RUBY_ORE) {
+			Item ruby = Constants.itemTypes.get("ruby").clone();
+			ruby.x = x + random.nextFloat() * 0.5f;
+			ruby.y = y + random.nextFloat() * 0.5f;
+			ruby.dy = -0.07f;
+			entityManager.add(ruby);
+		}
+
 		if (broken == Constants.TileID.LEAVES) {
 			if (random.nextDouble() < 0.1) {
 				dropId = Constants.TileID.SAPLING;

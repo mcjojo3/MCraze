@@ -24,10 +24,10 @@ public class Constants {
 		SAND("sand"),
 		IRON_ORE("iron_ore"),
 		GOLD_ORE("gold_ore"),
-		COAL_ORE("coal_ore"),
-		DIAMOND_ORE("diamond_ore"),
+		COAL_ORE(null),
+		DIAMOND_ORE(null),
 		LAPIS_ORE("lapis_ore"),
-		EMERALD_ORE("emerald_ore"),
+		RUBY_ORE(null),
 		COBBLE("cobble"),
 		WORKBENCH("workbench"),
 		BEDROCK(null),
@@ -44,7 +44,7 @@ public class Constants {
 		DIAMOND_BLOCK("diamond_block"),
 		IRON_BLOCK("iron_block"),
 		GOLD_BLOCK("gold_block"),
-		EMERALD_BLOCK("emerald_block"),
+		RUBY_BLOCK("ruby_block"),
 		LAPIS_BLOCK("lapis_block"),
 		COAL_BLOCK("coal_block"),
 		CHEST("chest"),
@@ -52,6 +52,7 @@ public class Constants {
 		FARMLAND("dirt"),
 		WHEAT("wheat"),
 		FURNACE("furnace"),
+		FURNACE_LIT("furnace"),
 		DOOR_BOT_CLOSED("door"),
 		DOOR_TOP_CLOSED("door"),
 		DOOR_BOT("door"),
@@ -124,121 +125,123 @@ public class Constants {
 	public static Map<TileID, Tile> tileTypes = new HashMap<TileID, Tile>();
 
 	static {
-		tileTypes.put(TileID.DIRT, new Tile(new TileType("sprites/tiles/dirt.png", TileID.DIRT)));
-		tileTypes.put(TileID.GRASS, new Tile(new TileType("sprites/tiles/grass_block.png",
+		tileTypes.put(TileID.DIRT, new Tile(new TileType("assets/sprites/tiles/dirt.png", TileID.DIRT)));
+		tileTypes.put(TileID.GRASS, new Tile(new TileType("assets/sprites/tiles/grass_block.png",
 				TileID.GRASS)));
-		tileTypes.put(TileID.LEAVES, new Tile(new TileType("sprites/tiles/leaves.png",
+		tileTypes.put(TileID.LEAVES, new Tile(new TileType("assets/sprites/tiles/leaves.png",
 				TileID.LEAVES, true, false, 1)));
 		tileTypes
-				.put(TileID.PLANK, new Tile(new TileType("sprites/tiles/plank.png", TileID.PLANK)));
-		tileTypes.put(TileID.WOOD, new Tile(new TileType("sprites/tiles/wood.png", TileID.WOOD,
+				.put(TileID.PLANK, new Tile(new TileType("assets/sprites/tiles/plank.png", TileID.PLANK)));
+		tileTypes.put(TileID.WOOD, new Tile(new TileType("assets/sprites/tiles/wood.png", TileID.WOOD,
 				true, false, 0)));
 		tileTypes
-				.put(TileID.STONE, new Tile(new TileType("sprites/tiles/stone.png", TileID.STONE)));
-		tileTypes.put(TileID.AIR, new Tile(new TileType("sprites/tiles/air.png", TileID.AIR, true,
+				.put(TileID.STONE, new Tile(new TileType("assets/sprites/tiles/stone.png", TileID.STONE)));
+		tileTypes.put(TileID.AIR, new Tile(new TileType("assets/sprites/tiles/air.png", TileID.AIR, true,
 				false, 0)));
-		tileTypes.put(TileID.WATER, new Tile(new TileType("sprites/tiles/water.png", TileID.WATER,
+		tileTypes.put(TileID.WATER, new Tile(new TileType("assets/sprites/tiles/water.png", TileID.WATER,
 				true, true, 6)));
-		tileTypes.put(TileID.LAVA, new Tile(new TileType("sprites/tiles/lava.png", TileID.LAVA,
+		tileTypes.put(TileID.LAVA, new Tile(new TileType("assets/sprites/tiles/lava.png", TileID.LAVA,
 				true, true, Constants.LIGHT_VALUE_LAVA)));
-		tileTypes.put(TileID.SAND, new Tile(new TileType("sprites/tiles/sand.png", TileID.SAND)));
-		tileTypes.put(TileID.IRON_ORE, new Tile(new TileType("sprites/tiles/iron_ore.png",
+		tileTypes.put(TileID.SAND, new Tile(new TileType("assets/sprites/tiles/sand.png", TileID.SAND)));
+		tileTypes.put(TileID.IRON_ORE, new Tile(new TileType("assets/sprites/tiles/iron_ore.png",
 				TileID.IRON_ORE)));
-		tileTypes.put(TileID.COAL_ORE, new Tile(new TileType("sprites/tiles/coal_ore.png",
+		tileTypes.put(TileID.COAL_ORE, new Tile(new TileType("assets/sprites/tiles/coal_ore.png",
 				TileID.COAL_ORE)));
-		tileTypes.put(TileID.DIAMOND_ORE, new Tile(new TileType("sprites/tiles/diamond_ore.png",
+		tileTypes.put(TileID.DIAMOND_ORE, new Tile(new TileType("assets/sprites/tiles/diamond_ore.png",
 				TileID.DIAMOND_ORE)));
-		tileTypes.put(TileID.GOLD_ORE, new Tile(new TileType("sprites/tiles/gold_ore.png",
+		tileTypes.put(TileID.GOLD_ORE, new Tile(new TileType("assets/sprites/tiles/gold_ore.png",
 				TileID.GOLD_ORE)));
-		tileTypes.put(TileID.LAPIS_ORE, new Tile(new TileType("sprites/tiles/lapis_ore.png",
+		tileTypes.put(TileID.LAPIS_ORE, new Tile(new TileType("assets/sprites/tiles/lapis_ore.png",
 				TileID.LAPIS_ORE)));
-		tileTypes.put(TileID.EMERALD_ORE, new Tile(new TileType("sprites/tiles/emerald_ore.png",
-				TileID.EMERALD_ORE)));
-		tileTypes.put(TileID.COBBLE, new Tile(new TileType("sprites/tiles/cobble.png",
+		tileTypes.put(TileID.RUBY_ORE, new Tile(new TileType("assets/sprites/tiles/ruby_ore.png",
+				TileID.RUBY_ORE)));
+		tileTypes.put(TileID.COBBLE, new Tile(new TileType("assets/sprites/tiles/cobble.png",
 				TileID.COBBLE)));
-		tileTypes.put(TileID.WORKBENCH, new Tile(new TileType("sprites/tiles/workbench.png",
+		tileTypes.put(TileID.WORKBENCH, new Tile(new TileType("assets/sprites/tiles/workbench.png",
 				TileID.WORKBENCH, true, false, 0)));
-		tileTypes.put(TileID.FURNACE, new Tile(new TileType("sprites/tiles/furnace.png",
+		tileTypes.put(TileID.FURNACE, new Tile(new TileType("assets/sprites/tiles/furnace.png",
 				TileID.FURNACE, true, false, 0)));
-		tileTypes.put(TileID.BEDROCK, new Tile(new TileType("sprites/tiles/bedrock.png",
+		tileTypes.put(TileID.FURNACE_LIT, new Tile(new TileType("assets/sprites/tiles/burn_furnace.png",
+				TileID.FURNACE_LIT, true, false, 0, Constants.LIGHT_VALUE_TORCH, false))); // Lit furnace emits light
+		tileTypes.put(TileID.BEDROCK, new Tile(new TileType("assets/sprites/tiles/bedrock.png",
 				TileID.BEDROCK)));
-		tileTypes.put(TileID.SAPLING, new Tile(new TileType("sprites/tiles/sapling.png",
+		tileTypes.put(TileID.SAPLING, new Tile(new TileType("assets/sprites/tiles/sapling.png",
 				TileID.SAPLING, true, false, 0, 0, false))); // unstable - needs ground
-		tileTypes.put(TileID.LADDER, new Tile(new TileType("sprites/tiles/ladder.png",
+		tileTypes.put(TileID.LADDER, new Tile(new TileType("assets/sprites/tiles/ladder.png",
 				TileID.LADDER, true, false, 0)));
-		tileTypes.put(TileID.TORCH, new Tile(new TileType("sprites/tiles/torch.png",
+		tileTypes.put(TileID.TORCH, new Tile(new TileType("assets/sprites/tiles/torch.png",
 				TileID.TORCH, true, false, 0, Constants.LIGHT_VALUE_TORCH, false))); // unstable - needs ground
-		tileTypes.put(TileID.ROSE, new Tile(new TileType("sprites/tiles/rose.png",
+		tileTypes.put(TileID.ROSE, new Tile(new TileType("assets/sprites/tiles/rose.png",
 				TileID.ROSE, true, false, 0, 0, false))); // unstable - needs ground
-		tileTypes.put(TileID.DANDELION, new Tile(new TileType("sprites/tiles/dandelion.png",
+		tileTypes.put(TileID.DANDELION, new Tile(new TileType("assets/sprites/tiles/dandelion.png",
 				TileID.DANDELION, true, false, 0, 0, false))); // unstable - needs ground
-		tileTypes.put(TileID.TALL_GRASS, new Tile(new TileType("sprites/tiles/tall_grass.png",
+		tileTypes.put(TileID.TALL_GRASS, new Tile(new TileType("assets/sprites/tiles/tall_grass.png",
 				TileID.TALL_GRASS, true, false, 0, 0, false))); // unstable - needs ground
-		tileTypes.put(TileID.CACTUS, new Tile(new TileType("sprites/tiles/cactus.png",
+		tileTypes.put(TileID.CACTUS, new Tile(new TileType("assets/sprites/tiles/cactus.png",
 				TileID.CACTUS, true, false, 0, 0, false))); // unstable - needs ground
-		tileTypes.put(TileID.MOSSY_COBBLE, new Tile(new TileType("sprites/tiles/mossy_cobble.png",
+		tileTypes.put(TileID.MOSSY_COBBLE, new Tile(new TileType("assets/sprites/tiles/mossy_cobble.png",
 				TileID.MOSSY_COBBLE)));
-		tileTypes.put(TileID.CHEST, new Tile(new TileType("sprites/tiles/chest.png",
+		tileTypes.put(TileID.CHEST, new Tile(new TileType("assets/sprites/tiles/chest.png",
 				TileID.CHEST, true, false, 0)));
-		tileTypes.put(TileID.SPAWNER, new Tile(new TileType("sprites/tiles/spawner.png",
+		tileTypes.put(TileID.SPAWNER, new Tile(new TileType("assets/sprites/tiles/spawner.png",
 				TileID.SPAWNER, true, false, 1)));
-		tileTypes.put(TileID.FARMLAND, new Tile(new TileType("sprites/tiles/farmland.png",
+		tileTypes.put(TileID.FARMLAND, new Tile(new TileType("assets/sprites/tiles/farmland.png",
 				TileID.FARMLAND)));
-		tileTypes.put(TileID.HAY_BLOCK, new Tile(new TileType("sprites/tiles/hay_block.png",
+		tileTypes.put(TileID.HAY_BLOCK, new Tile(new TileType("assets/sprites/tiles/hay_block.png",
 				TileID.HAY_BLOCK, false, false, 0)));
-		tileTypes.put(TileID.DIAMOND_BLOCK, new Tile(new TileType("sprites/tiles/diamond_block.png",
+		tileTypes.put(TileID.DIAMOND_BLOCK, new Tile(new TileType("assets/sprites/tiles/diamond_block.png",
 				TileID.DIAMOND_BLOCK, false, false, 0)));
-		tileTypes.put(TileID.IRON_BLOCK, new Tile(new TileType("sprites/tiles/iron_block.png",
+		tileTypes.put(TileID.IRON_BLOCK, new Tile(new TileType("assets/sprites/tiles/iron_block.png",
 				TileID.IRON_BLOCK, false, false, 0)));
-		tileTypes.put(TileID.EMERALD_BLOCK, new Tile(new TileType("sprites/tiles/emerald_block.png",
-				TileID.EMERALD_BLOCK, false, false, 0)));
-		tileTypes.put(TileID.COAL_BLOCK, new Tile(new TileType("sprites/tiles/coal_block.png",
+		tileTypes.put(TileID.RUBY_BLOCK, new Tile(new TileType("assets/sprites/tiles/ruby_block.png",
+				TileID.RUBY_BLOCK, false, false, 0)));
+		tileTypes.put(TileID.COAL_BLOCK, new Tile(new TileType("assets/sprites/tiles/coal_block.png",
 				TileID.COAL_BLOCK, false, false, 0)));
-		tileTypes.put(TileID.LAPIS_BLOCK, new Tile(new TileType("sprites/tiles/lapis_block.png",
+		tileTypes.put(TileID.LAPIS_BLOCK, new Tile(new TileType("assets/sprites/tiles/lapis_block.png",
 				TileID.LAPIS_BLOCK, false, false, 0)));
-		tileTypes.put(TileID.GOLD_BLOCK, new Tile(new TileType("sprites/tiles/gold_block.png",
+		tileTypes.put(TileID.GOLD_BLOCK, new Tile(new TileType("assets/sprites/tiles/gold_block.png",
 				TileID.GOLD_BLOCK, false, false, 0)));
-		tileTypes.put(TileID.WHEAT, new Tile(new TileType("sprites/tiles/wheat.png",
+		tileTypes.put(TileID.WHEAT, new Tile(new TileType("assets/sprites/tiles/wheat.png",
 				TileID.WHEAT, true, false, 0, 0, false))); // Passable, unstable - needs farmland
-		tileTypes.put(TileID.WHEAT_SEEDS, new Tile(new TileType("sprites/tiles/wheat_seeds.png",
+		tileTypes.put(TileID.WHEAT_SEEDS, new Tile(new TileType("assets/sprites/tiles/wheat_seeds.png",
 				TileID.WHEAT_SEEDS, true, false, 0, 0, false))); // Passable, unstable - needs farmland
-		tileTypes.put(TileID.DOOR_BOT_CLOSED, new Tile(new TileType("sprites/tiles/door_bot_closed.png",
+		tileTypes.put(TileID.DOOR_BOT_CLOSED, new Tile(new TileType("assets/sprites/tiles/door_bot_closed.png",
 				TileID.DOOR_BOT_CLOSED, false, false, 0))); // Not passable when closed
-		tileTypes.put(TileID.DOOR_TOP_CLOSED, new Tile(new TileType("sprites/tiles/door_top_closed.png",
+		tileTypes.put(TileID.DOOR_TOP_CLOSED, new Tile(new TileType("assets/sprites/tiles/door_top_closed.png",
 				TileID.DOOR_TOP_CLOSED, false, false, 0))); // Not passable when closed
-		tileTypes.put(TileID.DOOR_BOT, new Tile(new TileType("sprites/tiles/door_bot.png",
+		tileTypes.put(TileID.DOOR_BOT, new Tile(new TileType("assets/sprites/tiles/door_bot.png",
 				TileID.DOOR_BOT, true, false, 0))); // Passable when open
-		tileTypes.put(TileID.DOOR_TOP, new Tile(new TileType("sprites/tiles/door_top.png",
+		tileTypes.put(TileID.DOOR_TOP, new Tile(new TileType("assets/sprites/tiles/door_top.png",
 				TileID.DOOR_TOP, true, false, 0))); // Passable when open
-		tileTypes.put(TileID.BED_LEFT, new Tile(new TileType("sprites/tiles/bed_top.png",
+		tileTypes.put(TileID.BED_LEFT, new Tile(new TileType("assets/sprites/tiles/bed_top.png",
 				TileID.BED_LEFT, true, false, 0))); // Passable - left side of bed
-		tileTypes.put(TileID.BED_RIGHT, new Tile(new TileType("sprites/tiles/bed_bot.png",
+		tileTypes.put(TileID.BED_RIGHT, new Tile(new TileType("assets/sprites/tiles/bed_bot.png",
 				TileID.BED_RIGHT, true, false, 0))); // Passable - right side of bed
-		tileTypes.put(TileID.GLASS, new Tile(new TileType("sprites/tiles/glass.png",
+		tileTypes.put(TileID.GLASS, new Tile(new TileType("assets/sprites/tiles/glass.png",
 				TileID.GLASS, false, false, 0)));
-		tileTypes.put(TileID.WHITE_WOOL, new Tile(new TileType("sprites/tiles/white_wool.png",
+		tileTypes.put(TileID.WHITE_WOOL, new Tile(new TileType("assets/sprites/tiles/white_wool.png",
 				TileID.WHITE_WOOL)));
-		tileTypes.put(TileID.BLACK_WOOL, new Tile(new TileType("sprites/tiles/black_wool.png",
+		tileTypes.put(TileID.BLACK_WOOL, new Tile(new TileType("assets/sprites/tiles/black_wool.png",
 				TileID.BLACK_WOOL)));
-		tileTypes.put(TileID.RED_WOOL, new Tile(new TileType("sprites/tiles/red_wool.png",
+		tileTypes.put(TileID.RED_WOOL, new Tile(new TileType("assets/sprites/tiles/red_wool.png",
 				TileID.RED_WOOL)));
-		tileTypes.put(TileID.GREEN_WOOL, new Tile(new TileType("sprites/tiles/green_wool.png",
+		tileTypes.put(TileID.GREEN_WOOL, new Tile(new TileType("assets/sprites/tiles/green_wool.png",
 				TileID.GREEN_WOOL)));
-		tileTypes.put(TileID.ORANGE_WOOL, new Tile(new TileType("sprites/tiles/orange_wool.png",
+		tileTypes.put(TileID.ORANGE_WOOL, new Tile(new TileType("assets/sprites/tiles/orange_wool.png",
 				TileID.ORANGE_WOOL)));
-		tileTypes.put(TileID.YELLOW_WOOL, new Tile(new TileType("sprites/tiles/yellow_wool.png",
+		tileTypes.put(TileID.YELLOW_WOOL, new Tile(new TileType("assets/sprites/tiles/yellow_wool.png",
 				TileID.YELLOW_WOOL)));
-		tileTypes.put(TileID.PURPLE_WOOL, new Tile(new TileType("sprites/tiles/purple_wool.png",
+		tileTypes.put(TileID.PURPLE_WOOL, new Tile(new TileType("assets/sprites/tiles/purple_wool.png",
 				TileID.PURPLE_WOOL)));
-		tileTypes.put(TileID.BLUE_WOOL, new Tile(new TileType("sprites/tiles/blue_wool.png",
+		tileTypes.put(TileID.BLUE_WOOL, new Tile(new TileType("assets/sprites/tiles/blue_wool.png",
 				TileID.BLUE_WOOL)));
-		tileTypes.put(TileID.CYAN_WOOL, new Tile(new TileType("sprites/tiles/cyan_wool.png",
+		tileTypes.put(TileID.CYAN_WOOL, new Tile(new TileType("assets/sprites/tiles/cyan_wool.png",
 				TileID.CYAN_WOOL)));
-		tileTypes.put(TileID.PINK_WOOL, new Tile(new TileType("sprites/tiles/pink_wool.png",
+		tileTypes.put(TileID.PINK_WOOL, new Tile(new TileType("assets/sprites/tiles/pink_wool.png",
 				TileID.PINK_WOOL)));
-		tileTypes.put(TileID.LIME_WOOL, new Tile(new TileType("sprites/tiles/lime_wool.png",
+		tileTypes.put(TileID.LIME_WOOL, new Tile(new TileType("assets/sprites/tiles/lime_wool.png",
 				TileID.LIME_WOOL)));
-		tileTypes.put(TileID.GRAY_WOOL, new Tile(new TileType("sprites/tiles/gray_wool.png",
+		tileTypes.put(TileID.GRAY_WOOL, new Tile(new TileType("assets/sprites/tiles/gray_wool.png",
 				TileID.GRAY_WOOL)));
 	}
 
@@ -259,7 +262,7 @@ public class Constants {
 	public static final float ORE_GOLD_FREQUENCY = 0.005f;
 	public static final float ORE_DIAMOND_FREQUENCY = 0.001f;
 	public static final float ORE_LAPIS_FREQUENCY = 0.003f;
-	public static final float ORE_EMERALD_FREQUENCY = 0.0005f;
+	public static final float ORE_RUBY_FREQUENCY = 0.0005f;
 
 	public static final int LIGHT_VALUE_TORCH = 12;
 	public static final int LIGHT_VALUE_LAVA = 8;

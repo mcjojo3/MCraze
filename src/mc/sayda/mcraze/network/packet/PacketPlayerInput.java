@@ -59,6 +59,11 @@ public class PacketPlayerInput extends ClientPacket {
 	}
 
 	@Override
+	public boolean requiresImmediateFlush() {
+		return true; // Player input MUST be sent immediately for responsive controls
+	}
+
+	@Override
 	public void handle(ServerPacketHandler handler) {
 		handler.handlePlayerInput(this);
 	}

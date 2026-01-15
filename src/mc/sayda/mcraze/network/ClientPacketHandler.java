@@ -48,6 +48,8 @@ public interface ClientPacketHandler {
 
     void handleChestOpen(PacketChestOpen packet); // NEW: For opening chest UI
 
+    void handleFurnaceOpen(PacketFurnaceOpen packet); // NEW: For opening furnace UI
+
     void handleGameruleUpdate(PacketGameruleUpdate packet); // NEW: For syncing gamerule changes
 
     void handlePong(PacketPong packet); // NEW: For latency measurement

@@ -20,6 +20,7 @@ import mc.sayda.mcraze.Sprite;
  * <p>
  * [singleton]
  * <p>
+ * 
  * @author Kevin Glass
  */
 public class AwtSpriteStore extends mc.sayda.mcraze.SpriteStore {
@@ -29,7 +30,7 @@ public class AwtSpriteStore extends mc.sayda.mcraze.SpriteStore {
 		// otherwise, go away and grab the sprite from the resource
 		// loader
 		BufferedImage sourceImage = null;
-		String actualRef = ref;  // Track which texture we actually loaded
+		String actualRef = ref; // Track which texture we actually loaded
 
 		try {
 			// The ClassLoader.getResource() ensures we get the sprite
@@ -41,7 +42,7 @@ public class AwtSpriteStore extends mc.sayda.mcraze.SpriteStore {
 			if (url == null) {
 				// Try loading fallback texture
 				System.err.println("Warning: Can't find ref: " + ref + " - using missing texture");
-				actualRef = "sprites/other/missing.png";
+				actualRef = "assets/sprites/other/missing.png";
 				url = this.getClass().getClassLoader().getResource(actualRef);
 
 				if (url == null) {
@@ -55,7 +56,7 @@ public class AwtSpriteStore extends mc.sayda.mcraze.SpriteStore {
 			// Try loading fallback texture on IO error
 			System.err.println("Warning: Failed to load: " + ref + " - using missing texture");
 			try {
-				actualRef = "sprites/other/missing.png";
+				actualRef = "assets/sprites/other/missing.png";
 				URL fallbackUrl = this.getClass().getClassLoader().getResource(actualRef);
 				if (fallbackUrl == null) {
 					fail("FATAL: Missing texture fallback not found: " + actualRef);
@@ -84,7 +85,7 @@ public class AwtSpriteStore extends mc.sayda.mcraze.SpriteStore {
 	 * Utility method to handle resource loading failure
 	 *
 	 * @param message
-	 *            The message to display on failure
+	 *                The message to display on failure
 	 */
 	private void fail(String message) {
 		// we're pretty dramatic here, if a resource isn't available
