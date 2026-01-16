@@ -14,6 +14,7 @@ package mc.sayda.mcraze.ui;
 
 import mc.sayda.mcraze.item.InventoryItem;
 import mc.sayda.mcraze.item.Item;
+import mc.sayda.mcraze.logging.GameLogger;
 import mc.sayda.mcraze.util.Int2;
 
 public class Inventory implements java.io.Serializable, Cloneable {
@@ -125,8 +126,8 @@ public class Inventory implements java.io.Serializable, Cloneable {
 			// Send packet to server for inventory action (ALL modes - integrated or
 			// dedicated server)
 			if (connection == null) {
-				System.err.println(
-						"ERROR: Inventory has no connection! This should NEVER happen - even integrated servers use LocalConnection.");
+				if (GameLogger.get() != null)
+					GameLogger.get().error("Inventory has no connection! This should NEVER happen.");
 				return true;
 			}
 
@@ -151,8 +152,8 @@ public class Inventory implements java.io.Serializable, Cloneable {
 
 			// Send craft packet to server (ALL modes - integrated or dedicated server)
 			if (connection == null) {
-				System.err.println(
-						"ERROR: Inventory has no connection! This should NEVER happen - even integrated servers use LocalConnection.");
+				if (GameLogger.get() != null)
+					GameLogger.get().error("Inventory has no connection! This should NEVER happen.");
 				return true;
 			}
 

@@ -12,6 +12,8 @@
 
 package mc.sayda.mcraze.util;
 
+import mc.sayda.mcraze.logging.GameLogger;
+
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -25,6 +27,7 @@ import java.util.Base64;
  * For production use, consider proper encryption.
  */
 public class CredentialManager {
+	private static final GameLogger logger = GameLogger.get();
 	private static final String APP_NAME = "MCraze";
 	private static final String CREDENTIALS_FILE = "credentials.dat";
 	private static final String LAST_IP_FILE = "lastip.dat";
@@ -90,10 +93,12 @@ public class CredentialManager {
 			Path credentialsFile = getCredentialsFilePath();
 			Files.write(credentialsFile, encoded.getBytes(StandardCharsets.UTF_8));
 
-			System.out.println("Credentials saved to: " + credentialsFile);
+			Files.write(credentialsFile, encoded.getBytes(StandardCharsets.UTF_8));
+
+			logger.info("Credentials saved to: " + credentialsFile);
 			return true;
 		} catch (IOException e) {
-			System.err.println("Failed to save credentials: " + e.getMessage());
+			logger.error("Failed to save credentials: " + e.getMessage());
 			e.printStackTrace();
 			return false;
 		}
@@ -120,18 +125,18 @@ public class CredentialManager {
 			// Parse username:password
 			String[] parts = decoded.split(":", 2);
 			if (parts.length != 2) {
-				System.err.println("Invalid credentials file format");
+				logger.error("Invalid credentials file format");
 				return null;
 			}
 
-			System.out.println("Credentials loaded from: " + credentialsFile);
+			logger.info("Credentials loaded from: " + credentialsFile);
 			return new SavedCredentials(parts[0], parts[1]);
 		} catch (IOException e) {
-			System.err.println("Failed to load credentials: " + e.getMessage());
+			logger.error("Failed to load credentials: " + e.getMessage());
 			e.printStackTrace();
 			return null;
 		} catch (IllegalArgumentException e) {
-			System.err.println("Failed to decode credentials: " + e.getMessage());
+			logger.error("Failed to decode credentials: " + e.getMessage());
 			e.printStackTrace();
 			return null;
 		}
@@ -148,11 +153,11 @@ public class CredentialManager {
 
 			if (Files.exists(credentialsFile)) {
 				Files.delete(credentialsFile);
-				System.out.println("Credentials deleted from: " + credentialsFile);
+				logger.info("Credentials deleted from: " + credentialsFile);
 			}
 			return true;
 		} catch (IOException e) {
-			System.err.println("Failed to delete credentials: " + e.getMessage());
+			logger.error("Failed to delete credentials: " + e.getMessage());
 			e.printStackTrace();
 			return false;
 		}
@@ -196,10 +201,10 @@ public class CredentialManager {
 			Path ipFile = getLastIPFilePath();
 			Files.write(ipFile, ipAddress.trim().getBytes(StandardCharsets.UTF_8));
 
-			System.out.println("Last IP saved to: " + ipFile);
+			logger.info("Last IP saved to: " + ipFile);
 			return true;
 		} catch (IOException e) {
-			System.err.println("Failed to save last IP: " + e.getMessage());
+			logger.error("Failed to save last IP: " + e.getMessage());
 			e.printStackTrace();
 			return false;
 		}
@@ -221,10 +226,10 @@ public class CredentialManager {
 
 			// Read IP address
 			String ip = new String(Files.readAllBytes(ipFile), StandardCharsets.UTF_8).trim();
-			System.out.println("Last IP loaded from: " + ipFile);
+			logger.info("Last IP loaded from: " + ipFile);
 			return ip.isEmpty() ? null : ip;
 		} catch (IOException e) {
-			System.err.println("Failed to load last IP: " + e.getMessage());
+			logger.error("Failed to load last IP: " + e.getMessage());
 			e.printStackTrace();
 			return null;
 		}

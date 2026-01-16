@@ -24,6 +24,7 @@ import mc.sayda.mcraze.world.World;
  * F3 debug overlay showing technical information
  */
 public class DebugOverlay {
+	private final mc.sayda.mcraze.logging.GameLogger logger = mc.sayda.mcraze.logging.GameLogger.get();
 	public static final String GAME_VERSION = "Alpha 1.0";
 
 	private Game game;
@@ -38,7 +39,8 @@ public class DebugOverlay {
 	 */
 	public void toggle() {
 		visible = !visible;
-		System.out.println("Debug overlay (F3): " + (visible ? "Enabled" : "Disabled"));
+		if (logger != null)
+			logger.info("Debug overlay (F3): " + (visible ? "Enabled" : "Disabled"));
 	}
 
 	public void setVisible(boolean visible) {

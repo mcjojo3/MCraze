@@ -111,11 +111,13 @@ public class EntityZombie extends LivingEntity {
             if (distSq < 1.5f * 1.5f) {
                 if (attackCooldown <= 0) {
                     // ATTACK!
-                    ((LivingEntity) target).takeDamage(3);
+                    if (((LivingEntity) target).invulnerabilityTicks <= 0) {
+                        ((LivingEntity) target).takeDamage(5);
 
-                    // Play hurt sound if target is player
-                    if (target instanceof mc.sayda.mcraze.entity.Player) {
-                        sharedWorld.broadcastPacket(new mc.sayda.mcraze.network.packet.PacketPlaySound("hurt.wav"));
+                        // Play hurt sound if target is player
+                        if (target instanceof mc.sayda.mcraze.entity.Player) {
+                            sharedWorld.broadcastPacket(new mc.sayda.mcraze.network.packet.PacketPlaySound("hurt.wav"));
+                        }
                     }
 
                     // Knockback removed
@@ -176,12 +178,7 @@ public class EntityZombie extends LivingEntity {
                 }
             }
 
-            // Maintain velocity based on action state (Entity.startLeft/Right handled dx
-            // setting?)
-            // LivingEntity.startLeft/Right sets moveDirection.
-            // LivingEntity.updatePosition USES moveDirection to set dx.
-            // So we just call start/stop once? Or every tick?
-            // LivingEntity logic: dx = moveDirection * speed.
+            // Maintain velocity based on action state
             switch (currentAction) {
                 case ACTION_IDLE:
                     stopLeft();
@@ -203,10 +200,6 @@ public class EntityZombie extends LivingEntity {
         }
 
         // IMPORTANT: LivingEntity.updatePosition() uses moveDirection to calculate
-        // dx/dy.
-        // We don't need to manually set dx unless we want override.
-        // But wait, LivingEntity.updatePosition() sets dx based on moveDirection.
-        // Let's rely on super implementation for physics!
 
         super.updatePosition(world, tileSize);
 

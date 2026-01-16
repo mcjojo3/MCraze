@@ -20,6 +20,7 @@ import mc.sayda.mcraze.item.Item;
 import mc.sayda.mcraze.item.InventoryItem;
 import mc.sayda.mcraze.item.Tool;
 import mc.sayda.mcraze.ui.Inventory;
+import mc.sayda.mcraze.logging.GameLogger;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -36,6 +37,7 @@ import java.nio.file.Paths;
  * Each world maintains independent playerdata for each username.
  */
 public class PlayerDataManager {
+	private static final GameLogger logger = GameLogger.get();
 	private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
 	/**
@@ -79,21 +81,21 @@ public class PlayerDataManager {
 	public static PlayerData authenticate(String worldName, String username, String password) {
 		if (!exists(worldName, username)) {
 			// Auto-register: No playerdata exists, return null so caller can create new
-			System.out.println("PlayerDataManager: No existing playerdata for " + username + " in world " + worldName);
+			logger.info("PlayerDataManager: No existing playerdata for " + username + " in world " + worldName);
 			return null;
 		}
 
 		try {
 			PlayerData data = load(worldName, username);
 			if (data != null && data.password.equals(password)) {
-				System.out.println("PlayerDataManager: Authentication successful for " + username);
+				logger.info("PlayerDataManager: Authentication successful for " + username);
 				return data; // Authentication successful
 			} else {
-				System.err.println("PlayerDataManager: Wrong password for " + username);
+				logger.warn("PlayerDataManager: Wrong password for " + username);
 				return null; // Wrong password
 			}
 		} catch (IOException e) {
-			System.err.println("Failed to authenticate " + username + ": " + e.getMessage());
+			logger.error("Failed to authenticate " + username + ": " + e.getMessage());
 			e.printStackTrace();
 			return null;
 		}
@@ -107,21 +109,21 @@ public class PlayerDataManager {
 	public static PlayerData authenticate(Path worldDirectory, String username, String password) {
 		if (!exists(worldDirectory, username)) {
 			// Auto-register: No playerdata exists, return null so caller can create new
-			System.out.println("PlayerDataManager: No existing playerdata for " + username + " in ./world/");
+			logger.info("PlayerDataManager: No existing playerdata for " + username + " in ./world/");
 			return null;
 		}
 
 		try {
 			PlayerData data = load(worldDirectory, username);
 			if (data != null && data.password.equals(password)) {
-				System.out.println("PlayerDataManager: Authentication successful for " + username);
+				logger.info("PlayerDataManager: Authentication successful for " + username);
 				return data; // Authentication successful
 			} else {
-				System.err.println("PlayerDataManager: Wrong password for " + username);
+				logger.warn("PlayerDataManager: Wrong password for " + username);
 				return null; // Wrong password
 			}
 		} catch (IOException e) {
-			System.err.println("Failed to authenticate " + username + ": " + e.getMessage());
+			logger.error("Failed to authenticate " + username + ": " + e.getMessage());
 			e.printStackTrace();
 			return null;
 		}
@@ -140,16 +142,16 @@ public class PlayerDataManager {
 		try {
 			String json = new String(Files.readAllBytes(playerDataFile));
 			PlayerData data = gson.fromJson(json, PlayerData.class);
-			System.out.println("Loaded playerdata for " + username + " in world " + worldName);
+			logger.info("Loaded playerdata for " + username + " in world " + worldName);
 			return data;
 		} catch (Exception e) {
 			// Try backup if main file is corrupted
 			Path backupFile = getPlayerDataDirectory(worldName).resolve(sanitizeUsername(username) + ".dat.bak");
 			if (Files.exists(backupFile)) {
-				System.err.println("Main playerdata file corrupted, trying backup...");
+				logger.warn("Main playerdata file corrupted, trying backup...");
 				String json = new String(Files.readAllBytes(backupFile));
 				PlayerData data = gson.fromJson(json, PlayerData.class);
-				System.out.println("Loaded playerdata from backup for " + username);
+				logger.info("Loaded playerdata from backup for " + username);
 				return data;
 			}
 			throw e;
@@ -169,16 +171,16 @@ public class PlayerDataManager {
 		try {
 			String json = new String(Files.readAllBytes(playerDataFile));
 			PlayerData data = gson.fromJson(json, PlayerData.class);
-			System.out.println("Loaded playerdata for " + username + " from ./world/");
+			logger.info("Loaded playerdata for " + username + " from ./world/");
 			return data;
 		} catch (Exception e) {
 			// Try backup if main file is corrupted
 			Path backupFile = getPlayerDataDirectory(worldDirectory).resolve(sanitizeUsername(username) + ".dat.bak");
 			if (Files.exists(backupFile)) {
-				System.err.println("Main playerdata file corrupted, trying backup...");
+				logger.warn("Main playerdata file corrupted, trying backup...");
 				String json = new String(Files.readAllBytes(backupFile));
 				PlayerData data = gson.fromJson(json, PlayerData.class);
-				System.out.println("Loaded playerdata from backup for " + username);
+				logger.info("Loaded playerdata from backup for " + username);
 				return data;
 			}
 			throw e;
@@ -217,11 +219,11 @@ public class PlayerDataManager {
 			Files.move(tempFile, finalFile,
 					java.nio.file.StandardCopyOption.ATOMIC_MOVE);
 
-			System.out.println("Saved playerdata for " + playerData.username + " in world " + worldName);
+			logger.info("Saved playerdata for " + playerData.username + " in world " + worldName);
 			return true;
 
 		} catch (IOException e) {
-			System.err.println("Failed to save playerdata: " + e.getMessage());
+			logger.error("Failed to save playerdata: " + e.getMessage());
 			e.printStackTrace();
 			return false;
 		}
@@ -259,11 +261,11 @@ public class PlayerDataManager {
 			Files.move(tempFile, finalFile,
 					java.nio.file.StandardCopyOption.ATOMIC_MOVE);
 
-			System.out.println("Saved playerdata for " + playerData.username + " to ./world/");
+			logger.info("Saved playerdata for " + playerData.username + " to ./world/");
 			return true;
 
 		} catch (IOException e) {
-			System.err.println("Failed to save playerdata: " + e.getMessage());
+			logger.error("Failed to save playerdata: " + e.getMessage());
 			e.printStackTrace();
 			return false;
 		}
@@ -314,7 +316,7 @@ public class PlayerDataManager {
 								}
 							} else {
 								slot.setEmpty();
-								System.err.println("Unknown item ID in playerdata: " + itemId);
+								logger.error("Unknown item ID in playerdata: " + itemId);
 							}
 						}
 						index++;
@@ -423,10 +425,12 @@ public class PlayerDataManager {
 			Files.deleteIfExists(playerDataFile);
 			Files.deleteIfExists(backupFile);
 
-			System.out.println("Deleted playerdata for " + username + " in world " + worldName);
+			if (GameLogger.get() != null)
+				GameLogger.get().info("Deleted playerdata for " + username + " in world " + worldName);
 			return true;
 		} catch (IOException e) {
-			System.err.println("Failed to delete playerdata: " + e.getMessage());
+			if (GameLogger.get() != null)
+				GameLogger.get().error("Failed to delete playerdata: " + e.getMessage());
 			return false;
 		}
 	}

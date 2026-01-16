@@ -747,6 +747,11 @@
     }
   },
   {
+    "itemId": "rotten_flesh",
+    "name": "Rotten Flesh",
+    "spriteRef": "assets/sprites/entities/rotten_flesh.png"
+  },
+  {
     "itemId": "purple_wool",
     "name": "Purple Wool",
     "spriteRef": "assets/sprites/tiles/purple_wool.png",

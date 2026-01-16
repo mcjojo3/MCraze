@@ -15,6 +15,8 @@ import java.io.InputStream;
  * Main menu system with dynamic button support
  */
 public class MainMenu {
+	private final mc.sayda.mcraze.logging.GameLogger logger = mc.sayda.mcraze.logging.GameLogger.get();
+
 	// Menu states
 	private enum MenuState {
 		MAIN,
@@ -81,7 +83,7 @@ public class MainMenu {
 				}
 			}
 		} catch (Exception e) {
-			System.err.println("Failed to load splashes: " + e.getMessage());
+			logger.error("Failed to load splashes: " + e.getMessage());
 		}
 
 		if (splashes.isEmpty()) {

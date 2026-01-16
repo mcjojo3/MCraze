@@ -2202,14 +2202,12 @@ public class Client implements ClientPacketHandler {
 		if (musicPlayer != null) {
 			musicPlayer.setVolume(opts.getMusicVolume());
 		}
-		if (debugOverlay != null) {
-			debugOverlay.setVisible(opts.isShowFPS());
-		}
+		// DebugOverlay visibility is now independent (F3 toggles it)
+		// FPS toggle only affects uiRenderer.drawFPS in render()
 	}
 
 	public void toggleFPS() {
 		boolean newState = !mc.sayda.mcraze.util.OptionsManager.get().isShowFPS();
-		System.out.println("Client.toggleFPS: Toggling to " + newState);
 		mc.sayda.mcraze.util.OptionsManager.get().setShowFPS(newState);
 		applyOptions();
 	}

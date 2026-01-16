@@ -19,7 +19,10 @@ import com.google.gson.Gson;
 
 import mc.sayda.mcraze.util.StockMethods;
 
+import mc.sayda.mcraze.logging.GameLogger;
+
 public class ItemLoader {
+	private static final GameLogger logger = GameLogger.get();
 	private static ItemDefinition[] itemDefs;
 	private static java.util.Map<String, ItemDefinition> itemDefMap = new java.util.HashMap<>();
 
@@ -50,8 +53,9 @@ public class ItemLoader {
 		}
 
 		if (tools == null || items == null) {
-			System.err.println("Failed to load items from json.");
-			System.exit(5);
+			logger.error("Failed to load items from json.");
+			// System.exit(5); // Don't kill the JVM, just log error. Caller might handle or
+			// crash gracefully later.
 		}
 
 		HashMap<String, Item> itemTypes = new HashMap<String, Item>();
@@ -87,14 +91,14 @@ public class ItemLoader {
 				try {
 					item.requiredToolType = Tool.ToolType.valueOf(requiredTool);
 				} catch (IllegalArgumentException e) {
-					System.err.println("Invalid requiredTool: " + requiredTool + " for " + itemId);
+					logger.error("Invalid requiredTool: " + requiredTool + " for " + itemId);
 				}
 			}
 			if (requiredPower != null) {
 				try {
 					item.requiredToolPower = Tool.ToolPower.valueOf(requiredPower);
 				} catch (IllegalArgumentException e) {
-					System.err.println("Invalid requiredPower: " + requiredPower + " for " + itemId);
+					logger.error("Invalid requiredPower: " + requiredPower + " for " + itemId);
 				}
 			}
 			// Set fuel burn time (0 if not fuel)

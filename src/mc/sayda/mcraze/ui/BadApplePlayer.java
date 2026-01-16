@@ -32,7 +32,7 @@ public class BadApplePlayer {
                 logger.info("Starting Bad Apple playback");
             }
 
-            videoData = new BadAppleVideoData("src/assets/bad_apple.badapple");
+            videoData = new BadAppleVideoData("assets/bad_apple.badapple");
             isPlaying = true;
             startTime = System.currentTimeMillis();
             currentFrame = 0;

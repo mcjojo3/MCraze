@@ -121,13 +121,10 @@ public class SharedSettings {
 	 */
 	private void toggleFPS() {
 		boolean current = mc.sayda.mcraze.util.OptionsManager.get().isShowFPS();
-		System.out.println("SharedSettings.toggleFPS: Current state=" + current);
 
 		if (game.getClient() != null) {
-			System.out.println("SharedSettings.toggleFPS: Delegating to Client");
 			game.getClient().toggleFPS();
 		} else {
-			System.out.println("SharedSettings.toggleFPS: Updating OptionsManager directly");
 			// Toggle option directly if client not running
 			boolean newState = !current;
 			mc.sayda.mcraze.util.OptionsManager.get().setShowFPS(newState);
@@ -136,11 +133,6 @@ public class SharedSettings {
 		// Update button text
 		if (buttons.size() >= 4) {
 			buttons.get(3).setText(getFPSButtonText());
-			System.out.println("SharedSettings.toggleFPS: Updated button text to " + buttons.get(3).getId()); // Should
-																												// log
-																												// text
-																												// logic
-																												// result
 		}
 	}
 

@@ -28,6 +28,7 @@ import javax.sound.sampled.LineListener;
 import javax.sound.sampled.Mixer;
 
 public class MusicPlayer {
+	private final mc.sayda.mcraze.logging.GameLogger logger = mc.sayda.mcraze.logging.GameLogger.get();
 	private Clip currentClip;
 	private float volume = 0.5f; // Volume level (0.0 to 1.0)
 	private boolean muted = false; // Muted state
@@ -69,7 +70,7 @@ public class MusicPlayer {
 			selectedMixerInfo = findCompatibleMixer();
 
 			if (selectedMixerInfo != null) {
-				System.out.println("Music system using mixer: " + selectedMixerInfo.getName());
+				logger.info("Music system using mixer: " + selectedMixerInfo.getName());
 
 				// Load first track from menu playlist
 				if (!currentPlaylist.isEmpty()) {
@@ -78,10 +79,10 @@ public class MusicPlayer {
 					play(); // Auto-play first track
 				}
 			} else {
-				System.err.println("No compatible audio mixer found - music disabled");
+				logger.error("No compatible audio mixer found - music disabled");
 			}
 		} catch (Exception e) {
-			System.err.println("Failed to initialize music system: " + e.getMessage());
+			logger.error("Failed to initialize music system: " + e.getMessage());
 			e.printStackTrace();
 		}
 	}
@@ -94,8 +95,8 @@ public class MusicPlayer {
 		Mixer.Info[] mixerInfos = AudioSystem.getMixerInfo();
 		DataLine.Info clipInfo = new DataLine.Info(Clip.class, null);
 
-		System.out.println("Searching for compatible audio mixer...");
-		System.out.println("Available mixers: " + mixerInfos.length);
+		logger.info("Searching for compatible audio mixer...");
+		logger.info("Available mixers: " + mixerInfos.length);
 
 		for (Mixer.Info mixerInfo : mixerInfos) {
 			String name = mixerInfo.getName().toLowerCase();

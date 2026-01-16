@@ -19,6 +19,7 @@ import java.util.Random;
  * and runs the game server logic with SharedWorld for multiple players.
  */
 public class DedicatedServer {
+	private final GameLogger logger = GameLogger.get(); // Dedicated Server initialized in main(), safe.
 	private SharedWorld sharedWorld;
 	private ServerSocket serverSocket;
 	private int port;
@@ -43,42 +44,42 @@ public class DedicatedServer {
 	 * Start the dedicated server
 	 */
 	public void start(int worldWidth) throws IOException {
-		System.out.println("=== Starting Dedicated MCraze Server ===");
-		System.out.println("Binding to port " + port + "...");
+		logger.info("=== Starting Dedicated MCraze Server ===");
+		logger.info("Binding to port " + port + "...");
 
 		serverSocket = new ServerSocket(port);
-		System.out.println("Server listening on port " + port);
+		logger.info("Server listening on port " + port);
 
 		// Try loading existing world from "./world/" directory
 		java.nio.file.Path worldDir = java.nio.file.Paths.get("world");
 		mc.sayda.mcraze.world.World loadedWorld = null;
 
 		if (java.nio.file.Files.exists(worldDir)) {
-			System.out.println("Found existing world directory, attempting to load...");
+			logger.info("Found existing world directory, attempting to load...");
 			// Create temporary Server instance for loading
 			mc.sayda.mcraze.server.Server tempServer = new mc.sayda.mcraze.server.Server(null);
 			boolean loaded = mc.sayda.mcraze.world.WorldSaveManager.loadWorldFromDirectory(worldDir, tempServer);
 
 			if (loaded && tempServer.world != null) {
 				loadedWorld = tempServer.world;
-				System.out.println("Successfully loaded existing world from ./world/");
+				logger.info("Successfully loaded existing world from ./world/");
 
 				// Load chest data from ./world/chests.dat
-				java.util.Map<String, mc.sayda.mcraze.world.ChestData> loadedChests =
-					mc.sayda.mcraze.world.WorldSaveManager.loadChestsFromDirectory(worldDir);
+				java.util.Map<String, mc.sayda.mcraze.world.ChestData> loadedChests = mc.sayda.mcraze.world.WorldSaveManager
+						.loadChestsFromDirectory(worldDir);
 				if (loadedChests != null && !loadedChests.isEmpty()) {
 					loadedWorld.setChests(loadedChests);
-					System.out.println("Loaded " + loadedChests.size() + " chests from ./world/chests.dat");
+					logger.info("Loaded " + loadedChests.size() + " chests from ./world/chests.dat");
 				}
 			} else {
-				System.out.println("Failed to load world, will create new one");
+				logger.error("Failed to load world, will create new one");
 			}
 		} else {
-			System.out.println("No existing world found, will create new one");
+			logger.info("No existing world found, will create new one");
 		}
 
 		// Create shared world (either with loaded world or generate new)
-		String worldName = "ServerWorld";  // Dedicated server uses fixed world name
+		String worldName = "ServerWorld"; // Dedicated server uses fixed world name
 		if (loadedWorld != null) {
 			sharedWorld = new SharedWorld(loadedWorld, new Random(), worldName, worldDir);
 		} else {
@@ -86,18 +87,20 @@ public class DedicatedServer {
 			// Save the newly generated world
 			saveWorld();
 		}
-		System.out.println("Shared world initialized (playerdata will be saved to ./world/playerdata/)");
+
+		logger.info("Shared world initialized (playerdata will be saved to ./world/playerdata/)");
 
 		// Set up CommandHandler for dedicated server
 		// Create minimal Server object with world reference for commands
 		serverForCommands = new mc.sayda.mcraze.server.Server(null);
 		serverForCommands.world = sharedWorld.getWorld();
-		mc.sayda.mcraze.ui.CommandHandler commandHandler =
-			new mc.sayda.mcraze.ui.CommandHandler(serverForCommands, sharedWorld, null);
-		sharedWorld.setCommandHandler(commandHandler);
-		System.out.println("Command handler initialized");
 
-		System.out.println("Server ready - accepting connections");
+		mc.sayda.mcraze.ui.CommandHandler commandHandler = new mc.sayda.mcraze.ui.CommandHandler(serverForCommands,
+				sharedWorld, null);
+		sharedWorld.setCommandHandler(commandHandler);
+		logger.info("Command handler initialized");
+
+		logger.info("Server ready - accepting connections");
 
 		// Dedicated server is always IN_GAME (no menu state)
 		// Use forceState because dedicated server has no GUI lifecycle
@@ -106,7 +109,7 @@ public class DedicatedServer {
 		// Start dedicated server tick thread (Phase 4)
 		serverTickThread = new ServerTickThread(sharedWorld, stateManager);
 		serverTickThread.start();
-		System.out.println("ServerTickThread started (target 60 TPS)");
+		logger.info("ServerTickThread started (target 60 TPS)");
 
 		// Start accept thread for client connections
 		startAcceptThread();
@@ -123,13 +126,13 @@ public class DedicatedServer {
 			while (running) {
 				try {
 					Socket clientSocket = serverSocket.accept();
-					System.out.println("Client connected from: " + clientSocket.getRemoteSocketAddress());
+					logger.info("Client connected from: " + clientSocket.getRemoteSocketAddress());
 
 					// Create network connection
 					NetworkConnection connection = new NetworkConnection(clientSocket);
 
 					// Wait for authentication packet (timeout after 5 seconds)
-					System.out.println("Waiting for authentication from client...");
+					// System.out.println("Waiting for authentication from client...");
 					long authStart = System.currentTimeMillis();
 					mc.sayda.mcraze.network.packet.PacketAuthRequest authPacket = null;
 
@@ -142,62 +145,63 @@ public class DedicatedServer {
 							}
 						}
 						if (authPacket == null) {
-							Thread.sleep(50);  // Wait a bit before checking again
+							Thread.sleep(50); // Wait a bit before checking again
 						}
 					}
 
 					if (authPacket == null) {
-						System.err.println("Client did not send authentication packet - disconnecting");
+						logger.warn("Client did not send authentication packet - disconnecting");
 						connection.disconnect();
 						continue;
 					}
 
-					System.out.println("Authentication request from: " + authPacket.username);
+					logger.info("Authentication request from: " + authPacket.username);
 
 					try {
 						// Try to add player with authentication
 						PlayerConnection playerConnection = sharedWorld.addPlayer(
-							connection, authPacket.username, authPacket.password);
+								connection, authPacket.username, authPacket.password);
 
 						if (playerConnection == null) {
 							// Authentication failed (duplicate or wrong password)
-							System.err.println("Authentication failed for " + authPacket.username);
-							mc.sayda.mcraze.network.packet.PacketAuthResponse response =
-								new mc.sayda.mcraze.network.packet.PacketAuthResponse(false, "Authentication failed");
+							logger.warn("Authentication failed for " + authPacket.username);
+							mc.sayda.mcraze.network.packet.PacketAuthResponse response = new mc.sayda.mcraze.network.packet.PacketAuthResponse(
+									false, "Authentication failed");
 							connection.sendPacket(response);
-							connection.flush();  // Flush immediately so client receives auth failure
+							connection.flush(); // Flush immediately so client receives auth failure
 							connection.disconnect();
 						} else {
 							// Authentication successful
-							System.out.println("Player " + authPacket.username + " authenticated successfully");
-							mc.sayda.mcraze.network.packet.PacketAuthResponse response =
-								new mc.sayda.mcraze.network.packet.PacketAuthResponse(true, "");
+							logger.info("Player " + authPacket.username + " authenticated successfully");
+							mc.sayda.mcraze.network.packet.PacketAuthResponse response = new mc.sayda.mcraze.network.packet.PacketAuthResponse(
+									true, "");
 							connection.sendPacket(response);
-							connection.flush();  // Flush immediately so client receives auth success
+							connection.flush(); // Flush immediately so client receives auth success
 
 							connectedPlayers.add(playerConnection);
-							System.out.println("Player " + authPacket.username + " joined (" + connectedPlayers.size() + " players online)");
+							logger.info("Player " + authPacket.username + " joined ("
+									+ connectedPlayers.size() + " players online)");
 						}
 					} catch (Exception e) {
-						System.err.println("Error adding player " + authPacket.username + ": " + e.getMessage());
+						logger.error("Error adding player " + authPacket.username + ": " + e.getMessage());
 						e.printStackTrace();
 						try {
-							mc.sayda.mcraze.network.packet.PacketAuthResponse response =
-								new mc.sayda.mcraze.network.packet.PacketAuthResponse(false, "Server error: " + e.getMessage());
+							mc.sayda.mcraze.network.packet.PacketAuthResponse response = new mc.sayda.mcraze.network.packet.PacketAuthResponse(
+									false, "Server error: " + e.getMessage());
 							connection.sendPacket(response);
-							connection.flush();  // Flush immediately so client receives error
+							connection.flush(); // Flush immediately so client receives error
 							connection.disconnect();
 						} catch (Exception disconnectError) {
-							System.err.println("Failed to send error response: " + disconnectError.getMessage());
+							logger.error("Failed to send error response: " + disconnectError.getMessage());
 						}
 					}
 
 				} catch (IOException e) {
 					if (running) {
-						System.err.println("Error accepting client: " + e.getMessage());
+						logger.error("Error accepting client: " + e.getMessage());
 					}
 				} catch (InterruptedException e) {
-					System.err.println("Accept thread interrupted");
+					logger.warn("Accept thread interrupted");
 				}
 			}
 		}, "ClientAccept");
@@ -216,7 +220,7 @@ public class DedicatedServer {
 			while (it.hasNext()) {
 				PlayerConnection playerConnection = it.next();
 				if (!playerConnection.isConnected()) {
-					System.out.println("Player " + playerConnection.getPlayerName() + " disconnected");
+					logger.info("Player " + playerConnection.getPlayerName() + " disconnected");
 					sharedWorld.removePlayer(playerConnection);
 					it.remove();
 				}
@@ -227,22 +231,21 @@ public class DedicatedServer {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) {
-				System.err.println("Maintenance loop interrupted");
+				logger.warn("Maintenance loop interrupted");
 				break;
 			}
 		}
-
-		System.out.println("Server shutting down...");
+		logger.info("Server shutting down...");
 
 		// Stop server tick thread
 		if (serverTickThread != null && serverTickThread.isRunning()) {
-			System.out.println("Stopping ServerTickThread...");
+			logger.info("Stopping ServerTickThread...");
 			serverTickThread.shutdown();
 			try {
 				serverTickThread.join(2000);
-				System.out.println("ServerTickThread stopped");
+				logger.info("ServerTickThread stopped");
 			} catch (InterruptedException e) {
-				System.err.println("Interrupted waiting for ServerTickThread");
+				logger.warn("Interrupted waiting for ServerTickThread");
 			}
 		}
 
@@ -268,7 +271,7 @@ public class DedicatedServer {
 	 */
 	private void saveWorld() {
 		if (sharedWorld == null || sharedWorld.getWorld() == null) {
-			System.err.println("Cannot save: world is null");
+			logger.error("Cannot save: world is null");
 			return;
 		}
 
@@ -278,23 +281,24 @@ public class DedicatedServer {
 		// Create temporary Server instance with the world for saving
 		mc.sayda.mcraze.server.Server tempServer = new mc.sayda.mcraze.server.Server(null);
 		tempServer.world = sharedWorld.getWorld();
-		tempServer.entities = new java.util.ArrayList<>();  // Empty for dedicated server
+		tempServer.entities = new java.util.ArrayList<>(); // Empty for dedicated server
 
 		boolean saved = mc.sayda.mcraze.world.WorldSaveManager.saveWorldToDirectory(worldDir, tempServer);
 		if (saved) {
-			System.out.println("World saved successfully");
+			logger.info("World saved successfully");
 		} else {
-			System.err.println("Failed to save world");
+			logger.error("Failed to save world");
 		}
 
 		// Save chest data to ./world/chests.dat
-		java.util.Map<String, mc.sayda.mcraze.world.ChestData> chests =
-			tempServer.world != null ? tempServer.world.getAllChests() : new java.util.concurrent.ConcurrentHashMap<>();
+		java.util.Map<String, mc.sayda.mcraze.world.ChestData> chests = tempServer.world != null
+				? tempServer.world.getAllChests()
+				: new java.util.concurrent.ConcurrentHashMap<>();
 		boolean chestsSaved = mc.sayda.mcraze.world.WorldSaveManager.saveChestsToDirectory(worldDir, chests);
 		if (chestsSaved) {
-			System.out.println("Chests saved successfully (" + chests.size() + " chests)");
+			logger.info("Chests saved successfully (" + chests.size() + " chests)");
 		} else {
-			System.err.println("Failed to save chests");
+			logger.error("Failed to save chests");
 		}
 	}
 
@@ -307,7 +311,7 @@ public class DedicatedServer {
 				serverSocket.close();
 			}
 		} catch (IOException e) {
-			System.err.println("Error closing server socket: " + e.getMessage());
+			logger.error("Error closing server socket: " + e.getMessage());
 		}
 	}
 
@@ -315,8 +319,8 @@ public class DedicatedServer {
 	 * Main entry point for dedicated server
 	 */
 	public static void main(String[] args) {
-		int port = 25565;  // Default Minecraft port
-		int worldWidth = 512;  // Default world size
+		int port = 25565; // Default Minecraft port
+		int worldWidth = 512; // Default world size
 		boolean debugMode = false;
 
 		// Parse arguments

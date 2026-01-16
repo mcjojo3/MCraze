@@ -5,7 +5,10 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.net.URL;
 
+import mc.sayda.mcraze.logging.GameLogger;
+
 public class SoundManager {
+    private static final GameLogger logger = GameLogger.get();
 
     /**
      * Play a sound effect
@@ -58,8 +61,7 @@ public class SoundManager {
                 });
 
             } catch (Exception e) {
-                // System.err.println("Failed to play sound " + soundPath + ": " +
-                // e.getMessage());
+                // logger.error("Failed to play sound " + soundPath + ": " + e.getMessage());
             }
         }).start();
     }

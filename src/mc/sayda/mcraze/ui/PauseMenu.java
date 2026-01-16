@@ -12,6 +12,7 @@ import java.util.List;
  * Pause menu system with Continue, Save, and Exit buttons
  */
 public class PauseMenu {
+	private final mc.sayda.mcraze.logging.GameLogger logger = mc.sayda.mcraze.logging.GameLogger.get();
 	// Menu sprites
 	private static final Sprite MENU_BG_TILE = SpriteStore.get().getSprite("assets/sprites/tiles/dirt.png");
 
@@ -133,7 +134,7 @@ public class PauseMenu {
 		if (game.getServer().isLANEnabled()) {
 			// Disable LAN
 			game.getServer().disableLAN();
-			System.out.println("LAN server disabled");
+			logger.info("LAN server disabled");
 			if (game.getClient() != null && game.getClient().chat != null) {
 				game.getClient().chat.addMessage("LAN server disabled", mc.sayda.mcraze.Color.orange);
 			}
@@ -142,13 +143,13 @@ public class PauseMenu {
 			int port = 25565;
 			boolean success = game.getServer().enableLAN(port);
 			if (success) {
-				System.out.println("LAN server enabled on port " + port);
+				logger.info("LAN server enabled on port " + port);
 				if (game.getClient() != null && game.getClient().chat != null) {
 					game.getClient().chat.addMessage("LAN server opened on port " + port, mc.sayda.mcraze.Color.green);
 					game.getClient().chat.addMessage("Other players can now connect!", mc.sayda.mcraze.Color.green);
 				}
 			} else {
-				System.err.println("Failed to enable LAN server");
+				logger.error("Failed to enable LAN server");
 				if (game.getClient() != null && game.getClient().chat != null) {
 					game.getClient().chat.addMessage("Failed to open LAN server",
 							new mc.sayda.mcraze.Color(255, 100, 100));

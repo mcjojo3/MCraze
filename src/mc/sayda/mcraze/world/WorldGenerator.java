@@ -312,8 +312,6 @@ public class WorldGenerator {
 			}
 		}
 
-		System.out.println(
-				"WorldGenerator: Generated biome map with " + width + " columns (ocean edges, all biomes guaranteed)");
 		return biomes;
 	}
 
@@ -421,7 +419,6 @@ public class WorldGenerator {
 		playerLocation = new Int2(width / 2, 5);
 
 		int seed = random.nextInt();
-		System.out.println("Seed: " + seed);
 		random.setSeed(seed);
 		int median = (int) (.5 * height);
 
@@ -558,19 +555,6 @@ public class WorldGenerator {
 			}
 		}
 
-		// Debug output for first 10 columns
-		if (width > 0) {
-			System.out.println("=== Terrain Generation Debug (first 10 columns) ===");
-			System.out.println("Median (sea level): " + median + " (lower Y = higher altitude)");
-			for (int i = 0; i < Math.min(10, width); i++) {
-				BiomeParams params = getBlendedBiomeParams(biomeMap, i, width);
-				Biome biome = (biomeMap != null && i < biomeMap.length) ? biomeMap[i] : Biome.PLAINS;
-				System.out.println("Col " + i + ": biome=" + biome + ", offset=" + params.surfaceOffset +
-						", surface=" + surfaceHeights[i] + " (above sea: " + (surfaceHeights[i] < median ? "YES" : "NO")
-						+ ")");
-			}
-		}
-
 		// PHASE 2: Place blocks based on Perlin-generated heights
 		boolean playerLocFound = false;
 		for (int i = 0; i < width; i++) {
@@ -606,13 +590,6 @@ public class WorldGenerator {
 			}
 		}
 
-		// Debug: Check first 10 columns BEFORE water filling
-		System.out.println("=== Before Water Filling (first 10 columns) ===");
-		for (int i = 0; i < Math.min(10, width); i++) {
-			System.out.println("Col " + i + ": world[" + i + "][" + median + "]=" + world[i][median] +
-					", surfaceHeight=" + surfaceHeights[i]);
-		}
-
 		// water - FIXED: Check if terrain surface is above sea level, not just if block
 		// exists at sea level
 		for (int i = 0; i < width; i++) {
@@ -636,12 +613,6 @@ public class WorldGenerator {
 				}
 				world[i][j] = TileID.WATER;
 			}
-		}
-
-		// Debug: Check first 10 columns AFTER water filling
-		System.out.println("=== After Water Filling (first 10 columns) ===");
-		for (int i = 0; i < Math.min(10, width); i++) {
-			System.out.println("Col " + i + ": world[" + i + "][" + median + "]=" + world[i][median]);
 		}
 
 		uniformlyAddMinerals(world, TileID.COAL_ORE, Constants.ORE_COAL_FREQUENCY, (int) (height * .4),

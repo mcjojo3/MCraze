@@ -24,6 +24,7 @@ import mc.sayda.mcraze.util.CredentialManager;
  * User enters username and password to access main menu
  */
 public class LoginScreen {
+	private final mc.sayda.mcraze.logging.GameLogger logger = mc.sayda.mcraze.logging.GameLogger.get();
 	// Menu sprites
 	// Menu sprites
 	private static final Sprite MENU_BG_TILE = SpriteStore.get().getSprite("assets/sprites/tiles/dirt.png");
@@ -246,7 +247,7 @@ public class LoginScreen {
 		game.setLoggedInUser(username, password);
 		game.showMainMenu();
 
-		System.out.println("Logged in as: " + username);
+		logger.info("Logged in as: " + username);
 	}
 
 	/**
@@ -255,7 +256,7 @@ public class LoginScreen {
 	private void showError(String message) {
 		this.errorMessage = message;
 		this.errorStartTime = System.currentTimeMillis();
-		System.err.println("Login error: " + message);
+		logger.error("Login error: " + message);
 	}
 
 	/**
@@ -267,7 +268,7 @@ public class LoginScreen {
 			usernameInput.setText(saved.username);
 			passwordInput.setText(saved.password);
 			rememberMeCheckbox.setChecked(true);
-			System.out.println("Auto-filled credentials for: " + saved.username);
+			logger.info("Auto-filled credentials for: " + saved.username);
 		}
 	}
 }

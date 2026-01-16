@@ -26,6 +26,7 @@ import mc.sayda.mcraze.world.TileTemplate;
  * Handles command parsing and execution
  */
 public class CommandHandler {
+    private final mc.sayda.mcraze.logging.GameLogger logger = mc.sayda.mcraze.logging.GameLogger.get();
     private mc.sayda.mcraze.server.Server server;
     private mc.sayda.mcraze.server.SharedWorld sharedWorld; // For broadcasting command effects
     private Chat chat;
@@ -116,7 +117,7 @@ public class CommandHandler {
             chat.addMessage(message, color);
         } else {
             // No way to send message (dedicated server with no SharedWorld)
-            System.err.println("WARNING: CommandHandler has no SharedWorld or Chat! Message: " + message);
+            logger.warn("CommandHandler has no SharedWorld or Chat! Message: " + message);
         }
     }
 
@@ -220,7 +221,7 @@ public class CommandHandler {
             // Regular chat message - broadcast to all players
             String username = executingPlayer != null ? executingPlayer.username : "Unknown";
             sendMessage("<" + username + "> " + input, Color.white);
-            System.out.println("[CHAT] " + username + ": " + input);
+            logger.info("[CHAT] " + username + ": " + input);
             return;
         }
 

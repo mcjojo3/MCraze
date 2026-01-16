@@ -16,7 +16,10 @@ public class BadAppleVideoData {
     private final RandomAccessFile dataFile;
 
     public BadAppleVideoData(String filePath) throws IOException {
-        dataFile = new RandomAccessFile(filePath, "r");
+        // Try to load from JAR resources first (for packaged builds)
+        File actualFile = getFileFromResources(filePath);
+
+        dataFile = new RandomAccessFile(actualFile, "r");
 
         // Read header
         width = dataFile.readInt();
@@ -29,6 +32,51 @@ public class BadAppleVideoData {
         for (int i = 0; i < frameCount; i++) {
             frameOffsets[i] = dataFile.readInt();
         }
+    }
+
+    /**
+     * Get file from resources (works both in development and when packaged as JAR)
+     */
+    private File getFileFromResources(String path) throws IOException {
+        // Strip "src/" prefix if present (for backward compatibility)
+        if (path.startsWith("src/")) {
+            path = path.substring(4);
+        }
+
+        // First try as direct file (development mode)
+        File directFile = new File(path);
+        if (directFile.exists()) {
+            return directFile;
+        }
+
+        // Also try with "src/" prefix (development mode)
+        File srcFile = new File("src/" + path);
+        if (srcFile.exists()) {
+            return srcFile;
+        }
+
+        // Try to load from JAR resources (packaged mode)
+        InputStream resourceStream = getClass().getClassLoader().getResourceAsStream(path);
+        if (resourceStream != null) {
+            // Extract to temporary file
+            File tempFile = File.createTempFile("bad_apple_", ".badapple");
+            tempFile.deleteOnExit();
+
+            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = resourceStream.read(buffer)) != -1) {
+                    fos.write(buffer, 0, bytesRead);
+                }
+            } finally {
+                resourceStream.close();
+            }
+
+            return tempFile;
+        }
+
+        // File not found anywhere
+        throw new IOException("Bad Apple video file not found: " + path);
     }
 
     /**

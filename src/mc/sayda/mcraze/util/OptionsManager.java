@@ -1,5 +1,7 @@
 package mc.sayda.mcraze.util;
 
+import mc.sayda.mcraze.logging.GameLogger;
+
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -12,6 +14,7 @@ import java.util.Properties;
  * Saves to options.txt in AppData
  */
 public class OptionsManager {
+    private static final GameLogger logger = GameLogger.get();
     private static final String APP_NAME = "MCraze";
     private static final String OPTIONS_FILE = "options.txt";
 
@@ -100,7 +103,7 @@ public class OptionsManager {
                 }
             }
         } catch (Exception e) {
-            System.err.println("Failed to load options: " + e.getMessage());
+            logger.error("Failed to load options: " + e.getMessage());
         }
     }
 
@@ -120,7 +123,7 @@ public class OptionsManager {
                 props.store(out, "MCraze Game Options");
             }
         } catch (Exception e) {
-            System.err.println("Failed to save options: " + e.getMessage());
+            logger.error("Failed to save options: " + e.getMessage());
         }
     }
 }

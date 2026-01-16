@@ -109,7 +109,6 @@ public class SharedWorld {
 				mc.sayda.mcraze.world.Biome.SNOW));
 
 		// Generate world
-		System.out.println("SharedWorld: Generating world '" + worldName + "' (" + worldWidth + " wide)...");
 		if (logger != null) {
 			logger.info("SharedWorld: Generating world '" + worldName + "' (" + worldWidth + " wide)");
 			logger.debug("SharedWorld.<init>: Using CopyOnWriteArrayList for thread-safe player list");
@@ -117,10 +116,7 @@ public class SharedWorld {
 
 		this.world = new World(worldWidth, worldWidth, random);
 		this.worldAccess = new WorldAccess(world);
-		System.out.println("SharedWorld: World generated");
-		System.out.println("SharedWorld: Constructor - world instance: " + System.identityHashCode(world));
-		System.out.println("SharedWorld: Constructor - world.tiles instance: " + System.identityHashCode(world.tiles));
-		System.out.println("SharedWorld: Constructor - world.tiles.length: " + world.tiles.length);
+		// System.out.println("SharedWorld: World generated");
 		if (logger != null) {
 			logger.info("SharedWorld: World generated successfully - " + worldWidth + "x" + worldWidth);
 			logger.debug("SharedWorld.<init>: Spawn location: " + world.spawnLocation.x + ", " + world.spawnLocation.y);
@@ -166,14 +162,11 @@ public class SharedWorld {
 				.loadChests(worldName);
 		if (loadedChests != null && !loadedChests.isEmpty()) {
 			world.setChests(loadedChests);
-			System.out.println("SharedWorld: Loaded " + loadedChests.size() + " chests from disk");
 			if (logger != null) {
 				logger.info("SharedWorld: Loaded " + loadedChests.size() + " chests");
 			}
 		}
 
-		System.out.println(
-				"SharedWorld: Loaded existing world '" + worldName + "' (" + world.width + "x" + world.height + ")");
 		if (logger != null) {
 			logger.info("SharedWorld: Loaded existing world '" + worldName + "' - " + world.width + "x" + world.height);
 			logger.debug("SharedWorld.<init>: Spawn location: " + world.spawnLocation.x + ", " + world.spawnLocation.y);
@@ -207,7 +200,6 @@ public class SharedWorld {
 
 		// Check for duplicate username
 		if (playersByUsername.containsKey(username)) {
-			System.err.println("SharedWorld: Player " + username + " is already connected!");
 			if (logger != null)
 				logger.warn("SharedWorld: Rejected duplicate username: " + username);
 			return null;
@@ -220,7 +212,6 @@ public class SharedWorld {
 			playerData = mc.sayda.mcraze.world.PlayerDataManager.authenticate(worldDirectory, username, password);
 			if (playerData == null && mc.sayda.mcraze.world.PlayerDataManager.exists(worldDirectory, username)) {
 				// Wrong password
-				System.err.println("SharedWorld: Wrong password for " + username);
 				if (logger != null)
 					logger.warn("SharedWorld: Authentication failed for " + username);
 				return null;
@@ -230,7 +221,6 @@ public class SharedWorld {
 			playerData = mc.sayda.mcraze.world.PlayerDataManager.authenticate(worldName, username, password);
 			if (playerData == null && mc.sayda.mcraze.world.PlayerDataManager.exists(worldName, username)) {
 				// Wrong password
-				System.err.println("SharedWorld: Wrong password for " + username);
 				if (logger != null)
 					logger.warn("SharedWorld: Authentication failed for " + username);
 				return null;
@@ -1592,6 +1582,16 @@ public class SharedWorld {
 			} else if (held.itemId.equals("golden_apple")) {
 				healAmount = 100; // Full heal (max HP)
 				isFood = true;
+			} else if (held.itemId.equals("rotten_flesh")) {
+				// 80% Heal 5, 10% Damage 5, 10% Nothing
+				double roll = Math.random();
+				if (roll < 0.8)
+					healAmount = 5;
+				else if (roll < 0.9)
+					healAmount = -5;
+				else
+					healAmount = 0;
+				isFood = true;
 			} else if (held.itemId.equals("bad_apple")) {
 				healAmount = 10; // 1 Heart
 				isFood = true;
@@ -1610,8 +1610,14 @@ public class SharedWorld {
 				}
 
 				if (player.hitPoints < player.getMaxHP()) {
-					// Apply heal
-					player.heal(healAmount);
+					// Apply heal or damage
+					if (healAmount > 0) {
+						player.heal(healAmount);
+					} else if (healAmount < 0) {
+						player.takeDamage(-healAmount);
+					}
+					// else 0: nothing happens but item consumed
+
 					interactCooldowns.put(player.username + "_eat", currentTime);
 
 					// Consume item
@@ -1619,9 +1625,20 @@ public class SharedWorld {
 					broadcastInventoryUpdates();
 
 					// Feedback
-					playerConnection.getConnection().sendPacket(
-							new PacketChatMessage("Yummers! Healed " + healAmount + " HP.",
-									new mc.sayda.mcraze.Color(100, 255, 100)));
+					String msg;
+					mc.sayda.mcraze.Color color;
+					if (healAmount > 0) {
+						msg = "Yummers! Healed " + healAmount + " HP.";
+						color = new mc.sayda.mcraze.Color(100, 255, 100);
+					} else if (healAmount < 0) {
+						msg = "Yikers! That tasted bad. Took " + (-healAmount) + " damage.";
+						color = new mc.sayda.mcraze.Color(255, 100, 100);
+					} else {
+						msg = "You feel nothing.";
+						color = new mc.sayda.mcraze.Color(200, 200, 200);
+					}
+
+					playerConnection.getConnection().sendPacket(new PacketChatMessage(msg, color));
 					return; // Consumed food, don't place block
 				}
 			}
@@ -3117,40 +3134,43 @@ public class SharedWorld {
 					}
 				}
 			} else if (livingTarget instanceof mc.sayda.mcraze.entity.EntitySheep) {
-				// Sheep drops white wool
-				mc.sayda.mcraze.item.Item template = mc.sayda.mcraze.Constants.itemTypes.get("white_wool");
-				if (template != null) {
-					mc.sayda.mcraze.item.Item drop = template.clone();
-					drop.x = livingTarget.x;
-					drop.y = livingTarget.y;
-					drop.dx = (float) (Math.random() - 0.5) * 5;
-					drop.dy = (float) (Math.random() - 0.5) * 5;
-					addEntity(drop);
-				}
+				// Sheep drops white wool (1-3 drops)
+				int count = 1 + (int) (Math.random() * 3);
+				dropItem("white_wool", livingTarget.x, livingTarget.y, count);
 			} else if (livingTarget instanceof mc.sayda.mcraze.entity.EntityZombie) {
-				// Zombie drops (20% chance for iron)
+				// Zombie Drop 1: Iron (20% chance)
 				if (Math.random() < 0.2f) {
-					mc.sayda.mcraze.item.Item template = mc.sayda.mcraze.Constants.itemTypes.get("iron");
-					if (template != null) {
-						mc.sayda.mcraze.item.Item drop = template.clone();
-						drop.x = livingTarget.x;
-						drop.y = livingTarget.y;
-						drop.dx = (float) (Math.random() - 0.5) * 5;
-						drop.dy = (float) (Math.random() - 0.5) * 5;
-						addEntity(drop);
-					}
+					dropItem("iron", livingTarget.x, livingTarget.y, 1);
 				}
+				// Zombie Drop 2: Rotten Flesh (Guaranteed 1-2 drops)
+				int count = 1 + (int) (Math.random() * 2); // 1-2
+				dropItem("rotten_flesh", livingTarget.x, livingTarget.y, count);
 			}
 
 			// Remove entity
-			System.out.println("DEBUG: Removing entity from manager");
 			entityManager.remove(livingTarget);
 
 			// Broadcast removal
-			System.out.println("DEBUG: Broadcasting removal packet");
 			mc.sayda.mcraze.network.packet.PacketEntityRemove removePacket = new mc.sayda.mcraze.network.packet.PacketEntityRemove(
 					livingTarget.getUUID());
 			broadcastPacket(removePacket);
+		}
+	}
+
+	/**
+	 * Helper to spawn dropped items with random velocity
+	 */
+	private void dropItem(String itemId, float x, float y, int count) {
+		mc.sayda.mcraze.item.Item template = mc.sayda.mcraze.Constants.itemTypes.get(itemId);
+		if (template != null) {
+			for (int i = 0; i < count; i++) {
+				mc.sayda.mcraze.item.Item drop = template.clone();
+				drop.x = x;
+				drop.y = y;
+				drop.dx = (float) ((Math.random() - 0.5) * 0.05f);
+				drop.dy = -0.1f - (float) (Math.random() * 0.05f);
+				addEntity(drop);
+			}
 		}
 	}
 

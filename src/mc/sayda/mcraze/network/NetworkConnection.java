@@ -39,14 +39,16 @@ public class NetworkConnection implements Connection {
 
 		// Start background thread to receive packets
 		startReceiveThread();
-		System.out.println("NetworkConnection: Connected to " + socket.getRemoteSocketAddress());
+		if (GameLogger.get() != null)
+			GameLogger.get().info("NetworkConnection: Connected to " + socket.getRemoteSocketAddress());
 	}
 
 	/**
 	 * Connect to a server
 	 */
 	public static NetworkConnection connect(String host, int port) throws IOException {
-		System.out.println("NetworkConnection: Connecting to " + host + ":" + port);
+		if (GameLogger.get() != null)
+			GameLogger.get().info("NetworkConnection: Connecting to " + host + ":" + port);
 		Socket socket = new Socket(host, port);
 		socket.setSoTimeout(30000); // 30 second read timeout
 		socket.setTcpNoDelay(true); // Disable Nagle's algorithm for low latency
@@ -98,13 +100,15 @@ public class NetworkConnection implements Connection {
 					connected = false;
 				} catch (IOException e) {
 					if (connected) {
-						System.err.println("NetworkConnection: Error receiving packet: " + e.getMessage());
+						if (GameLogger.get() != null)
+							GameLogger.get().error("NetworkConnection: Error receiving packet: " + e.getMessage());
 						e.printStackTrace();
 						connected = false;
 					}
 				} catch (Exception e) {
 					// Catch packet decoding errors
-					System.err.println("NetworkConnection: Error decoding packet: " + e.getMessage());
+					if (GameLogger.get() != null)
+						GameLogger.get().error("NetworkConnection: Error decoding packet: " + e.getMessage());
 					e.printStackTrace();
 					connected = false;
 				}
@@ -118,7 +122,8 @@ public class NetworkConnection implements Connection {
 	@Override
 	public void sendPacket(Packet packet) {
 		if (!connected) {
-			System.err.println("NetworkConnection: Cannot send packet, not connected");
+			if (GameLogger.get() != null)
+				GameLogger.get().warn("NetworkConnection: Cannot send packet, not connected");
 			return;
 		}
 
@@ -153,7 +158,8 @@ public class NetworkConnection implements Connection {
 				}
 			}
 		} catch (IOException e) {
-			System.err.println("NetworkConnection: Error sending packet: " + e.getMessage());
+			if (GameLogger.get() != null)
+				GameLogger.get().error("NetworkConnection: Error sending packet: " + e.getMessage());
 			e.printStackTrace();
 			connected = false;
 		}
@@ -188,14 +194,16 @@ public class NetworkConnection implements Connection {
 				out.flush();
 			}
 		} catch (IOException e) {
-			System.err.println("NetworkConnection: Error flushing output: " + e.getMessage());
+			if (GameLogger.get() != null)
+				GameLogger.get().error("NetworkConnection: Error flushing output: " + e.getMessage());
 			connected = false;
 		}
 	}
 
 	@Override
 	public void disconnect() {
-		System.out.println("NetworkConnection: Disconnecting");
+		if (GameLogger.get() != null)
+			GameLogger.get().info("NetworkConnection: Disconnecting");
 		connected = false;
 		try {
 			// Close streams before closing socket
@@ -211,7 +219,8 @@ public class NetworkConnection implements Connection {
 			}
 		} catch (IOException e) {
 			// Log but don't throw - we're cleaning up
-			System.err.println("NetworkConnection: Error during disconnect: " + e.getMessage());
+			if (GameLogger.get() != null)
+				GameLogger.get().error("NetworkConnection: Error during disconnect: " + e.getMessage());
 		}
 	}
 }
