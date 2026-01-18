@@ -5,6 +5,8 @@ import mc.sayda.mcraze.logging.GameLogger;
 import mc.sayda.mcraze.network.NetworkConnection;
 import mc.sayda.mcraze.state.GameState;
 import mc.sayda.mcraze.state.GameStateManager;
+import mc.sayda.mcraze.world.World;
+import mc.sayda.mcraze.world.storage.*;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -58,14 +60,15 @@ public class DedicatedServer {
 			logger.info("Found existing world directory, attempting to load...");
 			// Create temporary Server instance for loading
 			mc.sayda.mcraze.server.Server tempServer = new mc.sayda.mcraze.server.Server(null);
-			boolean loaded = mc.sayda.mcraze.world.WorldSaveManager.loadWorldFromDirectory(worldDir, tempServer);
+			boolean loaded = mc.sayda.mcraze.world.storage.WorldSaveManager.loadWorldFromDirectory(worldDir,
+					tempServer);
 
 			if (loaded && tempServer.world != null) {
 				loadedWorld = tempServer.world;
 				logger.info("Successfully loaded existing world from ./world/");
 
 				// Load chest data from ./world/chests.dat
-				java.util.Map<String, mc.sayda.mcraze.world.ChestData> loadedChests = mc.sayda.mcraze.world.WorldSaveManager
+				java.util.Map<String, mc.sayda.mcraze.world.storage.ChestData> loadedChests = mc.sayda.mcraze.world.storage.WorldSaveManager
 						.loadChestsFromDirectory(worldDir);
 				if (loadedChests != null && !loadedChests.isEmpty()) {
 					loadedWorld.setChests(loadedChests);
@@ -275,7 +278,7 @@ public class DedicatedServer {
 			return;
 		}
 
-		System.out.println("Saving world...");
+		logger.info("Saving world...");
 		java.nio.file.Path worldDir = java.nio.file.Paths.get("world");
 
 		// Create temporary Server instance with the world for saving
@@ -283,7 +286,7 @@ public class DedicatedServer {
 		tempServer.world = sharedWorld.getWorld();
 		tempServer.entities = new java.util.ArrayList<>(); // Empty for dedicated server
 
-		boolean saved = mc.sayda.mcraze.world.WorldSaveManager.saveWorldToDirectory(worldDir, tempServer);
+		boolean saved = mc.sayda.mcraze.world.storage.WorldSaveManager.saveWorldToDirectory(worldDir, tempServer);
 		if (saved) {
 			logger.info("World saved successfully");
 		} else {
@@ -291,10 +294,10 @@ public class DedicatedServer {
 		}
 
 		// Save chest data to ./world/chests.dat
-		java.util.Map<String, mc.sayda.mcraze.world.ChestData> chests = tempServer.world != null
+		java.util.Map<String, mc.sayda.mcraze.world.storage.ChestData> chests = tempServer.world != null
 				? tempServer.world.getAllChests()
 				: new java.util.concurrent.ConcurrentHashMap<>();
-		boolean chestsSaved = mc.sayda.mcraze.world.WorldSaveManager.saveChestsToDirectory(worldDir, chests);
+		boolean chestsSaved = mc.sayda.mcraze.world.storage.WorldSaveManager.saveChestsToDirectory(worldDir, chests);
 		if (chestsSaved) {
 			logger.info("Chests saved successfully (" + chests.size() + " chests)");
 		} else {

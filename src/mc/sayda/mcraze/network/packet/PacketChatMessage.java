@@ -12,7 +12,7 @@
 
 package mc.sayda.mcraze.network.packet;
 
-import mc.sayda.mcraze.Color;
+import mc.sayda.mcraze.graphics.Color;
 import mc.sayda.mcraze.network.ClientPacketHandler;
 import mc.sayda.mcraze.network.PacketRegistry;
 

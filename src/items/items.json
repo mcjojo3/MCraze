@@ -48,7 +48,12 @@
     "spriteRef": "assets/sprites/tiles/sand.png",
     "yield": 0,
     "requiredTool": "Shovel",
-    "requiredPower": "Wood"
+    "requiredPower": "Wood",
+    "smelting": {
+      "result": "glass",
+      "time": 200,
+      "yield": 1
+    }
   },
   {
     "itemId": "iron_ore",
@@ -56,14 +61,6 @@
     "spriteRef": "assets/sprites/tiles/iron_ore.png",
     "requiredTool": "Pick",
     "requiredPower": "Stone",
-    "recipe": {
-      "pattern": [
-        [
-          "iron_block"
-        ]
-      ],
-      "yield": 9
-    },
     "smelting": {
       "result": "iron",
       "time": 200,
@@ -76,14 +73,6 @@
     "spriteRef": "assets/sprites/tiles/gold_ore.png",
     "requiredTool": "Pick",
     "requiredPower": "Iron",
-    "recipe": {
-      "pattern": [
-        [
-          "gold_block"
-        ]
-      ],
-      "yield": 9
-    },
     "smelting": {
       "result": "gold",
       "time": 200,
@@ -96,6 +85,79 @@
     "spriteRef": "assets/sprites/tiles/coal_ore.png",
     "requiredTool": "Pick",
     "requiredPower": "Wood",
+    "smelting": {
+      "result": "coal",
+      "time": 200,
+      "yield": 1
+    }
+  },
+  {
+    "itemId": "diamond_ore",
+    "name": "Diamond Ore",
+    "spriteRef": "assets/sprites/tiles/diamond_ore.png",
+    "requiredTool": "Pick",
+    "requiredPower": "Iron",
+    "smelting": {
+      "result": "diamond",
+      "time": 200,
+      "yield": 1
+    }
+  },
+  {
+    "itemId": "lapis_ore",
+    "name": "Lapis Ore",
+    "spriteRef": "assets/sprites/tiles/lapis_ore.png",
+    "requiredTool": "Pick",
+    "requiredPower": "Stone",
+    "smelting": {
+      "result": "lapis",
+      "time": 200,
+      "yield": 1
+    }
+  },
+  {
+    "itemId": "ruby_ore",
+    "name": "Ruby Ore",
+    "spriteRef": "assets/sprites/tiles/ruby_ore.png",
+    "requiredTool": "Pick",
+    "requiredPower": "Iron",
+    "smelting": {
+      "result": "ruby",
+      "time": 200,
+      "yield": 1
+    }
+  },
+  {
+    "itemId": "iron",
+    "name": "Iron",
+    "spriteRef": "assets/sprites/entities/iron.png",
+    "recipe": {
+      "pattern": [
+        [
+          "iron_block"
+        ]
+      ],
+      "yield": 9
+    }
+  },
+  {
+    "itemId": "gold",
+    "name": "Gold",
+    "spriteRef": "assets/sprites/entities/gold.png",
+    "recipe": {
+      "pattern": [
+        [
+          "gold_block"
+        ]
+      ],
+      "yield": 9
+    }
+  },
+  {
+    "itemId": "coal",
+    "name": "Coal",
+    "spriteRef": "assets/sprites/entities/coal.png",
+    "fuel": 1600,
     "recipe": {
       "pattern": [
         [
@@ -106,11 +168,9 @@
     }
   },
   {
-    "itemId": "diamond_ore",
-    "name": "Diamond Ore",
-    "spriteRef": "assets/sprites/tiles/diamond_ore.png",
-    "requiredTool": "Pick",
-    "requiredPower": "Iron",
+    "itemId": "diamond",
+    "name": "Diamond",
+    "spriteRef": "assets/sprites/entities/diamond.png",
     "recipe": {
       "pattern": [
         [
@@ -121,11 +181,9 @@
     }
   },
   {
-    "itemId": "lapis_ore",
-    "name": "Lapis Ore",
-    "spriteRef": "assets/sprites/tiles/lapis_ore.png",
-    "requiredTool": "Pick",
-    "requiredPower": "Stone",
+    "itemId": "lapis",
+    "name": "Lapis Lazuli",
+    "spriteRef": "assets/sprites/entities/lapis.png",
     "recipe": {
       "pattern": [
         [
@@ -136,11 +194,9 @@
     }
   },
   {
-    "itemId": "ruby_ore",
-    "name": "Ruby Ore",
-    "spriteRef": "assets/sprites/tiles/ruby_ore.png",
-    "requiredTool": "Pick",
-    "requiredPower": "Iron",
+    "itemId": "ruby",
+    "name": "Ruby",
+    "spriteRef": "assets/sprites/entities/ruby.png",
     "recipe": {
       "pattern": [
         [
@@ -151,43 +207,6 @@
     }
   },
   {
-    "itemId": "iron",
-    "name": "Iron",
-    "spriteRef": "assets/sprites/entities/iron.png",
-    "yield": 0
-  },
-  {
-    "itemId": "gold",
-    "name": "Gold",
-    "spriteRef": "assets/sprites/entities/gold.png",
-    "yield": 0
-  },
-  {
-    "itemId": "coal",
-    "name": "Coal",
-    "spriteRef": "assets/sprites/entities/coal.png",
-    "yield": 0,
-    "fuel": 1600
-  },
-  {
-    "itemId": "diamond",
-    "name": "Diamond",
-    "spriteRef": "assets/sprites/entities/diamond.png",
-    "yield": 0
-  },
-  {
-    "itemId": "lapis",
-    "name": "Lapis Lazuli",
-    "spriteRef": "assets/sprites/entities/lapis.png",
-    "yield": 0
-  },
-  {
-    "itemId": "ruby",
-    "name": "Ruby",
-    "spriteRef": "assets/sprites/entities/ruby.png",
-    "yield": 0
-  },
-  {
     "itemId": "cobble",
     "name": "Cobblestone",
     "spriteRef": "assets/sprites/tiles/cobble.png",
@@ -196,7 +215,7 @@
     "requiredPower": "Wood",
     "smelting": {
       "result": "stone",
-      "time": 100,
+      "time": 200,
       "yield": 1
     }
   },
@@ -749,7 +768,47 @@
   {
     "itemId": "rotten_flesh",
     "name": "Rotten Flesh",
-    "spriteRef": "assets/sprites/entities/rotten_flesh.png"
+    "spriteRef": "assets/sprites/entities/rotten_flesh.png",
+    "smelting": {
+      "result": "leather",
+      "time": 200,
+      "yield": 1
+    }
+  },
+  {
+    "itemId": "pork",
+    "name": "Raw Pork",
+    "spriteRef": "assets/sprites/entities/pork.png",
+    "smelting": {
+      "result": "cooked_pork",
+      "time": 200,
+      "yield": 1
+    }
+  },
+  {
+    "itemId": "beef",
+    "name": "Raw Beef",
+    "spriteRef": "assets/sprites/entities/beef.png",
+    "smelting": {
+      "result": "cooked_beef",
+      "time": 200,
+      "yield": 1
+    }
+  },
+  {
+    "itemId": "cooked_pork",
+    "name": "Cooked Pork",
+    "spriteRef": "assets/sprites/entities/cooked_pork.png"
+  },
+  {
+    "itemId": "cooked_beef",
+    "name": "Cooked Beef",
+    "spriteRef": "assets/sprites/entities/cooked_beef.png"
+  },
+  {
+    "itemId": "leather",
+    "name": "Leather",
+    "spriteRef": "assets/sprites/entities/leather.png"
   },
   {
     "itemId": "purple_wool",
@@ -891,7 +950,19 @@
     "itemId": "carved_stone_bricks",
     "name": "Carved Stone Bricks",
     "spriteRef": "assets/sprites/tiles/carved_stone_bricks.png",
-    "yield": 0
+    "recipe": {
+      "pattern": [
+        [
+          "stone_bricks",
+          "stone_bricks"
+        ],
+        [
+          "stone_bricks",
+          "stone_bricks"
+        ]
+      ],
+      "yield": 4
+    }
   },
   {
     "itemId": "bricks",

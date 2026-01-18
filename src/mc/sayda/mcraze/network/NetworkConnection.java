@@ -23,6 +23,13 @@ public class NetworkConnection implements Connection {
 	private Thread receiveThread;
 	private boolean connected = true;
 
+	// BANDWIDTH MONITORING: Track bytes sent/received for optimization verification
+	private long bytesSent = 0;
+	private long bytesReceived = 0;
+	private long bandwidthTrackingStartTime = System.currentTimeMillis();
+	private long lastBandwidthLog = System.currentTimeMillis();
+	private static final long BANDWIDTH_LOG_INTERVAL = 5000; // Log every 5 seconds
+
 	public NetworkConnection(Socket socket) throws IOException {
 		this.socket = socket;
 
@@ -57,7 +64,9 @@ public class NetworkConnection implements Connection {
 
 	private void startReceiveThread() {
 		receiveThread = new Thread(() -> {
-			System.out.println("NetworkConnection: Receive thread started");
+			GameLogger logger = GameLogger.get();
+			if (logger != null)
+				logger.info("NetworkConnection: Receive thread started");
 			while (connected) {
 				try {
 					// Read packet ID (1 byte)
@@ -70,12 +79,14 @@ public class NetworkConnection implements Connection {
 					byte[] packetData = new byte[packetLength];
 					in.readFully(packetData);
 
+					// BANDWIDTH MONITORING: Track bytes received
+					bytesReceived += 8 + packetLength; // 4 bytes ID + 4 bytes length + data
+
 					// Decode packet
 					ByteBuffer buffer = ByteBuffer.wrap(packetData);
 					Packet packet = PacketRegistry.decode(packetId, buffer);
 
 					// Only log in debug mode (reduces console spam from 240+/sec to near zero)
-					GameLogger logger = GameLogger.get();
 					if (logger != null && logger.isDebugEnabled()) {
 						String packetType = packet.getClass().getSimpleName();
 						logger.debug("NetworkConnection: Received " + packetType + " (ID: " + packetId + ", "
@@ -96,7 +107,9 @@ public class NetworkConnection implements Connection {
 					}
 				} catch (EOFException e) {
 					// Connection closed
-					System.out.println("NetworkConnection: Connection closed by remote");
+					GameLogger closeLogger = GameLogger.get();
+					if (closeLogger != null)
+						closeLogger.info("NetworkConnection: Connection closed by remote");
 					connected = false;
 				} catch (IOException e) {
 					if (connected) {
@@ -142,6 +155,25 @@ public class NetworkConnection implements Connection {
 				// Write packet data
 				out.write(packetData);
 
+				// BANDWIDTH MONITORING: Track bytes sent (header + data)
+				bytesSent += 8 + packetData.length; // 4 bytes ID + 4 bytes length + data
+
+				// Log bandwidth stats periodically
+				long now = System.currentTimeMillis();
+				if (now - lastBandwidthLog > BANDWIDTH_LOG_INTERVAL) {
+					long elapsed = now - bandwidthTrackingStartTime;
+					if (elapsed > 0) {
+						double sentKBps = (bytesSent / 1024.0) / (elapsed / 1000.0);
+						double recvKBps = (bytesReceived / 1024.0) / (elapsed / 1000.0);
+						GameLogger logger = GameLogger.get();
+						if (logger != null) {
+							logger.info(String.format("[BANDWIDTH] Sent: %.1f KB/sec | Recv: %.1f KB/sec",
+									sentKBps, recvKBps));
+						}
+					}
+					lastBandwidthLog = now;
+				}
+
 				// SMART FLUSH: Only flush immediately for time-critical packets (player input)
 				// Broadcasts (entity updates) are batched for performance
 				if (packet.requiresImmediateFlush()) {
@@ -150,10 +182,10 @@ public class NetworkConnection implements Connection {
 				// Otherwise, wait for batched flush from SharedWorld.flushAllConnections()
 
 				// Only log in debug mode (reduces console spam from 240+/sec to near zero)
-				GameLogger logger = GameLogger.get();
-				if (logger != null && logger.isDebugEnabled()) {
+				GameLogger packetLogger = GameLogger.get();
+				if (packetLogger != null && packetLogger.isDebugEnabled()) {
 					String packetType = packet.getClass().getSimpleName();
-					logger.debug("NetworkConnection: Sent " + packetType + " (ID: " + packetId + ", "
+					packetLogger.debug("NetworkConnection: Sent " + packetType + " (ID: " + packetId + ", "
 							+ packetData.length + " bytes)");
 				}
 			}

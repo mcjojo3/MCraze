@@ -13,13 +13,16 @@
 package mc.sayda.mcraze.world;
 
 import mc.sayda.mcraze.logging.GameLogger;
+import mc.sayda.mcraze.world.tile.*;
+import mc.sayda.mcraze.world.gen.*;
+import mc.sayda.mcraze.world.storage.*;
 
 import java.util.Random;
 
-import mc.sayda.mcraze.Color;
+import mc.sayda.mcraze.graphics.Color;
 import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.Constants.TileID;
-import mc.sayda.mcraze.GraphicsHandler;
+import mc.sayda.mcraze.graphics.GraphicsHandler;
 import mc.sayda.mcraze.item.Item;
 import mc.sayda.mcraze.item.Tool;
 import mc.sayda.mcraze.system.LightingEngine;
@@ -448,20 +451,24 @@ public class World implements java.io.Serializable {
 					// Grass turns to dirt when covered by non-passable (solid) blocks
 					// Passable blocks (flowers, tall grass, cactus, leaves, etc.) allow grass to
 					// persist
-					Tile blockAbove = tiles[x][y - 1];
-					if (blockAbove.type.name != TileID.AIR && !blockAbove.type.passable) {
-						// Solid block above - convert grass to dirt
-						if (random.nextDouble() < .25) {
-							tiles[x][y] = Constants.tileTypes.get(TileID.DIRT);
-							changes.add(new BlockChange(x, y, TileID.DIRT));
+					if (y - 1 >= 0) {
+						Tile blockAbove = tiles[x][y - 1];
+						if (blockAbove.type.name != TileID.AIR && !blockAbove.type.passable) {
+							// Solid block above - convert grass to dirt
+							if (random.nextDouble() < .25) {
+								tiles[x][y] = Constants.tileTypes.get(TileID.DIRT);
+								changes.add(new BlockChange(x, y, TileID.DIRT));
+							}
 						}
 					}
 				} else if (tiles[x][y].type.name == TileID.SAND) {
-					if (isAir(x, y + 1) || isLiquid(x, y + 1)) {
-						changeTile(x, y + 1, tiles[x][y]);
-						changeTile(x, y, Constants.tileTypes.get(TileID.AIR));
-						changes.add(new BlockChange(x, y + 1, TileID.SAND));
-						changes.add(new BlockChange(x, y, TileID.AIR));
+					if (y + 1 < height) {
+						if (isAir(x, y + 1) || isLiquid(x, y + 1)) {
+							changeTile(x, y + 1, tiles[x][y]);
+							changeTile(x, y, Constants.tileTypes.get(TileID.AIR));
+							changes.add(new BlockChange(x, y + 1, TileID.SAND));
+							changes.add(new BlockChange(x, y, TileID.AIR));
+						}
 					}
 				} else if (tiles[x][y].type.name == TileID.SAPLING) {
 					if (random.nextDouble() < .01) {
@@ -833,11 +840,11 @@ public class World implements java.io.Serializable {
 		} else if (tool.toolPower == Tool.ToolPower.Wood) {
 			return 3;
 		} else if (tool.toolPower == Tool.ToolPower.Stone) {
-			return 2.5;
-		} else if (tool.toolPower == Tool.ToolPower.Iron) {
 			return 2;
-		} else if (tool.toolPower == Tool.ToolPower.Diamond) {
+		} else if (tool.toolPower == Tool.ToolPower.Iron) {
 			return 1;
+		} else if (tool.toolPower == Tool.ToolPower.Diamond) {
+			return 0.5;
 		} else {
 			return 0.1;
 		}

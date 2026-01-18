@@ -1,7 +1,7 @@
 package mc.sayda.mcraze.server;
 
 import mc.sayda.mcraze.entity.Entity;
-import mc.sayda.mcraze.world.Biome;
+import mc.sayda.mcraze.world.gen.Biome;
 
 public class SpawnRule {
     public final Class<? extends Entity> entityClass;

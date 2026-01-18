@@ -12,9 +12,9 @@
 
 package mc.sayda.mcraze.entity;
 
-import mc.sayda.mcraze.GraphicsHandler;
-import mc.sayda.mcraze.Sprite;
-import mc.sayda.mcraze.SpriteStore;
+import mc.sayda.mcraze.graphics.GraphicsHandler;
+import mc.sayda.mcraze.graphics.Sprite;
+import mc.sayda.mcraze.graphics.SpriteStore;
 import mc.sayda.mcraze.util.Int2;
 import mc.sayda.mcraze.util.StockMethods;
 import mc.sayda.mcraze.world.World;
@@ -38,7 +38,7 @@ public abstract class Entity implements java.io.Serializable {
 	public float dx;
 	public float dy;
 
-	public Sprite sprite;
+	public transient Sprite sprite;
 	protected boolean gravityApplies;
 	public int widthPX;
 	public int heightPX;
@@ -205,6 +205,22 @@ public abstract class Entity implements java.io.Serializable {
 				// mathemagically derived to mimic the damage from
 				// counting the number of meters dropped
 				int dmg = ((int) (114 * dy)) - 60;
+
+				// Check for Spike Trap
+				// Get tile at center bottom
+				int cx = (int) (x + widthPX / 2.0f / 32.0f); // Assuming 32 is TILE_SIZE, prefer passing tileSize but
+																// not available here easily?
+				// Wait, updatePosition gets tileSize.
+				int tx = (int) getCenterX(tileSize);
+				int ty = (int) getBottom(tileSize);
+
+				// Fallback safe check for world bounds
+				if (tx >= 0 && tx < world.width && ty >= 0 && ty < world.height) {
+					if (world.tiles[tx][ty] != null && world.tiles[tx][ty].type.name == Constants.TileID.SPIKE_TRAP) {
+						dmg *= 2; // Double damage from spikes
+					}
+				}
+
 				if (dmg > 0) {
 					this.takeDamage(dmg);
 				}
@@ -307,7 +323,8 @@ public abstract class Entity implements java.io.Serializable {
 		if (StockMethods.onScreen) {
 			if (damageFlashTicks > 0) {
 				// Apply red tint for damage indication (50% opacity red)
-				g.drawImage(sprite, pos.x, pos.y, widthPX, heightPX, new mc.sayda.mcraze.Color(255, 0, 0, 128));
+				g.drawImage(sprite, pos.x, pos.y, widthPX, heightPX,
+						new mc.sayda.mcraze.graphics.Color(255, 0, 0, 128));
 			} else {
 				sprite.draw(g, pos.x, pos.y, widthPX, heightPX);
 			}

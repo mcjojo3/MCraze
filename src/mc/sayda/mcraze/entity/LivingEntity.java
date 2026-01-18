@@ -14,12 +14,12 @@ package mc.sayda.mcraze.entity;
 
 import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.item.Item;
-import mc.sayda.mcraze.ui.Inventory;
+import mc.sayda.mcraze.player.Inventory;
 import mc.sayda.mcraze.world.World;
 
 public abstract class LivingEntity extends Entity {
 	private static final long serialVersionUID = 1L;
-	protected static final int maxHP = 100;
+	public int maxHP = 100;
 
 	public int hitPoints;
 	public boolean climbing = false;
@@ -40,7 +40,7 @@ public abstract class LivingEntity extends Entity {
 
 	public LivingEntity(boolean gravityApplies, float x, float y, int width, int height) {
 		super(null, gravityApplies, x, y, width, height);
-		this.hitPoints = maxHP;
+		this.hitPoints = getMaxHP();
 		inventory = new Inventory(10, 4, 3);
 	}
 
@@ -248,11 +248,11 @@ public abstract class LivingEntity extends Entity {
 	public void takeDamage(int amount) {
 		// Respect invulnerability frames (cooldown)
 		if (invulnerabilityTicks > 0) {
-			System.out.println("DEBUG: takeDamage rejected - invulnerabilityTicks = " + invulnerabilityTicks);
+			// Debug: Invulnerability active
 			return;
 		}
 
-		System.out.println("DEBUG: takeDamage applied " + amount + " damage. Old HP: " + this.hitPoints);
+		// Damage applied
 		this.hitPoints -= amount;
 
 		// Trigger red flash and invulnerability cooldown
@@ -266,11 +266,11 @@ public abstract class LivingEntity extends Entity {
 			this.hitPoints = 0;
 		}
 
-		System.out.println("DEBUG: New HP: " + this.hitPoints + ", Dead: " + this.dead);
+		// Health updated
 
 		// Trigger death immediately when health reaches exactly 0
 		if (this.hitPoints == 0 && !dead) {
-			System.out.println("DEBUG: Entity is invalid/dying!");
+			// Entity dying
 			dead = true; // Mark as dead before calling onDeath
 			onDeath();
 		}
@@ -303,7 +303,7 @@ public abstract class LivingEntity extends Entity {
 		}
 
 		// Clamp healing to avoid overflow
-		int healAmount = Math.min(amount, maxHP - this.hitPoints);
+		int healAmount = Math.min(amount, getMaxHP() - this.hitPoints);
 		if (healAmount <= 0) {
 			return;
 		}

@@ -12,9 +12,9 @@
 
 package mc.sayda.mcraze.ui.component;
 
-import mc.sayda.mcraze.Color;
-import mc.sayda.mcraze.GraphicsHandler;
-import mc.sayda.mcraze.Sprite;
+import mc.sayda.mcraze.graphics.Color;
+import mc.sayda.mcraze.graphics.GraphicsHandler;
+import mc.sayda.mcraze.graphics.Sprite;
 
 import java.util.ArrayList;
 import java.util.List;

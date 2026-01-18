@@ -1,8 +1,19 @@
 package mc.sayda.mcraze.ui;
 
+import mc.sayda.mcraze.ui.component.*;
+import mc.sayda.mcraze.ui.menu.*;
+import mc.sayda.mcraze.ui.screen.*;
+import mc.sayda.mcraze.ui.container.*;
+import mc.sayda.mcraze.graphics.*;
+import mc.sayda.mcraze.player.*;
+import mc.sayda.mcraze.player.data.*;
+import mc.sayda.mcraze.world.*;
+import mc.sayda.mcraze.world.tile.*;
+import mc.sayda.mcraze.world.storage.*;
+
 import mc.sayda.mcraze.Game;
-import mc.sayda.mcraze.GraphicsHandler;
-import mc.sayda.mcraze.Color;
+import mc.sayda.mcraze.graphics.GraphicsHandler;
+import mc.sayda.mcraze.graphics.Color;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,11 +65,30 @@ public class SharedSettings {
 		buttons.add(volumeDownBtn);
 		buttons.add(volumeUpBtn);
 
+		// SFX Volume down button
+		Button sfxVolumeDownBtn = new Button(
+				"sfx_volume_down",
+				"-",
+				265,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::sfxVolumeDown);
+
+		// SFX Volume up button
+		Button sfxVolumeUpBtn = new Button(
+				"sfx_volume_up",
+				"+",
+				265,
+				BUTTON_WIDTH,
+				BUTTON_HEIGHT).setOnClick(this::sfxVolumeUp);
+
+		buttons.add(sfxVolumeDownBtn);
+		buttons.add(sfxVolumeUpBtn);
+
 		// Music toggle button
 		Button musicToggleBtn = new Button(
 				"music_toggle",
 				getMusicButtonText(),
-				260,
+				320,
 				TOGGLE_BUTTON_WIDTH,
 				TOGGLE_BUTTON_HEIGHT).setOnClick(this::toggleMusic);
 
@@ -68,7 +98,7 @@ public class SharedSettings {
 		Button fpsToggleBtn = new Button(
 				"fps_toggle",
 				getFPSButtonText(),
-				310,
+				370,
 				TOGGLE_BUTTON_WIDTH,
 				TOGGLE_BUTTON_HEIGHT).setOnClick(this::toggleFPS);
 
@@ -83,9 +113,27 @@ public class SharedSettings {
 		float newVolume = currentVolume - 0.1f;
 		mc.sayda.mcraze.util.OptionsManager.get().setMusicVolume(newVolume);
 
-		if (game.getClient() != null && game.getClient().musicPlayer != null) {
-			game.getClient().musicPlayer.setVolume(newVolume);
+		if (game.getClient() != null && game.getClient().getMusicPlayer() != null) {
+			game.getClient().getMusicPlayer().setVolume(newVolume);
 		}
+	}
+
+	/**
+	 * Decrease SFX volume by 10%
+	 */
+	private void sfxVolumeDown() {
+		float currentVolume = mc.sayda.mcraze.util.OptionsManager.get().getSfxVolume();
+		float newVolume = currentVolume - 0.1f;
+		mc.sayda.mcraze.util.OptionsManager.get().setSfxVolume(newVolume);
+	}
+
+	/**
+	 * Increase SFX volume by 10%
+	 */
+	private void sfxVolumeUp() {
+		float currentVolume = mc.sayda.mcraze.util.OptionsManager.get().getSfxVolume();
+		float newVolume = currentVolume + 0.1f;
+		mc.sayda.mcraze.util.OptionsManager.get().setSfxVolume(newVolume);
 	}
 
 	/**
@@ -96,8 +144,8 @@ public class SharedSettings {
 		float newVolume = currentVolume + 0.1f;
 		mc.sayda.mcraze.util.OptionsManager.get().setMusicVolume(newVolume);
 
-		if (game.getClient() != null && game.getClient().musicPlayer != null) {
-			game.getClient().musicPlayer.setVolume(newVolume);
+		if (game.getClient() != null && game.getClient().getMusicPlayer() != null) {
+			game.getClient().getMusicPlayer().setVolume(newVolume);
 		}
 	}
 
@@ -105,9 +153,9 @@ public class SharedSettings {
 	 * Toggle music mute state (same as M keybind)
 	 */
 	private void toggleMusic() {
-		if (game.getClient() != null && game.getClient().musicPlayer != null) {
+		if (game.getClient() != null && game.getClient().getMusicPlayer() != null) {
 			// Use the same method as the M keybind to ensure consistency
-			game.getClient().musicPlayer.toggleSound();
+			game.getClient().getMusicPlayer().toggleSound();
 
 			// Update button text (also updated on every render at line 207)
 			if (buttons.size() >= 3) {
@@ -140,8 +188,8 @@ public class SharedSettings {
 	 * Get music button text based on current state
 	 */
 	private String getMusicButtonText() {
-		if (game.getClient() != null && game.getClient().musicPlayer != null) {
-			return game.getClient().musicPlayer.isMuted() ? "Music: Off" : "Music: On";
+		if (game.getClient() != null && game.getClient().getMusicPlayer() != null) {
+			return game.getClient().getMusicPlayer().isMuted() ? "Music: Off" : "Music: On";
 		}
 		return "Music: On";
 	}
@@ -209,10 +257,41 @@ public class SharedSettings {
 			g.drawString("+", centerX + 40 + (BUTTON_WIDTH / 2) - 4, btnY + 15);
 		}
 
-		// Draw toggle buttons (music, FPS)
+		// Draw SFX volume label and value
+		g.setColor(Color.white);
+		String sfxVolumeLabel = "SFX Volume:";
+		int sfxVolumeLabelX = screenWidth / 2 - g.getStringWidth(sfxVolumeLabel) / 2;
+		g.drawString(sfxVolumeLabel, sfxVolumeLabelX, 245);
+
+		// Get and display current SFX volume
+		float currentSfxVolume = mc.sayda.mcraze.util.OptionsManager.get().getSfxVolume();
+		int sfxVolumePercent = Math.round(currentSfxVolume * 100);
+		String sfxVolumeText = sfxVolumePercent + "%";
+		int sfxVolumeTextX = screenWidth / 2 - g.getStringWidth(sfxVolumeText) / 2;
+		g.drawString(sfxVolumeText, sfxVolumeTextX, 280);
+
+		// Draw SFX volume buttons (arranged horizontally)
 		if (buttons.size() >= 4) {
-			Button musicToggleBtn = buttons.get(2);
-			Button fpsToggleBtn = buttons.get(3);
+			int centerX = screenWidth / 2;
+			int sfxBtnY = 265;
+
+			// Draw SFX volume down button
+			g.setColor(Color.darkGray);
+			g.fillRect(centerX - 100, sfxBtnY, BUTTON_WIDTH, BUTTON_HEIGHT);
+			g.setColor(Color.white);
+			g.drawString("-", centerX - 100 + (BUTTON_WIDTH / 2) - 4, sfxBtnY + 15);
+
+			// Draw SFX volume up button
+			g.setColor(Color.darkGray);
+			g.fillRect(centerX + 40, sfxBtnY, BUTTON_WIDTH, BUTTON_HEIGHT);
+			g.setColor(Color.white);
+			g.drawString("+", centerX + 40 + (BUTTON_WIDTH / 2) - 4, sfxBtnY + 15);
+		}
+
+		// Draw toggle buttons (music, FPS)
+		if (buttons.size() >= 6) {
+			Button musicToggleBtn = buttons.get(4);
+			Button fpsToggleBtn = buttons.get(5);
 
 			// Update button text to reflect current state
 			musicToggleBtn.setText(getMusicButtonText());
@@ -248,8 +327,23 @@ public class SharedSettings {
 				volumeUp();
 			}
 
+			// Check SFX volume buttons
+			int sfxBtnY = 265;
+
+			// Check SFX volume down button click
+			if (mouseX >= centerX - 100 && mouseX <= centerX - 100 + BUTTON_WIDTH &&
+					mouseY >= sfxBtnY && mouseY <= sfxBtnY + BUTTON_HEIGHT) {
+				sfxVolumeDown();
+			}
+
+			// Check SFX volume up button click
+			if (mouseX >= centerX + 40 && mouseX <= centerX + 40 + BUTTON_WIDTH &&
+					mouseY >= sfxBtnY && mouseY <= sfxBtnY + BUTTON_HEIGHT) {
+				sfxVolumeUp();
+			}
+
 			// Handle toggle buttons clicks
-			for (int i = 2; i < buttons.size(); i++) {
+			for (int i = 4; i < buttons.size(); i++) {
 				if (buttons.get(i).handleClick(mouseX, mouseY)) {
 					break;
 				}
@@ -283,8 +377,25 @@ public class SharedSettings {
 			return true;
 		}
 
+		// Check SFX volume buttons
+		int sfxBtnY = 265;
+
+		// Check SFX volume down button click
+		if (mouseX >= centerX - 100 && mouseX <= centerX - 100 + BUTTON_WIDTH &&
+				mouseY >= sfxBtnY && mouseY <= sfxBtnY + BUTTON_HEIGHT) {
+			sfxVolumeDown();
+			return true;
+		}
+
+		// Check SFX volume up button click
+		if (mouseX >= centerX + 40 && mouseX <= centerX + 40 + BUTTON_WIDTH &&
+				mouseY >= sfxBtnY && mouseY <= sfxBtnY + BUTTON_HEIGHT) {
+			sfxVolumeUp();
+			return true;
+		}
+
 		// Handle toggle buttons clicks
-		for (int i = 2; i < buttons.size(); i++) {
+		for (int i = 4; i < buttons.size(); i++) {
 			Button btn = buttons.get(i);
 			btn.updatePosition(screenWidth); // Ensure position is current
 			if (btn.handleClick(mouseX, mouseY)) {

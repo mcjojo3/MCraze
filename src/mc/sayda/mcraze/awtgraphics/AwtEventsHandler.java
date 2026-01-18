@@ -19,6 +19,7 @@ public class AwtEventsHandler {
 	private boolean moveRight = false;
 	private boolean climb = false;
 	private boolean sneak = false;
+	private boolean shiftPressed = false; // Track shift key for inventory QoL features
 	private int desiredHotbarSlot = 0; // Client's desired hotbar slot (sent to server)
 	private boolean escUsedToCloseMenu = false; // Track if ESC just closed a menu (prevent double-trigger)
 
@@ -46,7 +47,7 @@ public class AwtEventsHandler {
 	/**
 	 * Get the local player (works in both singleplayer and multiplayer)
 	 */
-	private mc.sayda.mcraze.entity.Player getLocalPlayer() {
+	private mc.sayda.mcraze.player.Player getLocalPlayer() {
 		mc.sayda.mcraze.server.Server server = game.getServer();
 		mc.sayda.mcraze.client.Client client = game.getClient();
 
@@ -59,6 +60,13 @@ public class AwtEventsHandler {
 	}
 
 	/**
+	 * Check if shift key is currently pressed (for inventory QoL features)
+	 */
+	public boolean isShiftPressed() {
+		return shiftPressed;
+	}
+
+	/**
 	 * Send input packet to server (multiplayer mode)
 	 */
 	public void sendInputPacket() {
@@ -68,7 +76,7 @@ public class AwtEventsHandler {
 		// CRITICAL FIX: Calculate WORLD coordinates from screen coordinates
 		// This fixes the bug where remote players could only interact at (0,0)
 		mc.sayda.mcraze.client.Client client = game.getClient();
-		mc.sayda.mcraze.entity.Player localPlayer = client.getLocalPlayer();
+		mc.sayda.mcraze.player.Player localPlayer = client.getLocalPlayer();
 
 		if (localPlayer == null)
 			return; // No player yet
@@ -82,7 +90,7 @@ public class AwtEventsHandler {
 
 		// Get screen dimensions and effective tile size
 		int effectiveTileSize = client.getEffectiveTileSize();
-		mc.sayda.mcraze.GraphicsHandler g = mc.sayda.mcraze.GraphicsHandler.get();
+		mc.sayda.mcraze.graphics.GraphicsHandler g = mc.sayda.mcraze.graphics.GraphicsHandler.get();
 		int screenWidth = g.getScreenWidth();
 		int screenHeight = g.getScreenHeight();
 
@@ -202,7 +210,7 @@ public class AwtEventsHandler {
 
 			// Handle login screen key presses (highest priority)
 			if (game.isShowingLoginScreen()) {
-				mc.sayda.mcraze.ui.LoginScreen loginScreen = game.getLoginScreen();
+				mc.sayda.mcraze.ui.menu.LoginScreen loginScreen = game.getLoginScreen();
 				if (loginScreen != null) {
 					loginScreen.handleKeyPressed(
 							e.getKeyCode(),
@@ -254,6 +262,22 @@ public class AwtEventsHandler {
 					return;
 				}
 
+				// Priority 3.5: Close Class Selection UI if open
+				if (game.getClient().isClassSelectionUIOpen()) {
+					game.getClient().closeClassSelectionUI();
+					escUsedToCloseMenu = true;
+					e.consume();
+					return;
+				}
+
+				// Priority 3.6: Close Skill Assignment UI if open
+				if (game.getClient().isSkillUIOpen()) {
+					game.getClient().closeSkillUI();
+					escUsedToCloseMenu = true;
+					e.consume();
+					return;
+				}
+
 				// Priority 4: Close chest UI if open
 				if (game.getClient().isChestUIOpen()) {
 					game.getClient().closeChestUI();
@@ -281,7 +305,7 @@ public class AwtEventsHandler {
 				}
 
 				// Priority 5: Close inventory if open
-				mc.sayda.mcraze.entity.Player player = getLocalPlayer();
+				mc.sayda.mcraze.player.Player player = getLocalPlayer();
 				if (player != null && player.inventory.isVisible()) {
 					// CRITICAL FIX: Use server-authoritative packet instead of direct modification
 					mc.sayda.mcraze.network.packet.PacketInteract packet = new mc.sayda.mcraze.network.packet.PacketInteract(
@@ -374,12 +398,44 @@ public class AwtEventsHandler {
 					break;
 				case KeyEvent.VK_SHIFT:
 					sneak = true;
+					shiftPressed = true; // Track for inventory QoL
 					sendInputPacket();
 					break;
 				case KeyEvent.VK_F3:
 					// Toggle debug overlay (F3)
 					if (game.getClient() != null && game.getClient().getDebugOverlay() != null) {
 						game.getClient().getDebugOverlay().toggle();
+					}
+					break;
+				case KeyEvent.VK_I:
+					// Unified Class/Skill UI Toggle (I key)
+					if (game.getClient() != null && !game.getClient().chat.isOpen()) {
+						mc.sayda.mcraze.client.Client c = game.getClient();
+						// Check authoritative player state (Server for integrated, Client for MP)
+						mc.sayda.mcraze.player.Player p = (game.getServer() != null) ? game.getServer().player
+								: c.getLocalPlayer();
+
+						if (p != null) {
+							// DEBUG LOGGING
+							System.out.println("[DEBUG] I key: Class=" + p.selectedClass + ", Points=" + p.skillPoints
+									+ ", PlayerHash=" + System.identityHashCode(p));
+
+							if (p.selectedClass == mc.sayda.mcraze.player.specialization.PlayerClass.NONE) {
+								// No class -> Toggle Class Selection
+								if (c.isClassSelectionUIOpen()) {
+									c.closeClassSelectionUI();
+								} else {
+									c.getClassSelectionUI().setVisible(true);
+									c.closeSkillUI();
+								}
+							} else {
+								// Has class -> Toggle Skill Assignment UI
+								c.toggleSkillUI();
+								if (c.isSkillUIOpen()) {
+									c.closeClassSelectionUI();
+								}
+							}
+						}
 					}
 					break;
 			}
@@ -428,6 +484,7 @@ public class AwtEventsHandler {
 					break;
 				case KeyEvent.VK_SHIFT:
 					sneak = false;
+					shiftPressed = false; // Track for inventory QoL
 					sendInputPacket();
 					break;
 				case KeyEvent.VK_ESCAPE:
@@ -446,7 +503,7 @@ public class AwtEventsHandler {
 							!game.getClient().chat.isOpen() &&
 							!game.getClient().isChestUIOpen() &&
 							!game.getClient().isFurnaceUIOpen()) {
-						mc.sayda.mcraze.entity.Player player = getLocalPlayer();
+						mc.sayda.mcraze.player.Player player = getLocalPlayer();
 						// Only if inventory is also not visible
 						if (player == null || !player.inventory.isVisible()) {
 							// Autosave before opening pause menu (only for integrated servers)
@@ -470,7 +527,7 @@ public class AwtEventsHandler {
 
 			// Handle login screen typing (highest priority)
 			if (game.isShowingLoginScreen()) {
-				mc.sayda.mcraze.ui.LoginScreen loginScreen = game.getLoginScreen();
+				mc.sayda.mcraze.ui.menu.LoginScreen loginScreen = game.getLoginScreen();
 				if (loginScreen != null) {
 					loginScreen.handleKeyTyped(c);
 				}
@@ -497,7 +554,7 @@ public class AwtEventsHandler {
 			}
 
 			// For multiplayer, use client's tracked player instead of server.player
-			mc.sayda.mcraze.entity.Player player = null;
+			mc.sayda.mcraze.player.Player player = null;
 			if (server != null) {
 				player = server.player; // Singleplayer
 			} else if (client != null) {
@@ -529,11 +586,17 @@ public class AwtEventsHandler {
 					break;
 				case 'e':
 					// E key: Toggle inventory or close container UI if open
-					// Closing priority: Chest > Furnace > Main Inventory
+					// Closing priority: Chest > Furnace > Skill UI > Class UI > Main Inventory
 					if (game.getClient().isChestUIOpen()) {
 						game.getClient().closeChestUI();
 					} else if (game.getClient().isFurnaceUIOpen()) {
 						game.getClient().closeFurnaceUI();
+					} else if (game.getClient().isSkillUIOpen()) {
+						game.getClient().closeSkillUI();
+						break; // Don't toggle inventory if closing skill UI
+					} else if (game.getClient().isClassSelectionUIOpen()) {
+						game.getClient().closeClassSelectionUI();
+						break; // Don't toggle inventory if closing class UI
 					}
 
 					// ALWAYS send packet to server to ensure state is synchronized
@@ -555,7 +618,7 @@ public class AwtEventsHandler {
 					}
 					break;
 				case 'm':
-					game.getClient().musicPlayer.toggleSound();
+					game.getClient().getMusicPlayer().toggleSound();
 					break;
 				case 'b':
 				case 'B':
@@ -588,7 +651,7 @@ public class AwtEventsHandler {
 					// Respawn if player is dead - send packet to server
 					// Architecture: ALL player actions use packets, even in integrated server with
 					// LAN disabled
-					mc.sayda.mcraze.entity.Player respawnPlayer = getLocalPlayer();
+					mc.sayda.mcraze.player.Player respawnPlayer = getLocalPlayer();
 					if (respawnPlayer != null && respawnPlayer.dead) {
 						if (game.getClient() != null && game.getClient().connection != null) {
 							mc.sayda.mcraze.network.packet.PacketRespawn respawnPacket = new mc.sayda.mcraze.network.packet.PacketRespawn();

@@ -13,6 +13,8 @@
 package mc.sayda.mcraze.network;
 
 import mc.sayda.mcraze.network.packet.*;
+import mc.sayda.mcraze.player.specialization.network.PacketClassSelect;
+import mc.sayda.mcraze.player.specialization.network.PacketSkillUpgrade;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -45,6 +47,12 @@ public class PacketRegistry {
         registerClientPacket(11, PacketEntityAttack.class, PacketEntityAttack::decode);
         registerClientPacket(12, PacketPing.class, PacketPing::decode);
         registerClientPacket(13, PacketFurnaceAction.class, PacketFurnaceAction::decode);
+        registerClientPacket(14, PacketShiftClick.class, PacketShiftClick::decode); // Inventory QoL
+        registerClientPacket(15, PacketInventoryDrag.class, PacketInventoryDrag::decode); // Drag-to-split
+        registerClientPacket(16, PacketInventoryDoubleClick.class, PacketInventoryDoubleClick::decode); // Double-click
+                                                                                                        // collect
+        registerClientPacket(17, PacketClassSelect.class, PacketClassSelect::decode); // Class system
+        registerClientPacket(18, PacketSkillUpgrade.class, PacketSkillUpgrade::decode); // Skill tree
 
         // Server → Client packets (IDs 51-100)
         registerServerPacket(51, PacketWorldInit.class, PacketWorldInit::decode);

@@ -5,8 +5,8 @@ import java.util.Map;
 
 import mc.sayda.mcraze.item.Item;
 import mc.sayda.mcraze.item.ItemLoader;
-import mc.sayda.mcraze.world.Tile;
-import mc.sayda.mcraze.world.TileType;
+import mc.sayda.mcraze.world.tile.Tile;
+import mc.sayda.mcraze.world.tile.TileType;
 
 public class Constants {
 
@@ -26,7 +26,7 @@ public class Constants {
 		GOLD_ORE("gold_ore"),
 		COAL_ORE(null),
 		DIAMOND_ORE(null),
-		LAPIS_ORE("lapis_ore"),
+		LAPIS_ORE(null),
 		RUBY_ORE(null),
 		COBBLE("cobble"),
 		WORKBENCH("workbench"),
@@ -71,7 +71,10 @@ public class Constants {
 		CYAN_WOOL("cyan_wool"),
 		PINK_WOOL("pink_wool"),
 		LIME_WOOL("lime_wool"),
-		GRAY_WOOL("gray_wool");
+		GRAY_WOOL("gray_wool"),
+		IRRIGATED_FARMLAND("dirt"), // Druid Cultivator special farmland (faster crop growth)
+		SPIKE_TRAP("spike_trap"), // Engineer trap (x2 fall damage)
+		BOULDER_TRAP("boulder_trap"); // Engineer trap (spawns EntityBoulder)
 
 		// The string ID of the item this tile drops when broken (null = no drop)
 		public final String itemDropId;
@@ -187,6 +190,13 @@ public class Constants {
 				TileID.SPAWNER, true, false, 1)));
 		tileTypes.put(TileID.FARMLAND, new Tile(new TileType("assets/sprites/tiles/farmland.png",
 				TileID.FARMLAND)));
+		tileTypes.put(TileID.IRRIGATED_FARMLAND, new Tile(new TileType("assets/sprites/tiles/farmland.png",
+				TileID.IRRIGATED_FARMLAND))); // TODO: Add unique irrigated sprite
+		tileTypes.put(TileID.SPIKE_TRAP, new Tile(new TileType("assets/sprites/tiles/spikes.png",
+				TileID.SPIKE_TRAP, true, false, 0))); // Passable (walk into spikes)
+		tileTypes.put(TileID.BOULDER_TRAP, new Tile(new TileType("assets/sprites/tiles/boulder_trap.png",
+				TileID.BOULDER_TRAP, false, false, 0))); // Solid block until triggered? Or passable? User said
+															// "activated". Let's assume solid.
 		tileTypes.put(TileID.HAY_BLOCK, new Tile(new TileType("assets/sprites/tiles/hay_block.png",
 				TileID.HAY_BLOCK, false, false, 0)));
 		tileTypes.put(TileID.DIAMOND_BLOCK, new Tile(new TileType("assets/sprites/tiles/diamond_block.png",

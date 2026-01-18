@@ -1,10 +1,10 @@
 package mc.sayda.mcraze.ui.view;
 
-import mc.sayda.mcraze.Color;
-import mc.sayda.mcraze.GraphicsHandler;
+import mc.sayda.mcraze.graphics.Color;
+import mc.sayda.mcraze.graphics.GraphicsHandler;
 import mc.sayda.mcraze.item.InventoryItem;
-import mc.sayda.mcraze.ui.FurnaceUI;
-import mc.sayda.mcraze.ui.Inventory;
+import mc.sayda.mcraze.ui.container.FurnaceUI;
+import mc.sayda.mcraze.player.Inventory;
 import mc.sayda.mcraze.ui.component.Tooltip;
 
 /**

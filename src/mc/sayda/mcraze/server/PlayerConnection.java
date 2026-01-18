@@ -1,17 +1,35 @@
 package mc.sayda.mcraze.server;
 
-import mc.sayda.mcraze.entity.Player;
+import mc.sayda.mcraze.player.*;
+import mc.sayda.mcraze.player.data.*;
+import mc.sayda.mcraze.world.tile.*;
+import mc.sayda.mcraze.world.gen.*;
+import mc.sayda.mcraze.world.storage.*;
+import mc.sayda.mcraze.entity.mob.*;
+import mc.sayda.mcraze.ui.menu.*;
+import mc.sayda.mcraze.ui.screen.*;
+import mc.sayda.mcraze.ui.component.*;
+import mc.sayda.mcraze.ui.container.*;
+import mc.sayda.mcraze.audio.*;
+import mc.sayda.mcraze.graphics.*;
+
+import mc.sayda.mcraze.player.Player;
 import mc.sayda.mcraze.logging.GameLogger;
 import mc.sayda.mcraze.network.Connection;
 import mc.sayda.mcraze.network.Packet;
 import mc.sayda.mcraze.network.ServerPacketHandler;
 import mc.sayda.mcraze.network.packet.*;
+import mc.sayda.mcraze.player.specialization.network.PacketClassSelect;
+import mc.sayda.mcraze.player.specialization.network.PacketSkillUpgrade;
+import mc.sayda.mcraze.player.specialization.PlayerClass;
 
 /**
  * Represents a single player connection to the SharedWorld.
  * Handles packet processing for one player.
  */
 public class PlayerConnection implements ServerPacketHandler {
+	private final GameLogger logger = GameLogger.get();
+
 	private final Connection connection;
 	private final Player player;
 	private final String playerName;
@@ -21,7 +39,6 @@ public class PlayerConnection implements ServerPacketHandler {
 
 	public PlayerConnection(Connection connection, Player player, String playerName, String password,
 			SharedWorld sharedWorld) {
-		GameLogger logger = GameLogger.get();
 		this.connection = connection;
 		this.player = player;
 		this.playerName = playerName;
@@ -40,7 +57,6 @@ public class PlayerConnection implements ServerPacketHandler {
 	private int packetProcessCount = 0;
 
 	public void processPackets() {
-		GameLogger logger = GameLogger.get();
 		if (!connection.isConnected()) {
 			if (logger != null && packetProcessCount == 0) {
 				logger.warn("PlayerConnection.processPackets: Connection not connected for " + playerName);
@@ -76,9 +92,13 @@ public class PlayerConnection implements ServerPacketHandler {
 
 	private int inputCount = 0;
 
-	@Override
+	public void sendPacket(mc.sayda.mcraze.network.Packet packet) {
+		if (connection != null) {
+			connection.sendPacket(packet);
+		}
+	}
+
 	public void handlePlayerInput(PacketPlayerInput packet) {
-		GameLogger logger = GameLogger.get();
 		if (player == null) {
 			if (logger != null)
 				logger.warn("PlayerConnection.handlePlayerInput: Player is null for " + playerName);
@@ -140,9 +160,16 @@ public class PlayerConnection implements ServerPacketHandler {
 
 		// Update hotbar selection
 		if (packet.hotbarSlot >= 0 && packet.hotbarSlot < 10) {
+			// PERFORMANCE FIX: Only broadcast if hotbar actually changed
+			// Previously this was broadcasting on EVERY input packet (60+ times/sec)
+			// causing severe lag during swimming/climbing
+			int previousHotbar = player.inventory.hotbarIdx;
 			player.setHotbarItem(packet.hotbarSlot);
-			// Broadcast hotbar change immediately to all clients
-			sharedWorld.broadcastInventoryUpdates();
+
+			// Only broadcast if the value actually changed
+			if (player.inventory.hotbarIdx != previousHotbar) {
+				sharedWorld.broadcastInventoryUpdates();
+			}
 		}
 	}
 
@@ -199,7 +226,7 @@ public class PlayerConnection implements ServerPacketHandler {
 			// Send chat feedback to client (yellow color)
 			String message = "Backdrop Mode: " + (player.backdropPlacementMode ? "ON" : "OFF");
 			mc.sayda.mcraze.network.packet.PacketChatMessage chatPacket = new mc.sayda.mcraze.network.packet.PacketChatMessage(
-					message, new mc.sayda.mcraze.Color(255, 255, 0));
+					message, new mc.sayda.mcraze.graphics.Color(255, 255, 0));
 			connection.sendPacket(chatPacket);
 
 			GameLogger logger = GameLogger.get();
@@ -213,7 +240,6 @@ public class PlayerConnection implements ServerPacketHandler {
 	@Override
 	public void handleChestAction(mc.sayda.mcraze.network.packet.PacketChestAction packet) {
 		// Delegate to SharedWorld for processing
-		GameLogger logger = GameLogger.get();
 		if (logger != null) {
 			logger.info("PlayerConnection.handleChestAction: Player " + playerName +
 					" interacted with chest at (" + packet.chestX + ", " + packet.chestY + ")");
@@ -241,8 +267,76 @@ public class PlayerConnection implements ServerPacketHandler {
 	}
 
 	@Override
+	public void handleShiftClick(mc.sayda.mcraze.network.packet.PacketShiftClick packet) {
+		// Delegate to SharedWorld for shift-click handling
+		sharedWorld.handleShiftClick(this, packet);
+	}
+
+	@Override
+	public void handleInventoryDrag(mc.sayda.mcraze.network.packet.PacketInventoryDrag packet) {
+		sharedWorld.handleInventoryDrag(this, packet);
+	}
+
+	@Override
+	public void handleInventoryDoubleClick(PacketInventoryDoubleClick packet) {
+		sharedWorld.handleInventoryDoubleClick(this, packet);
+	}
+
+	@Override
+	public void handleClassSelect(PacketClassSelect packet) {
+		if (player == null)
+			return;
+
+		// Only allow class selection if player doesn't have one
+		if (player.selectedClass == PlayerClass.NONE) {
+			player.selectClass(packet.getSelectedClass(), packet.getPaths());
+
+			// Broadcast inventory update because stats (like health) might have changed
+			sharedWorld.broadcastInventoryUpdates();
+
+			if (logger != null) {
+				logger.info("Player " + playerName + " successfully specialized as " + packet.getSelectedClass());
+			}
+		} else {
+			if (logger != null) {
+				logger.warn("Player " + playerName + " attempted to re-specialize as " + packet.getSelectedClass());
+			}
+		}
+	}
+
+	@Override
+	public void handleSkillUpgrade(PacketSkillUpgrade packet) {
+		if (player == null)
+			return;
+
+		mc.sayda.mcraze.player.specialization.PassiveEffectType ability = packet.getAbility();
+
+		// Validate: Check points and if already unlocked
+		if (player.skillPoints > 0 && !player.unlockedPassives.contains(ability)) {
+			// Verify class compatibility (optional security check, but good to have)
+			// For now, trust client but verify points
+
+			player.unlockedPassives.add(ability);
+			player.skillPoints--;
+
+			if (logger != null) {
+				logger.info("Player " + playerName + " unlocked skill: " + ability.name());
+			}
+
+			// Sync changes to client
+			// We broadcast inventory updates which currently carries basic stats
+			sharedWorld.broadcastInventoryUpdates();
+		} else {
+			if (logger != null) {
+				logger.warn("Player " + playerName + " tried to unlock " + ability.name()
+						+ " but failed validation (Points: " + player.skillPoints + ", Unlocked: "
+						+ player.unlockedPassives.contains(ability) + ")");
+			}
+		}
+	}
+
+	@Override
 	public void handleChatSend(PacketChatSend packet) {
-		GameLogger logger = GameLogger.get();
 		if (packet.message == null || packet.message.trim().isEmpty()) {
 			return;
 		}
@@ -278,7 +372,7 @@ public class PlayerConnection implements ServerPacketHandler {
 		// Broadcast chat message to all players
 		PacketChatMessage chatPacket = new PacketChatMessage(
 				"<" + playerName + "> " + packet.message,
-				mc.sayda.mcraze.Color.white);
+				mc.sayda.mcraze.graphics.Color.white);
 
 		// Broadcast to all players via SharedWorld
 		if (logger != null)

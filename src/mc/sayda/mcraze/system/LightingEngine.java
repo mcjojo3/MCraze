@@ -21,7 +21,7 @@ import java.util.PriorityQueue;
 
 import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.util.Int2;
-import mc.sayda.mcraze.world.Tile;
+import mc.sayda.mcraze.world.tile.Tile;
 
 public class LightingEngine implements Serializable {
 

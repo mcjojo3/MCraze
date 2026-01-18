@@ -5,10 +5,10 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-import mc.sayda.mcraze.Color;
-import mc.sayda.mcraze.GraphicsHandler;
-import mc.sayda.mcraze.Sprite;
-import mc.sayda.mcraze.SpriteStore;
+import mc.sayda.mcraze.graphics.Color;
+import mc.sayda.mcraze.graphics.GraphicsHandler;
+import mc.sayda.mcraze.graphics.Sprite;
+import mc.sayda.mcraze.graphics.SpriteStore;
 
 /**
  * A sprite to be displayed on the screen. Note that a sprite
@@ -19,7 +19,7 @@ import mc.sayda.mcraze.SpriteStore;
  *
  * @author Kevin Glass
  */
-public class AwtSprite implements mc.sayda.mcraze.Sprite {
+public class AwtSprite implements mc.sayda.mcraze.graphics.Sprite {
 	private static final long serialVersionUID = 1L;
 
 	/** The image to be drawn for this sprite */

@@ -22,6 +22,7 @@ public class OptionsManager {
 
     // Options with defaults
     private float musicVolume = 0.5f;
+    private float sfxVolume = 0.5f;
     private boolean showFPS = false;
     private String lastServerIP = "localhost:25565";
 
@@ -42,6 +43,15 @@ public class OptionsManager {
 
     public void setMusicVolume(float volume) {
         this.musicVolume = Math.max(0.0f, Math.min(1.0f, volume));
+        save();
+    }
+
+    public float getSfxVolume() {
+        return sfxVolume;
+    }
+
+    public void setSfxVolume(float volume) {
+        this.sfxVolume = Math.max(0.0f, Math.min(1.0f, volume));
         save();
     }
 
@@ -94,6 +104,9 @@ public class OptionsManager {
                 if (props.containsKey("lastServerIP")) {
                     lastServerIP = props.getProperty("lastServerIP");
                 }
+                if (props.containsKey("sfxVolume")) {
+                    sfxVolume = Float.parseFloat(props.getProperty("sfxVolume"));
+                }
             } else {
                 // Migration: Try to load legacy IP if options don't exist yet
                 String legacyIP = CredentialManager.loadLastIP();
@@ -116,6 +129,7 @@ public class OptionsManager {
 
             Properties props = new Properties();
             props.setProperty("musicVolume", String.valueOf(musicVolume));
+            props.setProperty("sfxVolume", String.valueOf(sfxVolume));
             props.setProperty("showFPS", String.valueOf(showFPS));
             props.setProperty("lastServerIP", lastServerIP != null ? lastServerIP : "");
 

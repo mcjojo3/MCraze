@@ -13,6 +13,8 @@
 package mc.sayda.mcraze.network;
 
 import mc.sayda.mcraze.network.packet.*;
+import mc.sayda.mcraze.player.specialization.network.PacketClassSelect;
+import mc.sayda.mcraze.player.specialization.network.PacketSkillUpgrade;
 
 /**
  * Handler for packets received by the SERVER (from client).
@@ -46,4 +48,14 @@ public interface ServerPacketHandler {
     void handleEntityAttack(PacketEntityAttack packet); // NEW: For entity attacks (combat)
 
     void handlePing(PacketPing packet); // NEW: For latency measurement
+
+    void handleShiftClick(PacketShiftClick packet); // NEW: For inventory QoL shift-click quick transfer
+
+    void handleInventoryDrag(PacketInventoryDrag packet); // NEW: For drag-to-split
+
+    void handleInventoryDoubleClick(PacketInventoryDoubleClick packet); // NEW: For double-click collect
+
+    void handleClassSelect(PacketClassSelect packet); // NEW: For class system
+
+    void handleSkillUpgrade(PacketSkillUpgrade packet); // NEW: For skill tree upgrades
 }

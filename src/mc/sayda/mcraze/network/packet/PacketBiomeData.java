@@ -14,7 +14,7 @@ package mc.sayda.mcraze.network.packet;
 
 import mc.sayda.mcraze.network.ClientPacketHandler;
 import mc.sayda.mcraze.network.PacketRegistry;
-import mc.sayda.mcraze.world.Biome;
+import mc.sayda.mcraze.world.gen.Biome;
 
 import java.nio.ByteBuffer;
 

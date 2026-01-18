@@ -13,17 +13,15 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferStrategy;
-import java.net.URL;
-
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
 import mc.sayda.mcraze.Game;
-import mc.sayda.mcraze.Sprite;
-import mc.sayda.mcraze.SpriteStore;
+import mc.sayda.mcraze.graphics.Sprite;
+import mc.sayda.mcraze.graphics.SpriteStore;
 
-public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
+public class AwtGraphicsHandler extends mc.sayda.mcraze.graphics.GraphicsHandler {
 	private Canvas canvas;
 	private BufferStrategy strategy;
 	private JFrame container;
@@ -32,7 +30,7 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 	private AwtEventsHandler eventsHandler;
 
 	// Color caching to avoid creating new Color objects on every setColor call
-	private mc.sayda.mcraze.Color lastRequestedColor = null;
+	private mc.sayda.mcraze.graphics.Color lastRequestedColor = null;
 	private Color cachedAwtColor = null;
 
 	@Override
@@ -104,8 +102,8 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 	 * Initialize for crash display (no Game instance needed)
 	 */
 	public void initCrashDisplay(String title, int width, int height) {
-		this.screenWidth = width;
-		this.screenHeight = height;
+		screenWidth = width;
+		screenHeight = height;
 
 		canvas = new Canvas();
 		container = new JFrame(title);
@@ -159,7 +157,7 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 	}
 
 	@Override
-	public void setColor(mc.sayda.mcraze.Color color) {
+	public void setColor(mc.sayda.mcraze.graphics.Color color) {
 		// Cache color objects to avoid creating new ones on every call
 		if (lastRequestedColor == null || !color.equals(lastRequestedColor)) {
 			cachedAwtColor = new Color(color.R, color.G, color.B, color.A);
@@ -205,7 +203,7 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 	}
 
 	@Override
-	public void drawImage(Sprite sprite, int x, int y, mc.sayda.mcraze.Color tint) {
+	public void drawImage(Sprite sprite, int x, int y, mc.sayda.mcraze.graphics.Color tint) {
 		int width = sprite.getWidth();
 		int height = sprite.getHeight();
 		drawImage(sprite, x, y, width, height, tint);
@@ -223,7 +221,7 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.GraphicsHandler {
 
 	@Override
 	public void drawImage(Sprite sprite, int x, int y, int width, int height,
-			mc.sayda.mcraze.Color tint) {
+			mc.sayda.mcraze.graphics.Color tint) {
 		drawImage(sprite, x, y, width, height);
 		java.awt.Color old = g.getColor();
 		this.setColor(tint);

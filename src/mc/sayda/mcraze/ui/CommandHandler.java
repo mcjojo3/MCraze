@@ -12,15 +12,19 @@
 
 package mc.sayda.mcraze.ui;
 
-import java.util.HashMap;
-import java.util.Map;
-import mc.sayda.mcraze.Color;
+import mc.sayda.mcraze.graphics.Color;
 import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.Game;
 import mc.sayda.mcraze.entity.LivingEntity;
-import mc.sayda.mcraze.entity.Player;
+import mc.sayda.mcraze.player.Player;
 import mc.sayda.mcraze.server.PlayerConnection;
-import mc.sayda.mcraze.world.TileTemplate;
+import mc.sayda.mcraze.world.tile.TileTemplate;
+import mc.sayda.mcraze.ui.screen.Chat;
+
+import java.util.HashMap;
+import java.util.Map;
+import mc.sayda.mcraze.server.PlayerConnection;
+import mc.sayda.mcraze.world.tile.TileTemplate;
 
 /**
  * Handles command parsing and execution
@@ -59,7 +63,7 @@ public class CommandHandler {
         // Check if breaking a chest - must drop contents
         Constants.TileID currentTile = world.tiles[x][y].type.name;
         if (currentTile == Constants.TileID.CHEST) {
-            mc.sayda.mcraze.world.ChestData chestData = world.getChest(x, y);
+            mc.sayda.mcraze.world.storage.ChestData chestData = world.getChest(x, y);
             if (chestData != null) {
                 // Drop all items from the chest as entities
                 for (int cx = 0; cx < 9; cx++) {
@@ -133,6 +137,7 @@ public class CommandHandler {
         commandArguments.put("/teleport", new String[] {});
         commandArguments.put("/tp", new String[] {});
         commandArguments.put("/we", new String[] { "set", "fill", "replace", "undo", "sphere" }); // WorldEdit commands
+        commandArguments.put("/class", new String[] { "set", "points", "reset" });
 
         // Commands without arguments (empty array)
         commandArguments.put("/help", new String[] {});
@@ -204,7 +209,7 @@ public class CommandHandler {
      * @param executingPlayer The player executing the command (null = use host
      *                        player)
      */
-    public void executeCommand(String input, mc.sayda.mcraze.entity.Player executingPlayer) {
+    public void executeCommand(String input, mc.sayda.mcraze.player.Player executingPlayer) {
         if (input == null || input.trim().isEmpty()) {
             return;
         }
@@ -292,6 +297,9 @@ public class CommandHandler {
             case "debug":
                 handleDebug(parts, executingPlayer);
                 break;
+            case "class":
+                handleClass(parts, executingPlayer);
+                break;
             default:
                 sendMessage("Unknown command: /" + command, new Color(255, 100, 100));
                 sendMessage("Type /help for a list of commands", Color.gray);
@@ -330,6 +338,13 @@ public class CommandHandler {
         sendMessage("/we set <tile> <x> <y> - Place a block", Color.white);
         sendMessage("/we fill <tile> <x1> <y1> <x2> <y2> - Fill area", Color.white);
         sendMessage("/we replace <from> <to> <x1> <y1> <x2> <y2> - Replace nearby blocks", Color.white);
+        sendMessage("=== Class Commands ===", Color.orange);
+        sendMessage("/class - Show your current class info", Color.white);
+        sendMessage("/class set <class> - Set your class (vanguard, engineer, arcanist, druid)", Color.white);
+        sendMessage("/class reset - Reset class selection (allows choosing again)", Color.white);
+        sendMessage("/class points - Show your skill points", Color.white);
+        sendMessage("/class points set <amount> - Set skill points", Color.white);
+        sendMessage("/class points add <amount> - Add skill points", Color.white);
     }
 
     private void handleGamerule(String[] parts) {
@@ -439,7 +454,7 @@ public class CommandHandler {
         }
     }
 
-    private void handleKill(mc.sayda.mcraze.entity.Player executingPlayer) {
+    private void handleKill(mc.sayda.mcraze.player.Player executingPlayer) {
         if (executingPlayer != null) {
             if (executingPlayer.dead) {
                 sendMessage("You are already dead!", new Color(255, 100, 100));
@@ -468,7 +483,7 @@ public class CommandHandler {
         }
     }
 
-    private void handleGive(String[] parts, mc.sayda.mcraze.entity.Player executingPlayer) {
+    private void handleGive(String[] parts, mc.sayda.mcraze.player.Player executingPlayer) {
         if (parts.length < 2) {
             sendMessage("Usage: /give <item> [amount]", new Color(255, 200, 100));
             sendMessage("Example: /give dirt 64", Color.gray);
@@ -522,7 +537,7 @@ public class CommandHandler {
         }
     }
 
-    private void handleTeleport(String[] parts, mc.sayda.mcraze.entity.Player executingPlayer) {
+    private void handleTeleport(String[] parts, mc.sayda.mcraze.player.Player executingPlayer) {
         if (parts.length < 3) {
             sendMessage("Usage: /teleport <x> <y>", new Color(255, 200, 100));
             sendMessage("Example: /teleport 100 50", Color.gray);
@@ -556,7 +571,7 @@ public class CommandHandler {
         }
     }
 
-    private void handleNoclip(mc.sayda.mcraze.entity.Player executingPlayer) {
+    private void handleNoclip(mc.sayda.mcraze.player.Player executingPlayer) {
         if (executingPlayer != null) {
             // Toggle flying and noclip together
             executingPlayer.flying = !executingPlayer.flying;
@@ -574,7 +589,7 @@ public class CommandHandler {
         }
     }
 
-    private void handleGodmode(mc.sayda.mcraze.entity.Player executingPlayer) {
+    private void handleGodmode(mc.sayda.mcraze.player.Player executingPlayer) {
         if (executingPlayer != null) {
             // Toggle godmode (invincibility)
             executingPlayer.godmode = !executingPlayer.godmode;
@@ -590,7 +605,7 @@ public class CommandHandler {
         }
     }
 
-    private void handleReload(mc.sayda.mcraze.entity.Player executingPlayer) {
+    private void handleReload(mc.sayda.mcraze.player.Player executingPlayer) {
         if (executingPlayer != null) {
             sendMessage("Reloading world lighting...", Color.orange);
 
@@ -607,7 +622,7 @@ public class CommandHandler {
         }
     }
 
-    private void handleSpeed(String[] parts, mc.sayda.mcraze.entity.Player executingPlayer) {
+    private void handleSpeed(String[] parts, mc.sayda.mcraze.player.Player executingPlayer) {
         if (parts.length < 2) {
             sendMessage("Usage: /speed <multiplier>", new Color(255, 200, 100));
             sendMessage("Example: /speed 2.0 (2x speed)", Color.gray);
@@ -805,7 +820,7 @@ public class CommandHandler {
         if (id.equals("dummy")) {
             LivingEntity dummy = new LivingEntity(true, x, y, 16, 16) {
             };
-            dummy.sprite = mc.sayda.mcraze.SpriteStore.get().getSprite("assets/sprites/entities/player.png");
+            dummy.sprite = mc.sayda.mcraze.graphics.SpriteStore.get().getSprite("assets/sprites/entities/player.png");
             sharedWorld.addEntity(dummy);
             sendMessage("Summoned dummy entity", Color.green);
             return;
@@ -813,17 +828,42 @@ public class CommandHandler {
 
         // SHEEP
         if (id.equals("sheep")) {
-            mc.sayda.mcraze.entity.EntitySheep sheep = new mc.sayda.mcraze.entity.EntitySheep(x, y);
+            mc.sayda.mcraze.entity.mob.EntitySheep sheep = new mc.sayda.mcraze.entity.mob.EntitySheep(x, y);
             sharedWorld.addEntity(sheep);
             sendMessage("Summoned sheep", Color.green);
             return;
         }
 
+        // PIG
+        if (id.equals("pig")) {
+            mc.sayda.mcraze.entity.mob.EntityPig pig = new mc.sayda.mcraze.entity.mob.EntityPig(x, y);
+            sharedWorld.addEntity(pig);
+            sendMessage("Summoned pig", Color.green);
+            return;
+        }
+
+        // COW
+        if (id.equals("cow")) {
+            mc.sayda.mcraze.entity.mob.EntityCow cow = new mc.sayda.mcraze.entity.mob.EntityCow(x, y);
+            sharedWorld.addEntity(cow);
+            sendMessage("Summoned cow", Color.green);
+            return;
+        }
+
         // ZOMBIE
         if (id.equals("zombie")) {
-            mc.sayda.mcraze.entity.EntityZombie zombie = new mc.sayda.mcraze.entity.EntityZombie(true, x, y, 28, 56);
+            mc.sayda.mcraze.entity.mob.EntityZombie zombie = new mc.sayda.mcraze.entity.mob.EntityZombie(true, x, y, 28,
+                    56);
             sharedWorld.addEntity(zombie);
             sendMessage("Summoned zombie", Color.green);
+            return;
+        }
+
+        // WOLF
+        if (id.equals("wolf")) {
+            mc.sayda.mcraze.entity.mob.EntityWolf wolf = new mc.sayda.mcraze.entity.mob.EntityWolf(true, x, y, 32, 32);
+            sharedWorld.addEntity(wolf);
+            sendMessage("Summoned wolf", Color.green);
             return;
         }
 
@@ -1315,6 +1355,153 @@ public class CommandHandler {
 
         // Absolute coordinate
         return Integer.parseInt(token);
+    }
+
+    private void handleClass(String[] parts, Player executingPlayer) {
+        if (executingPlayer == null) {
+            sendMessage("Player not found", new Color(255, 100, 100));
+            return;
+        }
+
+        // /class - Show current class info
+        if (parts.length == 1) {
+            mc.sayda.mcraze.player.specialization.PlayerClass pClass = executingPlayer.selectedClass;
+            sendMessage("=== Class Info ===", Color.orange);
+            sendMessage("Class: " + (pClass != null ? pClass.getDisplayName() : "None"), Color.white);
+            if (executingPlayer.selectedPaths != null && executingPlayer.selectedPaths.length > 0) {
+                StringBuilder pathNames = new StringBuilder();
+                for (mc.sayda.mcraze.player.specialization.SpecializationPath path : executingPlayer.selectedPaths) {
+                    if (pathNames.length() > 0)
+                        pathNames.append(", ");
+                    pathNames.append(path.getDisplayName());
+                }
+                sendMessage("Paths: " + pathNames.toString(), Color.white);
+            }
+            sendMessage("Skill Points: " + executingPlayer.skillPoints, Color.white);
+            sendMessage("Unlocked Passives: " + executingPlayer.unlockedPassives.size(), Color.white);
+            return;
+        }
+
+        String subCommand = parts[1].toLowerCase();
+
+        switch (subCommand) {
+            case "set":
+                handleClassSet(parts, executingPlayer);
+                break;
+            case "reset":
+                handleClassReset(executingPlayer);
+                break;
+            case "points":
+                handleClassPoints(parts, executingPlayer);
+                break;
+            default:
+                sendMessage("Unknown subcommand: " + subCommand, new Color(255, 100, 100));
+                sendMessage("Use: /class, /class set, /class reset, /class points", Color.gray);
+        }
+    }
+
+    private void handleClassSet(String[] parts, Player executingPlayer) {
+        if (parts.length < 3) {
+            sendMessage("Usage: /class set <class>", new Color(255, 200, 100));
+            sendMessage("Classes: vanguard, engineer, arcanist, druid", Color.gray);
+            return;
+        }
+
+        String className = parts[2].toUpperCase();
+        mc.sayda.mcraze.player.specialization.PlayerClass pClass;
+        mc.sayda.mcraze.player.specialization.SpecializationPath[] paths;
+
+        try {
+            pClass = mc.sayda.mcraze.player.specialization.PlayerClass.valueOf(className);
+        } catch (IllegalArgumentException e) {
+            sendMessage("Unknown class: " + parts[2], new Color(255, 100, 100));
+            sendMessage("Valid classes: vanguard, engineer, arcanist, druid", Color.gray);
+            return;
+        }
+
+        // Assign all 3 paths for the class
+        switch (pClass) {
+            case VANGUARD:
+                paths = new mc.sayda.mcraze.player.specialization.SpecializationPath[] {
+                        mc.sayda.mcraze.player.specialization.SpecializationPath.SENTINEL,
+                        mc.sayda.mcraze.player.specialization.SpecializationPath.CHAMPION,
+                        mc.sayda.mcraze.player.specialization.SpecializationPath.BLACKSMITH
+                };
+                break;
+            case ENGINEER:
+                paths = new mc.sayda.mcraze.player.specialization.SpecializationPath[] {
+                        mc.sayda.mcraze.player.specialization.SpecializationPath.MARKSMAN,
+                        mc.sayda.mcraze.player.specialization.SpecializationPath.TRAP_MASTER,
+                        mc.sayda.mcraze.player.specialization.SpecializationPath.LUMBERJACK
+                };
+                break;
+            case ARCANIST:
+                paths = new mc.sayda.mcraze.player.specialization.SpecializationPath[] {
+                        mc.sayda.mcraze.player.specialization.SpecializationPath.ELEMENTALIST,
+                        mc.sayda.mcraze.player.specialization.SpecializationPath.GUARDIAN_ANGEL,
+                        mc.sayda.mcraze.player.specialization.SpecializationPath.ALCHEMIST
+                };
+                break;
+            case DRUID:
+                paths = new mc.sayda.mcraze.player.specialization.SpecializationPath[] {
+                        mc.sayda.mcraze.player.specialization.SpecializationPath.CULTIVATOR,
+                        mc.sayda.mcraze.player.specialization.SpecializationPath.BEAST_TAMER,
+                        mc.sayda.mcraze.player.specialization.SpecializationPath.CHEF
+                };
+                break;
+            default:
+                paths = new mc.sayda.mcraze.player.specialization.SpecializationPath[0];
+        }
+
+        executingPlayer.selectClass(pClass, paths);
+        sharedWorld.broadcastEntityUpdate();
+        sharedWorld.broadcastInventoryUpdates();
+
+        sendMessage("Class set to " + pClass.getDisplayName(), Color.green);
+    }
+
+    private void handleClassReset(Player executingPlayer) {
+        if (logger != null && logger.isDebugEnabled())
+            logger.debug("handleClassReset: PlayerHash=" + System.identityHashCode(executingPlayer)
+                    + ", Class=" + executingPlayer.selectedClass);
+        executingPlayer.resetClass();
+        if (logger != null && logger.isDebugEnabled())
+            logger.debug("handleClassReset AFTER: Class=" + executingPlayer.selectedClass);
+        sharedWorld.broadcastEntityUpdate();
+        sharedWorld.broadcastInventoryUpdates();
+
+        sendMessage("Class reset! Use /class set or the UI to choose a new class.", Color.green);
+    }
+
+    private void handleClassPoints(String[] parts, Player executingPlayer) {
+        // /class points - Show points
+        if (parts.length == 2) {
+            sendMessage("Skill Points: " + executingPlayer.skillPoints, Color.white);
+            return;
+        }
+
+        String action = parts[2].toLowerCase();
+
+        if (action.equals("set") && parts.length >= 4) {
+            try {
+                int amount = Integer.parseInt(parts[3]);
+                executingPlayer.skillPoints = Math.max(0, amount);
+                sendMessage("Skill points set to " + executingPlayer.skillPoints, Color.green);
+            } catch (NumberFormatException e) {
+                sendMessage("Invalid amount: " + parts[3], new Color(255, 100, 100));
+            }
+        } else if (action.equals("add") && parts.length >= 4) {
+            try {
+                int amount = Integer.parseInt(parts[3]);
+                executingPlayer.skillPoints = Math.max(0, executingPlayer.skillPoints + amount);
+                sendMessage("Skill points: " + executingPlayer.skillPoints, Color.green);
+            } catch (NumberFormatException e) {
+                sendMessage("Invalid amount: " + parts[3], new Color(255, 100, 100));
+            }
+        } else {
+            sendMessage("Usage: /class points, /class points set <amount>, /class points add <amount>",
+                    new Color(255, 200, 100));
+        }
     }
 
 }

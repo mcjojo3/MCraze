@@ -12,16 +12,18 @@
 
 package mc.sayda.mcraze;
 
-import mc.sayda.mcraze.client.Client;
-import mc.sayda.mcraze.logging.CrashReport;
-import mc.sayda.mcraze.logging.GameLogger;
-import mc.sayda.mcraze.network.LocalConnection;
-import mc.sayda.mcraze.server.Server;
-import mc.sayda.mcraze.server.ServerTickThread;
 import mc.sayda.mcraze.state.GameState;
 import mc.sayda.mcraze.state.GameStateManager;
 import mc.sayda.mcraze.util.CredentialManager;
 import mc.sayda.mcraze.util.SystemTimer;
+import mc.sayda.mcraze.logging.GameLogger;
+import mc.sayda.mcraze.server.Server;
+import mc.sayda.mcraze.client.Client;
+import mc.sayda.mcraze.network.Connection;
+import mc.sayda.mcraze.logging.CrashReport;
+import mc.sayda.mcraze.network.LocalConnection;
+import mc.sayda.mcraze.server.ServerTickThread;
+import mc.sayda.mcraze.player.specialization.ui.ClassSelectionUI;
 
 /**
  * Main game coordinator - creates and runs integrated server + client
@@ -39,7 +41,7 @@ public class Game {
 	private String loggedInUsername;
 	private String loggedInPassword;
 	private boolean isLoggedIn = false;
-	private mc.sayda.mcraze.ui.LoginScreen loginScreen;
+	private mc.sayda.mcraze.ui.menu.LoginScreen loginScreen;
 
 	/**
 	 * Construct game with integrated server (singleplayer)
@@ -73,7 +75,7 @@ public class Game {
 			client.setGame(this); // Set Game reference for UI components
 
 			// Initialize login screen
-			loginScreen = new mc.sayda.mcraze.ui.LoginScreen(this, client.getUIRenderer());
+			loginScreen = new mc.sayda.mcraze.ui.menu.LoginScreen(this, client.getUIRenderer());
 
 			if (GameLogger.get() != null)
 				GameLogger.get().info("Integrated server initialized");
@@ -201,16 +203,12 @@ public class Game {
 			client.addLoadingMessage("Creating server...");
 			client.render(); // Update display
 
-			// Create local connection pair
-			mc.sayda.mcraze.network.LocalConnection[] connections = mc.sayda.mcraze.network.LocalConnection
-					.createPair();
-			mc.sayda.mcraze.network.LocalConnection serverConnection = connections[1];
-			mc.sayda.mcraze.network.LocalConnection clientConnection = connections[0];
-
-			// Create server and reconnect client
-			server = new Server(serverConnection);
+			// Create server (connection will be created in startGame)
+			server = new Server(null);
 			server.setChat(client.chat);
-			client.switchToMultiplayer(clientConnection, server); // Reuse this to reconnect
+			// Do NOT switch client here - wait for server.startGame() to create the real
+			// connection
+			// client.switchToMultiplayer(clientConnection, server);
 		}
 
 		client.setLoadingProgressImmediate(30);
@@ -223,7 +221,7 @@ public class Game {
 			client.setLoadingStatus("Loading world...");
 			client.addLoadingMessage("Loading world '" + worldName + "'...");
 			client.render(); // Update display
-			loadedWorld = mc.sayda.mcraze.world.WorldSaveManager.loadWorldOnly(worldName);
+			loadedWorld = mc.sayda.mcraze.world.storage.WorldSaveManager.loadWorldOnly(worldName);
 
 			if (loadedWorld != null) {
 				if (GameLogger.get() != null)
@@ -344,7 +342,6 @@ public class Game {
 
 		// Main loop - state-driven
 		while (stateManager.getState() != GameState.SHUTDOWN) {
-			long delta = SystemTimer.getTime() - lastLoopTime;
 			lastLoopTime = SystemTimer.getTime();
 
 			GameState currentState = stateManager.getState();
@@ -398,6 +395,7 @@ public class Game {
 					// Client render (graphics)
 					if (client != null) {
 						client.render();
+
 					}
 					break;
 
@@ -426,7 +424,7 @@ public class Game {
 	 */
 	public void sendCurrentInputState() {
 		// Access the event handler through the graphics handler
-		mc.sayda.mcraze.GraphicsHandler graphicsHandler = mc.sayda.mcraze.GraphicsHandler.get();
+		mc.sayda.mcraze.graphics.GraphicsHandler graphicsHandler = mc.sayda.mcraze.graphics.GraphicsHandler.get();
 		if (graphicsHandler instanceof mc.sayda.mcraze.awtgraphics.AwtGraphicsHandler) {
 			mc.sayda.mcraze.awtgraphics.AwtGraphicsHandler awtHandler = (mc.sayda.mcraze.awtgraphics.AwtGraphicsHandler) graphicsHandler;
 			mc.sayda.mcraze.awtgraphics.AwtEventsHandler eventsHandler = awtHandler.getEventsHandler();
@@ -452,7 +450,7 @@ public class Game {
 				mc.sayda.mcraze.network.packet.PacketPing pingPacket = new mc.sayda.mcraze.network.packet.PacketPing(
 						timestamp);
 				client.connection.sendPacket(pingPacket);
-				client.chat.addMessage("Pinging server...", mc.sayda.mcraze.Color.gray);
+				client.chat.addMessage("Pinging server...", mc.sayda.mcraze.graphics.Color.gray);
 			} else {
 				// Send chat message to server via packet
 				mc.sayda.mcraze.network.packet.PacketChatSend packet = new mc.sayda.mcraze.network.packet.PacketChatSend(
@@ -472,22 +470,22 @@ public class Game {
 			if (currentWorldName != null) {
 				// Use async save to prevent freeze
 				if (client != null) {
-					client.chat.addMessage("Saving world...", mc.sayda.mcraze.Color.orange);
+					client.chat.addMessage("Saving world...", mc.sayda.mcraze.graphics.Color.orange);
 				}
 
-				mc.sayda.mcraze.world.WorldSaveManager.saveWorldAsync(currentWorldName, server)
+				mc.sayda.mcraze.world.storage.WorldSaveManager.saveWorldAsync(currentWorldName, server)
 						.thenAccept(success -> {
 							if (success) {
 								if (GameLogger.get() != null)
 									GameLogger.get().info("Game saved asynchronously");
 								if (client != null) {
-									client.chat.addMessage("World saved!", mc.sayda.mcraze.Color.green);
+									client.chat.addMessage("World saved!", mc.sayda.mcraze.graphics.Color.green);
 								}
 							} else {
 								if (GameLogger.get() != null)
 									GameLogger.get().error("Failed to save world asynchronously");
 								if (client != null) {
-									client.chat.addMessage("Save failed!", mc.sayda.mcraze.Color.red);
+									client.chat.addMessage("Save failed!", mc.sayda.mcraze.graphics.Color.red);
 								}
 							}
 						});
@@ -555,7 +553,7 @@ public class Game {
 		if (client != null) {
 			client.stop();
 			try {
-				client.musicPlayer.close();
+				client.getMusicPlayer().close();
 			} catch (Exception e) {
 				if (GameLogger.get() != null)
 					GameLogger.get().error("Error closing music player: " + e.getMessage());
@@ -632,7 +630,7 @@ public class Game {
 	/**
 	 * Get the login screen
 	 */
-	public mc.sayda.mcraze.ui.LoginScreen getLoginScreen() {
+	public mc.sayda.mcraze.ui.menu.LoginScreen getLoginScreen() {
 		return loginScreen;
 	}
 
@@ -773,7 +771,7 @@ public class Game {
 
 			// Try to show crash screen if graphics are available
 			try {
-				mc.sayda.mcraze.GraphicsHandler g = mc.sayda.mcraze.GraphicsHandler.get();
+				mc.sayda.mcraze.graphics.GraphicsHandler g = mc.sayda.mcraze.graphics.GraphicsHandler.get();
 				if (g == null) {
 					// Initialize graphics if not already (e.g. startup crash)
 					g = new mc.sayda.mcraze.awtgraphics.AwtGraphicsHandler();
@@ -782,7 +780,8 @@ public class Game {
 				}
 
 				if (g != null) {
-					mc.sayda.mcraze.ui.CrashScreen crashScreen = new mc.sayda.mcraze.ui.CrashScreen(crashFile, t);
+					mc.sayda.mcraze.ui.menu.CrashScreen crashScreen = new mc.sayda.mcraze.ui.menu.CrashScreen(crashFile,
+							t);
 
 					// Simple crash loop
 					while (g.isWindowOpen()) {

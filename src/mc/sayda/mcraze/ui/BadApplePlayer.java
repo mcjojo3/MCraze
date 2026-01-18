@@ -1,6 +1,6 @@
 package mc.sayda.mcraze.ui;
 
-import mc.sayda.mcraze.GraphicsHandler;
+import mc.sayda.mcraze.graphics.GraphicsHandler;
 import mc.sayda.mcraze.logging.GameLogger;
 import mc.sayda.mcraze.media.BadAppleVideoData;
 
@@ -126,14 +126,14 @@ public class BadApplePlayer {
         int blockSize = (int) (BLOCK_SIZE * scale);
 
         // Fill background black
-        g.setColor(mc.sayda.mcraze.Color.black);
+        g.setColor(mc.sayda.mcraze.graphics.Color.black);
         g.fillRect(0, 0, screenWidth, screenHeight);
 
         // Draw pixels as blocks
         for (int y = 0; y < data.height; y++) {
             for (int x = 0; x < data.width; x++) {
                 if (frame[y][x]) { // White pixel
-                    g.setColor(mc.sayda.mcraze.Color.white);
+                    g.setColor(mc.sayda.mcraze.graphics.Color.white);
                     int pixelX = offsetX + (x * blockSize);
                     int pixelY = offsetY + (y * blockSize);
                     g.fillRect(pixelX, pixelY, blockSize, blockSize);
@@ -142,14 +142,14 @@ public class BadApplePlayer {
         }
 
         // Draw progress bar at bottom
-        g.setColor(mc.sayda.mcraze.Color.gray);
+        g.setColor(mc.sayda.mcraze.graphics.Color.gray);
         int barWidth = screenWidth - 40;
         int barHeight = 4;
         int barX = 20;
         int barY = screenHeight - 30;
         g.fillRect(barX, barY, barWidth, barHeight);
 
-        g.setColor(mc.sayda.mcraze.Color.white);
+        g.setColor(mc.sayda.mcraze.graphics.Color.white);
         float progress = (float) currentFrame / data.frameCount;
         int progressWidth = (int) (barWidth * progress);
         g.fillRect(barX, barY, progressWidth, barHeight);

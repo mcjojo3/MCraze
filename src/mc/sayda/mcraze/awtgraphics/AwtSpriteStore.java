@@ -10,7 +10,7 @@ import java.net.URL;
 
 import javax.imageio.ImageIO;
 
-import mc.sayda.mcraze.Sprite;
+import mc.sayda.mcraze.graphics.Sprite;
 
 /**
  * A resource manager for sprites in the game. Its often quite important
@@ -23,7 +23,7 @@ import mc.sayda.mcraze.Sprite;
  * 
  * @author Kevin Glass
  */
-public class AwtSpriteStore extends mc.sayda.mcraze.SpriteStore {
+public class AwtSpriteStore extends mc.sayda.mcraze.graphics.SpriteStore {
 
 	@Override
 	public Sprite loadSprite(String ref) {

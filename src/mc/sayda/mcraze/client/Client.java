@@ -12,11 +12,12 @@
 
 package mc.sayda.mcraze.client;
 
-import mc.sayda.mcraze.Color;
+import mc.sayda.mcraze.graphics.Color;
+import mc.sayda.mcraze.player.specialization.ui.ClassSelectionUI;
 import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.Constants.TileID;
-import mc.sayda.mcraze.GraphicsHandler;
-import mc.sayda.mcraze.MusicPlayer;
+import mc.sayda.mcraze.graphics.GraphicsHandler;
+import mc.sayda.mcraze.audio.MusicPlayer;
 import mc.sayda.mcraze.logging.GameLogger;
 import mc.sayda.mcraze.network.ClientPacketHandler;
 import mc.sayda.mcraze.network.Connection;
@@ -24,17 +25,15 @@ import mc.sayda.mcraze.network.Packet;
 import mc.sayda.mcraze.network.packet.*;
 import mc.sayda.mcraze.server.Server;
 import mc.sayda.mcraze.state.GameState;
-import mc.sayda.mcraze.ui.Chat;
-import mc.sayda.mcraze.ui.CommandHandler;
-import mc.sayda.mcraze.ui.MainMenu;
-import mc.sayda.mcraze.ui.UIRenderer;
+import mc.sayda.mcraze.ui.screen.Chat;
+import mc.sayda.mcraze.ui.menu.MainMenu;
+import mc.sayda.mcraze.graphics.UIRenderer;
 import mc.sayda.mcraze.ui.view.InventoryView;
 import mc.sayda.mcraze.ui.view.ChestView;
 import mc.sayda.mcraze.ui.view.FurnaceView;
 import mc.sayda.mcraze.util.Int2;
 import mc.sayda.mcraze.util.StockMethods;
-import mc.sayda.mcraze.util.SystemTimer;
-import mc.sayda.mcraze.world.Biome;
+import mc.sayda.mcraze.world.gen.Biome;
 import java.util.Random;
 
 /**
@@ -55,7 +54,7 @@ public class Client implements ClientPacketHandler {
 	private int clientBreakingTicks = 0;
 	private int clientBreakingX = -1;
 	private int clientBreakingY = -1;
-	private mc.sayda.mcraze.Sprite[] breakingSprites;
+	private mc.sayda.mcraze.graphics.Sprite[] breakingSprites;
 
 	// Rendering
 	private UIRenderer uiRenderer;
@@ -86,19 +85,28 @@ public class Client implements ClientPacketHandler {
 	// UI (state-driven, no boolean flags)
 	public Chat chat;
 	private MainMenu menu;
-	private mc.sayda.mcraze.ui.PauseMenu pauseMenu;
-	private mc.sayda.mcraze.ui.SettingsMenu settingsMenu;
-	private mc.sayda.mcraze.ui.DebugOverlay debugOverlay;
-	private mc.sayda.mcraze.ui.LoadingScreen loadingScreen;
-	private mc.sayda.mcraze.ui.ChestUI chestUI;
-	private mc.sayda.mcraze.ui.FurnaceUI furnaceUI;
+	private mc.sayda.mcraze.ui.menu.PauseMenu pauseMenu;
+	private mc.sayda.mcraze.ui.menu.SettingsMenu settingsMenu;
+	private mc.sayda.mcraze.ui.screen.DebugOverlay debugOverlay;
+	private mc.sayda.mcraze.ui.screen.LoadingScreen loadingScreen;
+	private mc.sayda.mcraze.ui.container.ChestUI chestUI;
+	private mc.sayda.mcraze.ui.container.FurnaceUI furnaceUI;
 	private InventoryView inventoryView; // New declarative inventory view
 	private ChestView chestView; // New declarative chest view
 	private FurnaceView furnaceView; // New declarative furnace view
+	private ClassSelectionUI classSelectionUI;
+	private mc.sayda.mcraze.player.specialization.ui.SkillAssignmentUI skillAssignmentUI;
 	private boolean inSettingsMenu = false; // Settings is a substate of PAUSED (not in GameState enum)
 
 	// Audio
-	public MusicPlayer musicPlayer = new MusicPlayer("assets/sounds/music.ogg");
+	private MusicPlayer musicPlayer;
+
+	public MusicPlayer getMusicPlayer() {
+		return musicPlayer;
+	}
+
+	// Logging
+	private final GameLogger logger = GameLogger.get();
 
 	// Bad Apple easter egg
 	private mc.sayda.mcraze.ui.BadApplePlayer badApplePlayer;
@@ -106,7 +114,7 @@ public class Client implements ClientPacketHandler {
 	// Client state
 	private boolean running = true;
 	private String myPlayerUUID = null; // UUID of this client's player entity
-	private mc.sayda.mcraze.entity.Player cachedLocalPlayer = null; // Cached reference for multiplayer
+	private mc.sayda.mcraze.player.Player cachedLocalPlayer = null; // Cached reference for multiplayer
 
 	public Client(Connection connection, Server localServer) {
 		this.connection = connection;
@@ -114,8 +122,8 @@ public class Client implements ClientPacketHandler {
 
 		// Initialize systems (for integrated server)
 		// Load breaking animation sprites
-		final mc.sayda.mcraze.SpriteStore ss = mc.sayda.mcraze.SpriteStore.get();
-		breakingSprites = new mc.sayda.mcraze.Sprite[8];
+		final mc.sayda.mcraze.graphics.SpriteStore ss = mc.sayda.mcraze.graphics.SpriteStore.get();
+		breakingSprites = new mc.sayda.mcraze.graphics.Sprite[8];
 		for (int i = 0; i < 8; i++) {
 			breakingSprites[i] = ss.getSprite("assets/sprites/tiles/break" + i + ".png");
 		}
@@ -123,13 +131,14 @@ public class Client implements ClientPacketHandler {
 		// Initialize UI
 		uiRenderer = new UIRenderer();
 		chat = new Chat();
-		chestUI = new mc.sayda.mcraze.ui.ChestUI();
-		furnaceUI = new mc.sayda.mcraze.ui.FurnaceUI();
+		chestUI = new mc.sayda.mcraze.ui.container.ChestUI();
+		furnaceUI = new mc.sayda.mcraze.ui.container.FurnaceUI();
 		badApplePlayer = new mc.sayda.mcraze.ui.BadApplePlayer();
 		// Note: CommandHandler is created by Server after Client construction
 		menu = new MainMenu(null, uiRenderer); // Game reference set later via setGame()
 		pauseMenu = null; // Will be created when setGame() is called
-		loadingScreen = new mc.sayda.mcraze.ui.LoadingScreen();
+		loadingScreen = new mc.sayda.mcraze.ui.screen.LoadingScreen();
+		classSelectionUI = new ClassSelectionUI(null); // Game ref set later
 	}
 
 	/**
@@ -139,9 +148,15 @@ public class Client implements ClientPacketHandler {
 	public void setGame(mc.sayda.mcraze.Game game) {
 		this.game = game;
 		menu.setGame(game);
-		pauseMenu = new mc.sayda.mcraze.ui.PauseMenu(game, uiRenderer);
-		settingsMenu = new mc.sayda.mcraze.ui.SettingsMenu(game, uiRenderer, pauseMenu);
-		debugOverlay = new mc.sayda.mcraze.ui.DebugOverlay(game);
+		pauseMenu = new mc.sayda.mcraze.ui.menu.PauseMenu(game, uiRenderer);
+		settingsMenu = new mc.sayda.mcraze.ui.menu.SettingsMenu(game, uiRenderer, pauseMenu);
+		debugOverlay = new mc.sayda.mcraze.ui.screen.DebugOverlay(game);
+		classSelectionUI = new ClassSelectionUI(game);
+		skillAssignmentUI = new mc.sayda.mcraze.player.specialization.ui.SkillAssignmentUI(game);
+
+		// Initialize music player
+		musicPlayer = new MusicPlayer("");
+
 		// Initialize graphics handler now that we have the Game reference
 		GraphicsHandler.get().init(game);
 		applyOptions();
@@ -156,7 +171,6 @@ public class Client implements ClientPacketHandler {
 	private int lastTargetBlockY = -1;
 
 	public void render() {
-		GameLogger logger = GameLogger.get();
 
 		if (!running || localServer == null) {
 			if (logger != null)
@@ -186,7 +200,7 @@ public class Client implements ClientPacketHandler {
 			case LOGIN:
 				// Render login screen
 				if (game != null) {
-					mc.sayda.mcraze.ui.LoginScreen loginScreen = game.getLoginScreen();
+					mc.sayda.mcraze.ui.menu.LoginScreen loginScreen = game.getLoginScreen();
 					if (loginScreen != null) {
 						loginScreen.draw(g);
 
@@ -239,7 +253,7 @@ public class Client implements ClientPacketHandler {
 			badApplePlayer.render(screenWidth, screenHeight);
 
 			// Draw "Press ESC to exit" hint
-			g.setColor(mc.sayda.mcraze.Color.white);
+			g.setColor(mc.sayda.mcraze.graphics.Color.white);
 			String hint = "Press ESC to exit";
 			int hintWidth = g.getStringWidth(hint);
 			g.drawString(hint, (screenWidth - hintWidth) / 2, 20);
@@ -249,7 +263,7 @@ public class Client implements ClientPacketHandler {
 		}
 
 		// From here on, we need the player for gameplay
-		mc.sayda.mcraze.entity.Player player = getLocalPlayer();
+		mc.sayda.mcraze.player.Player player = getLocalPlayer();
 		if (player == null) {
 			if (logger != null)
 				logger.warn("Client.render: Player is null, skipping gameplay render");
@@ -301,7 +315,7 @@ public class Client implements ClientPacketHandler {
 
 		// Render world - thread-safe using WorldAccess
 		if (localServer.world != null) {
-			mc.sayda.mcraze.world.WorldAccess worldAccess = localServer.getWorldAccess();
+			mc.sayda.mcraze.world.storage.WorldAccess worldAccess = localServer.getWorldAccess();
 			if (worldAccess != null) {
 				// Use renderWithLock to ensure consistent view during rendering
 				final float finalCameraX = cameraX;
@@ -333,8 +347,8 @@ public class Client implements ClientPacketHandler {
 				entity.draw(g, cameraX, cameraY, screenWidth, screenHeight, effectiveTileSize);
 
 				// Draw username above player heads
-				if (entity instanceof mc.sayda.mcraze.entity.Player) {
-					mc.sayda.mcraze.entity.Player entityPlayer = (mc.sayda.mcraze.entity.Player) entity;
+				if (entity instanceof mc.sayda.mcraze.player.Player) {
+					mc.sayda.mcraze.player.Player entityPlayer = (mc.sayda.mcraze.player.Player) entity;
 					if (entityPlayer.username != null && !entityPlayer.username.isEmpty()) {
 						// Calculate screen position above player's head
 						mc.sayda.mcraze.util.Int2 pos = mc.sayda.mcraze.util.StockMethods.computeDrawLocationInPlace(
@@ -345,7 +359,7 @@ public class Client implements ClientPacketHandler {
 							int textWidth = g.getStringWidth(entityPlayer.username);
 							int textX = pos.x + (entity.widthPX / 2) - (textWidth / 2);
 							int textY = pos.y - 8;
-							g.setColor(mc.sayda.mcraze.Color.white);
+							g.setColor(mc.sayda.mcraze.graphics.Color.white);
 							g.drawString(entityPlayer.username, textX, textY);
 						}
 					}
@@ -368,10 +382,11 @@ public class Client implements ClientPacketHandler {
 		if (chestUI != null && chestUI.isVisible()) {
 			chestFocus = chestUI.update(screenWidth, screenHeight, screenMousePos,
 					justPressedLeft && !chatOpen && canProcessUIClicks,
-					justPressedRight && !chatOpen && canProcessUIClicks, connection);
+					justPressedRight && !chatOpen && canProcessUIClicks,
+					leftClick && !chatOpen, // Removed grace period from held state
+					rightClick && !chatOpen, // Removed grace period from held state
+					connection, isShiftPressed());
 			if (chestFocus) {
-				leftClick = false;
-				rightClick = false;
 				// If UI handled the click, consume the "just pressed" state too so we don't
 				// double proc
 				justPressedLeft = false;
@@ -383,11 +398,12 @@ public class Client implements ClientPacketHandler {
 		boolean furnaceFocus = false;
 		if (furnaceUI != null && furnaceUI.isVisible()) {
 			furnaceFocus = furnaceUI.update(screenWidth, screenHeight, screenMousePos,
-					justPressedLeft && !chatOpen,
-					justPressedRight && !chatOpen, connection);
+					justPressedLeft && !chatOpen && canProcessUIClicks,
+					justPressedRight && !chatOpen && canProcessUIClicks,
+					leftClick && !chatOpen, // Removed grace period from held state
+					rightClick && !chatOpen, // Removed grace period from held state
+					connection, isShiftPressed());
 			if (furnaceFocus) {
-				leftClick = false;
-				rightClick = false;
 				justPressedLeft = false;
 				justPressedRight = false;
 			}
@@ -402,20 +418,34 @@ public class Client implements ClientPacketHandler {
 					(furnaceUI != null && furnaceUI.isVisible());
 			if (!containerOpen) {
 				inventoryFocus = player.inventory.updateInventory(screenWidth, screenHeight,
-						screenMousePos, justPressedLeft && !chatOpen && canProcessUIClicks,
-						justPressedRight && !chatOpen && canProcessUIClicks, connection);
+						screenMousePos,
+						justPressedLeft && !chatOpen && canProcessUIClicks,
+						justPressedRight && !chatOpen && canProcessUIClicks,
+						leftClick && !chatOpen, // Removed grace period from held state
+						rightClick && !chatOpen, // Removed grace period from held state
+						connection, isShiftPressed());
 			}
 		}
-		if (inventoryFocus || chatOpen) {
-			leftClick = false;
-			rightClick = false;
-		}
+		// CRITICAL FIX: Do NOT reset leftClick/rightClick here!
+		// Resetting them causes 'wasLeftClick' to be false in the next frame,
+		// making every frame look like a NEW click ("justPressed").
+		// This breaks drag operations which rely on "Held" state.
+		/*
+		 * if (inventoryFocus || chatOpen) {
+		 * leftClick = false;
+		 * rightClick = false;
+		 * }
+		 */
 
 		// Handle block interactions (not if chest or furnace is open)
 		// Always use packet-based communication with server (integrated or remote)
 		// This ensures identical behavior in singleplayer and multiplayer
 
-		if (justPressedLeft && connection != null && !chestFocus && !furnaceFocus) {
+		if (justPressedLeft && connection != null && !chestFocus && !furnaceFocus && !inventoryFocus && !chatOpen
+				&& !isClassSelectionUIOpen())
+
+		{
+
 			// Check if clicking on an entity first
 			boolean attackedEntity = false;
 			String clickedEntityUUID = getEntityUUIDAtMouse();
@@ -434,7 +464,8 @@ public class Client implements ClientPacketHandler {
 				// No client-side tracking needed - eliminates duplicate state and visual jitter
 				lastBreakPacketTime = currentTime;
 			}
-		} else if (leftClick && connection != null && !chestFocus && !furnaceFocus) {
+		} else if (leftClick && connection != null && !chestFocus && !furnaceFocus && !inventoryFocus && !chatOpen
+				&& !isClassSelectionUIOpen()) {
 			// CRITICAL FIX: Continuous breaking for VNC/High Latency
 			// Send "break" packet periodically while holding button to prevent server
 			// timeout
@@ -467,7 +498,8 @@ public class Client implements ClientPacketHandler {
 		wasLeftClick = leftClick;
 		wasRightClick = rightClick;
 
-		if (rightClick && connection != null && !chestFocus && !furnaceFocus) {
+		if (rightClick && connection != null && !chestFocus && !furnaceFocus && !inventoryFocus && !chatOpen
+				&& !isClassSelectionUIOpen()) {
 			if (currentTime - lastRightClickTime >= INTERACT_COOLDOWN_MS) {
 				lastRightClickTime = currentTime;
 				sendBlockChangePacket(false);
@@ -475,8 +507,8 @@ public class Client implements ClientPacketHandler {
 		}
 
 		// Render breaking animation overlay
-		if (clientBreakingTicks > 0 && clientBreakingX != -1 && clientBreakingY != -1 &&
-				player.inventory != null && player.inventory.inventoryItems != null) {
+		if (clientBreakingTicks > 0 && clientBreakingX != -1 && clientBreakingY != -1 && player.inventory != null
+				&& player.inventory.inventoryItems != null) {
 			mc.sayda.mcraze.item.Item currentItem = player.inventory.selectedItem().getItem();
 			int ticksNeeded = localServer.world.breakTicks(clientBreakingX, clientBreakingY, currentItem);
 			int spriteIndex = (int) (Math.min(1.0, (double) clientBreakingTicks / ticksNeeded)
@@ -490,7 +522,8 @@ public class Client implements ClientPacketHandler {
 
 		// Calculate frame delta for FPS display (always, not just when viewFPS is true)
 		long currentNanoTime = System.nanoTime();
-		frameDeltaMs = (currentNanoTime - lastFrameTime) / 1_000_000; // Convert to milliseconds
+		frameDeltaMs = (currentNanoTime - lastFrameTime) / 1_000_000; // Convert to
+																		// milliseconds
 		lastFrameTime = currentNanoTime;
 
 		// Render UI
@@ -570,14 +603,24 @@ public class Client implements ClientPacketHandler {
 			debugOverlay.draw(g, this, localServer);
 		}
 
-		// Mouse cursor
-		Int2 mouseTest = StockMethods.computeDrawLocationInPlace(cameraX, cameraY, effectiveTileSize,
-				effectiveTileSize, effectiveTileSize, worldMouseX, worldMouseY);
-		uiRenderer.drawMouse(g, mouseTest);
-
 		// Health and air
 		uiRenderer.drawHealthBar(g, player, screenWidth, screenHeight);
 		uiRenderer.drawAirBubbles(g, player, localServer.world, effectiveTileSize, screenWidth, screenHeight);
+
+		// Class Selection UI (drawn over everything except mouse cursor)
+		if (classSelectionUI != null && classSelectionUI.isVisible()) {
+			classSelectionUI.draw(g);
+		}
+
+		// Skill Assignment UI (drawn over everything)
+		if (skillAssignmentUI != null && skillAssignmentUI.isVisible()) {
+			skillAssignmentUI.draw(g);
+		}
+
+		// Mouse cursor (drawn LAST, over all UI overlays)
+		Int2 mouseTest = StockMethods.computeDrawLocationInPlace(cameraX, cameraY, effectiveTileSize,
+				effectiveTileSize, effectiveTileSize, worldMouseX, worldMouseY);
+		uiRenderer.drawMouse(g, mouseTest);
 
 		g.finishDrawing();
 	}
@@ -600,12 +643,12 @@ public class Client implements ClientPacketHandler {
 		// CRITICAL FIX: Convert screen coordinates to world coordinates
 		// PacketPlayerInput expects WORLD coordinates (floats), not screen pixels
 		int effectiveTileSize = getEffectiveTileSize();
-		mc.sayda.mcraze.GraphicsHandler g = mc.sayda.mcraze.GraphicsHandler.get();
+		mc.sayda.mcraze.graphics.GraphicsHandler g = mc.sayda.mcraze.graphics.GraphicsHandler.get();
 		int screenWidth = g.getScreenWidth();
 		int screenHeight = g.getScreenHeight();
 
 		// Calculate camera position (same as render)
-		mc.sayda.mcraze.entity.Player localPlayer = getLocalPlayer();
+		mc.sayda.mcraze.player.Player localPlayer = getLocalPlayer();
 		float cameraX = localPlayer.x - screenWidth / effectiveTileSize / 2f;
 		float cameraY = localPlayer.y - screenHeight / effectiveTileSize / 2f;
 
@@ -625,12 +668,12 @@ public class Client implements ClientPacketHandler {
 		if (localServer == null || localServer.entities == null)
 			return;
 
-		mc.sayda.mcraze.entity.Player p = getLocalPlayer();
+		mc.sayda.mcraze.player.Player p = getLocalPlayer();
 		if (p == null)
 			return;
 
 		int effectiveTileSize = getEffectiveTileSize();
-		mc.sayda.mcraze.GraphicsHandler g = mc.sayda.mcraze.GraphicsHandler.get();
+		mc.sayda.mcraze.graphics.GraphicsHandler g = mc.sayda.mcraze.graphics.GraphicsHandler.get();
 		int screenWidth = g.getScreenWidth();
 		int screenHeight = g.getScreenHeight();
 
@@ -675,18 +718,11 @@ public class Client implements ClientPacketHandler {
 	}
 
 	/**
-	 * Check if we're in multiplayer mode (no integrated server in Game)
-	 */
-	private boolean isMultiplayerMode() {
-		return game != null && game.getServer() == null;
-	}
-
-	/**
 	 * Send block change packet to server (works for both integrated and remote
 	 * servers)
 	 */
 	private void sendBlockChangePacket(boolean isBreak) {
-		mc.sayda.mcraze.entity.Player player = getLocalPlayer();
+		mc.sayda.mcraze.player.Player player = getLocalPlayer();
 		if (player == null || connection == null) {
 			return;
 		}
@@ -706,7 +742,7 @@ public class Client implements ClientPacketHandler {
 			// Workbench, Chest)
 			// Instead of sending a Place/Change packet, send a dedicated INTERACT packet
 			if (localServer != null && localServer.world != null) {
-				mc.sayda.mcraze.world.Tile targetTile = localServer.world.getTile(targetX, targetY);
+				mc.sayda.mcraze.world.tile.Tile targetTile = localServer.world.getTile(targetX, targetY);
 				if (targetTile != null && targetTile.type != null) {
 					mc.sayda.mcraze.Constants.TileID type = targetTile.type.name;
 
@@ -771,7 +807,6 @@ public class Client implements ClientPacketHandler {
 	private int worldInitTotalPackets = 0; // Track total packets expected for progress calculation
 
 	public void processPackets() {
-		GameLogger logger = GameLogger.get();
 		Packet[] packets = connection.receivePackets();
 		if (logger != null && packets.length > 0) {
 			logger.debug("Client.processPackets: Received " + packets.length + " packets");
@@ -783,7 +818,6 @@ public class Client implements ClientPacketHandler {
 		// receivingPackets() clears the queue, so any skipped packets here are lost
 		// forever.
 
-		int packetsProcessed = 0;
 		for (Packet packet : packets) {
 			// No limit check here - process everything we received
 
@@ -836,11 +870,9 @@ public class Client implements ClientPacketHandler {
 					if (logger != null)
 						logger.warn("Client received non-ServerPacket: " + packet.getClass().getSimpleName());
 				}
-				packetsProcessed++;
 			} catch (Exception e) {
 				if (logger != null)
 					logger.error("Client.processPackets: Exception in " + packet.getClass().getSimpleName(), e);
-				packetsProcessed++;
 			}
 		}
 	}
@@ -874,14 +906,14 @@ public class Client implements ClientPacketHandler {
 		}
 
 		// Convert screen coordinates to world coordinates
-		mc.sayda.mcraze.entity.Player player = getLocalPlayer();
+		mc.sayda.mcraze.player.Player player = getLocalPlayer();
 		if (player == null) {
 			return null;
 		}
 
 		int effectiveTileSize = getEffectiveTileSize();
-		int screenWidth = mc.sayda.mcraze.GraphicsHandler.get().getScreenWidth();
-		int screenHeight = mc.sayda.mcraze.GraphicsHandler.get().getScreenHeight();
+		int screenWidth = mc.sayda.mcraze.graphics.GraphicsHandler.get().getScreenWidth();
+		int screenHeight = mc.sayda.mcraze.graphics.GraphicsHandler.get().getScreenHeight();
 
 		// Calculate camera position (same as rendering)
 		float cameraX = player.x - screenWidth / effectiveTileSize / 2;
@@ -929,6 +961,23 @@ public class Client implements ClientPacketHandler {
 		screenMousePos.y = y;
 	}
 
+	/**
+	 * Check if shift key is currently pressed (for inventory QoL features)
+	 */
+	private boolean isShiftPressed() {
+		if (game == null)
+			return false;
+		GraphicsHandler graphicsHandler = GraphicsHandler.get();
+		if (graphicsHandler instanceof mc.sayda.mcraze.awtgraphics.AwtGraphicsHandler) {
+			mc.sayda.mcraze.awtgraphics.AwtGraphicsHandler awtHandler = (mc.sayda.mcraze.awtgraphics.AwtGraphicsHandler) graphicsHandler;
+			mc.sayda.mcraze.awtgraphics.AwtEventsHandler eventsHandler = awtHandler.getEventsHandler();
+			if (eventsHandler != null) {
+				return eventsHandler.isShiftPressed();
+			}
+		}
+		return false;
+	}
+
 	public void setLeftClick(boolean pressed) {
 		leftClick = pressed;
 	}
@@ -942,7 +991,7 @@ public class Client implements ClientPacketHandler {
 	 */
 	public void zoomIn() {
 		zoomLevel = Math.min(MAX_ZOOM, zoomLevel * 1.25f);
-		GameLogger.get().info("Zoom: " + String.format("%.2f", zoomLevel) + "x");
+		logger.info("Zoom: " + String.format("%.2f", zoomLevel) + "x");
 	}
 
 	/**
@@ -950,7 +999,7 @@ public class Client implements ClientPacketHandler {
 	 */
 	public void zoomOut() {
 		zoomLevel = Math.max(MIN_ZOOM, zoomLevel / 1.25f);
-		GameLogger.get().info("Zoom: " + String.format("%.2f", zoomLevel) + "x");
+		logger.info("Zoom: " + String.format("%.2f", zoomLevel) + "x");
 	}
 
 	/**
@@ -958,7 +1007,7 @@ public class Client implements ClientPacketHandler {
 	 */
 	public void resetZoom() {
 		zoomLevel = 1.0f;
-		GameLogger.get().info("Zoom reset to 1.0x");
+		logger.info("Zoom reset to 1.0x");
 	}
 
 	/**
@@ -968,7 +1017,7 @@ public class Client implements ClientPacketHandler {
 		return (int) (tileSize * zoomLevel);
 	}
 
-	public mc.sayda.mcraze.ui.DebugOverlay getDebugOverlay() {
+	public mc.sayda.mcraze.ui.screen.DebugOverlay getDebugOverlay() {
 		return debugOverlay;
 	}
 
@@ -981,7 +1030,6 @@ public class Client implements ClientPacketHandler {
 	 * Switch to multiplayer mode (reuse existing window/graphics)
 	 */
 	public void switchToMultiplayer(Connection newConnection, Server newLocalServer) {
-		GameLogger logger = GameLogger.get();
 
 		if (logger != null) {
 			logger.info("Client: Switching to multiplayer mode");
@@ -1231,7 +1279,7 @@ public class Client implements ClientPacketHandler {
 	/**
 	 * Get the local player entity (works in both singleplayer and multiplayer)
 	 */
-	public mc.sayda.mcraze.entity.Player getLocalPlayer() {
+	public mc.sayda.mcraze.player.Player getLocalPlayer() {
 		// Always find player by UUID (works for both integrated and dedicated servers)
 		// This ensures each client gets their own player entity, not the host's player
 
@@ -1250,10 +1298,10 @@ public class Client implements ClientPacketHandler {
 		// Search entities for our player
 		if (localServer != null && localServer.entities != null) {
 			for (mc.sayda.mcraze.entity.Entity e : localServer.entities) {
-				if (e instanceof mc.sayda.mcraze.entity.Player &&
+				if (e instanceof mc.sayda.mcraze.player.Player &&
 						e.getUUID() != null &&
 						e.getUUID().equals(myPlayerUUID)) {
-					cachedLocalPlayer = (mc.sayda.mcraze.entity.Player) e;
+					cachedLocalPlayer = (mc.sayda.mcraze.player.Player) e;
 					return cachedLocalPlayer;
 				}
 			}
@@ -1278,8 +1326,8 @@ public class Client implements ClientPacketHandler {
 					if (e != null)
 						uuids.append(e.getUUID()).append(",");
 				}
-				if (GameLogger.get() != null)
-					GameLogger.get()
+				if (logger != null)
+					logger
 							.warn("Client.getLocalPlayer: Player not found! My UUID: " + myPlayerUUID + ". Entities: "
 									+ uuids.toString());
 			}
@@ -1296,7 +1344,6 @@ public class Client implements ClientPacketHandler {
 
 	@Override
 	public void handleWorldInit(PacketWorldInit packet) {
-		GameLogger logger = GameLogger.get();
 
 		if (logger != null) {
 			logger.info("Client: Received PacketWorldInit - dimensions: " + packet.worldWidth + "x" + packet.worldHeight
@@ -1383,7 +1430,6 @@ public class Client implements ClientPacketHandler {
 
 	@Override
 	public void handleWorldUpdate(PacketWorldUpdate packet) {
-		GameLogger logger = GameLogger.get();
 
 		if (localServer == null) {
 			if (logger != null)
@@ -1393,7 +1439,7 @@ public class Client implements ClientPacketHandler {
 
 		// Use WorldAccess for thread-safe updates (prevents race conditions with
 		// rendering)
-		mc.sayda.mcraze.world.WorldAccess worldAccess = localServer.getWorldAccess();
+		mc.sayda.mcraze.world.storage.WorldAccess worldAccess = localServer.getWorldAccess();
 		if (worldAccess == null) {
 			// Fallback to direct update (backward compatibility)
 			if (localServer.world != null) {
@@ -1446,7 +1492,6 @@ public class Client implements ClientPacketHandler {
 
 	@Override
 	public void handleEntityUpdate(PacketEntityUpdate packet) {
-		GameLogger logger = GameLogger.get();
 
 		// Update entity positions from server
 		if (localServer == null || packet.entityIds == null) {
@@ -1455,24 +1500,30 @@ public class Client implements ClientPacketHandler {
 			return;
 		}
 
-		// PERF: Reused collections to avoid allocation churn
+		// PERFORMANCE FIX: Maintain persistent UUID map instead of rebuilding every
+		// packet
+		// This eliminates 1,080 HashMap put operations/sec and reduces GC pressure
 		if (reusableEntityMap == null) {
 			reusableEntityMap = new java.util.HashMap<>();
-		} else {
-			reusableEntityMap.clear();
 		}
 
-		for (mc.sayda.mcraze.entity.Entity e : localServer.entities) {
-			if (e != null && e.getUUID() != null) {
-				reusableEntityMap.put(e.getUUID(), e);
+		// Track which entity UUIDs are in this packet
+		java.util.Set<String> packetUUIDs = new java.util.HashSet<>(packet.entityIds.length);
+		for (int i = 0; i < packet.entityIds.length; i++) {
+			packetUUIDs.add(packet.entityUUIDs[i]);
+		}
+
+		// Remove entities that are no longer in the packet
+		java.util.Iterator<mc.sayda.mcraze.entity.Entity> iterator = localServer.entities.iterator();
+		while (iterator.hasNext()) {
+			mc.sayda.mcraze.entity.Entity entity = iterator.next();
+			if (entity != null && entity.getUUID() != null && !packetUUIDs.contains(entity.getUUID())) {
+				iterator.remove();
+				reusableEntityMap.remove(entity.getUUID());
 			}
 		}
 
-		// List to store the current entities in the order provided by the packet
-		java.util.List<mc.sayda.mcraze.entity.Entity> updatedEntities = new java.util.ArrayList<>(
-				packet.entityIds.length);
-
-		// Update entity positions and velocities
+		// Update or create entities from packet (in-place updates)
 		for (int i = 0; i < packet.entityIds.length; i++) {
 			String entityUUID = packet.entityUUIDs[i];
 			mc.sayda.mcraze.entity.Entity entity = reusableEntityMap.get(entityUUID);
@@ -1500,24 +1551,43 @@ public class Client implements ClientPacketHandler {
 					}
 					// Fallback for failed item creation
 					if (entity == null) {
-						entity = new mc.sayda.mcraze.entity.Player(true, packet.entityX[i], packet.entityY[i], 28, 56);
+						entity = new mc.sayda.mcraze.player.Player(true, packet.entityX[i], packet.entityY[i], 28, 56);
 					}
 				} else if ("Sheep".equals(entityType) || "EntitySheep".equals(entityType)) {
 					// Create Sheep entity
-					entity = new mc.sayda.mcraze.entity.EntitySheep(packet.entityX[i], packet.entityY[i]);
+					entity = new mc.sayda.mcraze.entity.mob.EntitySheep(packet.entityX[i], packet.entityY[i]);
 					if (logger != null) {
 						logger.debug("Client: Created Sheep entity (UUID: " + entityUUID + ")");
 					}
+				} else if ("EntityWolf".equals(entityType) || "Wolf".equals(entityType)) {
+					// Create Wolf entity
+					entity = new mc.sayda.mcraze.entity.mob.EntityWolf(true, packet.entityX[i], packet.entityY[i], 32,
+							32);
+					if (logger != null) {
+						logger.debug("Client: Created Wolf entity (UUID: " + entityUUID + ")");
+					}
+				} else if ("Pig".equals(entityType) || "EntityPig".equals(entityType)) {
+					// Create Pig entity
+					entity = new mc.sayda.mcraze.entity.mob.EntityPig(packet.entityX[i], packet.entityY[i]);
+					if (logger != null) {
+						logger.debug("Client: Created Pig entity (UUID: " + entityUUID + ")");
+					}
+				} else if ("Cow".equals(entityType) || "EntityCow".equals(entityType)) {
+					// Create Cow entity
+					entity = new mc.sayda.mcraze.entity.mob.EntityCow(packet.entityX[i], packet.entityY[i]);
+					if (logger != null) {
+						logger.debug("Client: Created Cow entity (UUID: " + entityUUID + ")");
+					}
 				} else if ("EntityZombie".equals(entityType) || "Zombie".equals(entityType)) {
 					// Create Zombie entity
-					entity = new mc.sayda.mcraze.entity.EntityZombie(true, packet.entityX[i], packet.entityY[i], 28,
+					entity = new mc.sayda.mcraze.entity.mob.EntityZombie(true, packet.entityX[i], packet.entityY[i], 28,
 							56);
 					if (logger != null) {
 						logger.debug("Client: Created Zombie entity (UUID: " + entityUUID + ")");
 					}
 				} else {
 					// Create Player entity
-					entity = new mc.sayda.mcraze.entity.Player(
+					entity = new mc.sayda.mcraze.player.Player(
 							true,
 							packet.entityX[i],
 							packet.entityY[i],
@@ -1526,7 +1596,7 @@ public class Client implements ClientPacketHandler {
 					);
 					// Set player username
 					if (packet.playerNames != null && i < packet.playerNames.length && packet.playerNames[i] != null) {
-						((mc.sayda.mcraze.entity.Player) entity).username = packet.playerNames[i];
+						((mc.sayda.mcraze.player.Player) entity).username = packet.playerNames[i];
 					}
 				}
 
@@ -1536,17 +1606,24 @@ public class Client implements ClientPacketHandler {
 				}
 			}
 
-			if (entity == null)
-				continue;
-
 			// Assign player by UUID match
 			if (entityUUID != null && entityUUID.equals(myPlayerUUID)) {
-				if (entity instanceof mc.sayda.mcraze.entity.Player) {
-					if (localServer.player == null || localServer.player != entity) {
-						localServer.player = (mc.sayda.mcraze.entity.Player) entity;
+				if (entity instanceof mc.sayda.mcraze.player.Player) {
+					// CRITICAL FIX: In integrated server mode, localServer.player is already
+					// the authoritative server-side player (set by Server.startGame).
+					// Do NOT replace it with a client-side entity copy - that causes desync
+					// (e.g., /class reset modifies the server player but we'd be reading the client
+					// copy).
+					// Only assign if localServer.player is null (initial connection).
+					if (localServer.player == null) {
+						localServer.player = (mc.sayda.mcraze.player.Player) entity;
 						if (logger != null) {
 							logger.info("Client: localServer.player assigned! (UUID: " + myPlayerUUID + ")");
 						}
+					} else if (localServer.player != entity) {
+						// Already have the correct player - use it instead of the entity from packet
+						// This ensures we don't create duplicate player objects
+						entity = localServer.player;
 					}
 				}
 			}
@@ -1591,8 +1668,8 @@ public class Client implements ClientPacketHandler {
 				le.speedMultiplier = packet.speedMultiplier[i];
 			}
 
-			if (entity instanceof mc.sayda.mcraze.entity.Player) {
-				mc.sayda.mcraze.entity.Player p = (mc.sayda.mcraze.entity.Player) entity;
+			if (entity instanceof mc.sayda.mcraze.player.Player) {
+				mc.sayda.mcraze.player.Player p = (mc.sayda.mcraze.player.Player) entity;
 				p.backdropPlacementMode = packet.backdropPlacementMode[i];
 				p.handTargetPos.x = packet.handTargetX[i];
 				p.handTargetPos.y = packet.handTargetY[i];
@@ -1615,24 +1692,24 @@ public class Client implements ClientPacketHandler {
 				}
 			}
 
-			updatedEntities.add(entity);
+			// If entity was newly created, add to map and list
+			// (Existing entities are already in the map from previous packets)
+			if (!reusableEntityMap.containsKey(entityUUID)) {
+				reusableEntityMap.put(entityUUID, entity);
+				localServer.entities.add(entity);
+			}
 		}
-
-		// Update entities list safely
-		localServer.entities.clear();
-		localServer.entities.addAll(updatedEntities);
 
 		if (logger != null)
 
 		{
-			logger.debug("Client.handleEntityUpdate: " + updatedEntities.size() + " entities synced (player="
+			logger.debug("Client.handleEntityUpdate: " + localServer.entities.size() + " entities synced (player="
 					+ (localServer.player != null ? "SET" : "NULL") + ")");
 		}
 	}
 
 	@Override
 	public void handleEntityRemove(mc.sayda.mcraze.network.packet.PacketEntityRemove packet) {
-		GameLogger logger = GameLogger.get();
 
 		if (localServer == null || localServer.entities == null) {
 			if (logger != null)
@@ -1655,11 +1732,10 @@ public class Client implements ClientPacketHandler {
 
 	@Override
 	public void handleInventoryUpdate(PacketInventoryUpdate packet) {
-		GameLogger logger = GameLogger.get();
 
 		// Update UI open time if inventory visibility changed to true
 		// (This covers both 'E' key and server-forced opens like workbenches)
-		mc.sayda.mcraze.entity.Player player = getLocalPlayer();
+		mc.sayda.mcraze.player.Player player = getLocalPlayer();
 		if (player != null && player.inventory != null) {
 			if (!player.inventory.isVisible() && packet.visible) {
 				uiOpenTime = System.currentTimeMillis();
@@ -1684,7 +1760,7 @@ public class Client implements ClientPacketHandler {
 			return;
 		}
 
-		mc.sayda.mcraze.ui.Inventory inv = player.inventory;
+		mc.sayda.mcraze.player.Inventory inv = player.inventory;
 
 		// Defensive null checks for inventoryItems array (can be null during
 		// initialization)
@@ -1817,18 +1893,17 @@ public class Client implements ClientPacketHandler {
 	@Override
 	public void handlePlayerDeath(PacketPlayerDeath packet) {
 		// Immediate death synchronization from server
-		mc.sayda.mcraze.entity.Player player = getLocalPlayer();
+		mc.sayda.mcraze.player.Player player = getLocalPlayer();
 		if (player != null) {
 			player.dead = true;
 			player.hitPoints = 0;
-			System.out.println("CLIENT: Player death received from server");
+			// Player death packet received
 		}
 	}
 
 	@Override
 	public void handlePlayerRespawn(mc.sayda.mcraze.network.packet.PacketPlayerRespawn packet) {
-		GameLogger logger = GameLogger.get();
-		mc.sayda.mcraze.entity.Player localPlayer = getLocalPlayer();
+		mc.sayda.mcraze.player.Player localPlayer = getLocalPlayer();
 
 		// Case 1: Local Player Respawned
 		if (localPlayer != null && packet.playerUUID.equals(localPlayer.getUUID())) {
@@ -1880,18 +1955,18 @@ public class Client implements ClientPacketHandler {
 
 	@Override
 	public void handleAuthResponse(PacketAuthResponse packet) {
-		GameLogger logger = GameLogger.get();
 		if (logger != null) {
 			logger.info("Client: Received authentication response - success=" + packet.success);
 		}
 
 		if (packet.success) {
 			// Authentication successful - continue with world init
-			System.out.println("Authentication successful");
+			// Authentication successful
 			// World init will be sent by server automatically
 		} else {
 			// Authentication failed - show error and disconnect
-			System.err.println("Authentication failed: " + packet.message);
+			if (logger != null)
+				logger.error("Authentication failed: " + packet.message);
 			// Disconnect from server
 			connection.disconnect();
 			hideLoadingScreen();
@@ -1904,7 +1979,6 @@ public class Client implements ClientPacketHandler {
 
 	@Override
 	public void handleBiomeData(PacketBiomeData packet) {
-		GameLogger logger = GameLogger.get();
 		if (logger != null) {
 			logger.info("Client: Received PacketBiomeData with " +
 					(packet.biomeIndices != null ? packet.biomeIndices.length : 0) + " biomes");
@@ -1944,8 +2018,6 @@ public class Client implements ClientPacketHandler {
 		// NEW - Batch backdrop handler (reduces join lag from 2-5 seconds to <500ms)
 		if (localServer == null || localServer.world == null)
 			return;
-
-		GameLogger logger = GameLogger.get();
 		if (logger != null && logger.isDebugEnabled()) {
 			logger.debug("Client.handleBackdropBatch: Processing " +
 					(packet.x != null ? packet.x.length : 0) + " backdrop tiles");
@@ -1968,7 +2040,6 @@ public class Client implements ClientPacketHandler {
 
 	@Override
 	public void handleChestOpen(PacketChestOpen packet) {
-		GameLogger logger = GameLogger.get();
 		uiOpenTime = System.currentTimeMillis(); // Set cooldown when opening UI
 
 		if (chestUI == null || localServer == null || localServer.player == null) {
@@ -1979,7 +2050,7 @@ public class Client implements ClientPacketHandler {
 
 		// CRITICAL FIX: Ignore chest packets not consistent with our player UUID
 		// (Prevents "all players open chest" bug when server broadcasts packet)
-		mc.sayda.mcraze.entity.Player player = getLocalPlayer();
+		mc.sayda.mcraze.player.Player player = getLocalPlayer();
 		if (player == null)
 			return;
 
@@ -2044,8 +2115,10 @@ public class Client implements ClientPacketHandler {
 
 	@Override
 	public void handleFurnaceOpen(PacketFurnaceOpen packet) {
-		GameLogger logger = GameLogger.get();
-		uiOpenTime = System.currentTimeMillis();
+		// Only set grace period when first opening, not on sync updates
+		if (furnaceUI == null || !furnaceUI.isVisible()) {
+			uiOpenTime = System.currentTimeMillis();
+		}
 
 		if (furnaceUI == null || localServer == null || localServer.player == null) {
 			if (logger != null)
@@ -2054,7 +2127,7 @@ public class Client implements ClientPacketHandler {
 		}
 
 		// Check player UUID match
-		mc.sayda.mcraze.entity.Player player = getLocalPlayer();
+		mc.sayda.mcraze.player.Player player = getLocalPlayer();
 		if (player == null)
 			return;
 
@@ -2111,13 +2184,12 @@ public class Client implements ClientPacketHandler {
 
 		// Open the furnace UI if not already open
 		if (!furnaceUI.isVisible()) {
-			furnaceUI.open(localServer.player.inventory, packet.furnaceX, packet.furnaceY);
+			furnaceUI.open(player.inventory, packet.furnaceX, packet.furnaceY);
 		}
 	}
 
 	@Override
 	public void handleGameruleUpdate(PacketGameruleUpdate packet) {
-		GameLogger logger = GameLogger.get();
 
 		if (localServer != null && localServer.world != null) {
 			localServer.world.spelunking = packet.spelunking;
@@ -2141,7 +2213,7 @@ public class Client implements ClientPacketHandler {
 		long rtt = now - packet.timestamp;
 
 		// Display ping result in chat
-		chat.addMessage("Pong! Latency: " + rtt + "ms", mc.sayda.mcraze.Color.orange);
+		chat.addMessage("Pong! Latency: " + rtt + "ms", mc.sayda.mcraze.graphics.Color.orange);
 	}
 
 	/**
@@ -2191,7 +2263,10 @@ public class Client implements ClientPacketHandler {
 		if (!path.contains("/")) {
 			path = "assets/sounds/" + path;
 		}
-		mc.sayda.mcraze.SoundManager.playSound(path, packet.volume);
+		// Apply SFX volume from settings (multiply packet volume by saved SFX volume)
+		float sfxVolume = mc.sayda.mcraze.util.OptionsManager.get().getSfxVolume();
+		float finalVolume = packet.volume * sfxVolume;
+		mc.sayda.mcraze.audio.SoundManager.playSound(path, finalVolume);
 	}
 
 	/**
@@ -2214,5 +2289,39 @@ public class Client implements ClientPacketHandler {
 
 	public boolean isShowingFPS() {
 		return mc.sayda.mcraze.util.OptionsManager.get().isShowFPS();
+	}
+
+	public ClassSelectionUI getClassSelectionUI() {
+		return classSelectionUI;
+	}
+
+	public boolean isClassSelectionUIOpen() {
+		return classSelectionUI != null && classSelectionUI.isVisible();
+	}
+
+	public void closeClassSelectionUI() {
+		if (classSelectionUI != null) {
+			classSelectionUI.setVisible(false);
+		}
+	}
+
+	public mc.sayda.mcraze.player.specialization.ui.SkillAssignmentUI getSkillAssignmentUI() {
+		return skillAssignmentUI;
+	}
+
+	public boolean isSkillUIOpen() {
+		return skillAssignmentUI != null && skillAssignmentUI.isVisible();
+	}
+
+	public void toggleSkillUI() {
+		if (skillAssignmentUI != null) {
+			skillAssignmentUI.setVisible(!skillAssignmentUI.isVisible());
+		}
+	}
+
+	public void closeSkillUI() {
+		if (skillAssignmentUI != null) {
+			skillAssignmentUI.setVisible(false);
+		}
 	}
 }

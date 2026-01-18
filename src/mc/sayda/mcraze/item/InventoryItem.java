@@ -12,8 +12,8 @@
 
 package mc.sayda.mcraze.item;
 
-import mc.sayda.mcraze.Color;
-import mc.sayda.mcraze.GraphicsHandler;
+import mc.sayda.mcraze.graphics.Color;
+import mc.sayda.mcraze.graphics.GraphicsHandler;
 
 public class InventoryItem implements java.io.Serializable, Cloneable {
 	private static final long serialVersionUID = -2389571032163510795L;
