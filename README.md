@@ -58,32 +58,32 @@ Here are a few recipes to try.
 Pickaxes are the only tools which can break stone.
 Axes break wood tiles faster, and shovels break dirt, sand, and leaves very quickly.
 
-**planks** (x4)
+**Planks** (x4)
 <table>
-<tr><td>wood</td><td></td></tr>
+<tr><td>Wood</td><td></td></tr>
 <tr><td></td><td></td></tr>
 </table>
 
-**crafting table**
+**Workbench**
 <table>
 <tr><td>plank</td><td>plank</td></tr>
 <tr><td>plank</td><td>plank</td></tr>
 </table>
 
-**sticks** (x4)
+**Sticks** (x4)
 <table>
 <tr><td>plank</td><td></td></tr>
 <tr><td>plank</td><td></td></tr>
 </table>
 
-**ladders** (x4)
+**Ladders** (x4)
 <table>
 <tr><td>stick</td><td></td><td>stick</td></tr>
 <tr><td>stick</td><td>stick</td><td>stick</td></tr>
 <tr><td>stick</td><td></td><td>stick</td></tr>
 </table>
 
-**wooden pickaxe**
+**Wooden Pickaxe**
 <table>
 <tr><td>plank</td><td>plank</td><td>plank</td></tr>
 <tr><td></td><td>stick</td><td></td></tr>
