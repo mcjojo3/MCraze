@@ -64,7 +64,7 @@ Axes break wood tiles faster, and shovels break dirt, sand, and leaves very quic
 <tr><td></td><td></td></tr>
 </table>
 
-**Workbench**
+**Workbench** (x1)
 <table>
 <tr><td>plank</td><td>plank</td></tr>
 <tr><td>plank</td><td>plank</td></tr>
