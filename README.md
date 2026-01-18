@@ -27,17 +27,19 @@ Enjoy our "8-bit" 2D version of the game!
 <table>
 <tr><td>w,a,s,d</td><td>Player Movement</td></tr>
 <tr><td>space</td><td>Jump / Climb / Swim</td></tr>
-<tr><td>shift</td><td>Walk</td></tr>
+<tr><td>shift</td><td>Sneak</td></tr>
 <tr><td>mouse 1</td><td>Break Block</td></tr>
-<tr><td>mouse 2</td><td>Build Block</td></tr>
+<tr><td>mouse 2</td><td>Build Block / Interact</td></tr>
 <tr><td>number keys<br>mouse wheel</td><td>Change Selection</td></tr>
 <tr><td>t</td><td>Open Chat</td></tr>
-<tr><td>i</td><td>Open Inventory</td></tr>
-<tr><td>+</td><td>Zoom In</td></tr>
-<tr><td>-</td><td>Zoom Out</td></tr>
+<tr><td>e</td><td>Inventory / Close Menu</td></tr>
+<tr><td>i</td><td>Class & Skills Menu</td></tr>
+<tr><td>b</td><td>Toggle Backdrop Mode</td></tr>
+<tr><td>+ / -</td><td>Zoom In / Out</td></tr>
+<tr><td>c</td><td>Reset Zoom</td></tr>
 <tr><td>m</td><td>Mute/Unmute Sound</td></tr>
 <tr><td>r</td><td>Respawn</td></tr>
-<tr><td>esc</td><td>Save and Quit</td></tr>
+<tr><td>esc</td><td>Pause / Back</td></tr>
 <tr><td>f3</td><td>Debug Menu</td></tr>
 <tr><td>q</td><td>Toss Selected Item</td></tr>
 <tr><td>f</td><td>View FPS</td></tr>
@@ -107,18 +109,22 @@ Axes break wood tiles faster, and shovels break dirt, sand, and leaves very quic
 
 ## Future Plans
 
-* Todo list:
+* Features:
     - Furnaces
-    - Enemies/AI
+    - Enemies/AI (Zombies, Wolves, Animals)
     - Chests
+    - Class & Skill System
+    - Backdrop Placement System
+    - Multiplayer Designed
+
+* Todo list:
     - Infinite Levels
-    - Fully string ID's
     - ...
 
 ## Libraries
 
 *Each included in the `lib` directory*
 
-* [Easyogg](http://www.cokeandcode.com/index.html?page=libs)
-* [JOrbis and JOgg](http://www.jcraft.com/jorbis/)
-* [gson](http://code.google.com/p/google-gson/)
+* [Gson 2.1](https://github.com/google/gson)
+* [JOrbis 0.0.15 & JOgg 0.0.7](http://www.jcraft.com/jorbis/)
+* [Paul's SoundSystem](http://www.paulscode.com/) (SoundSystem, JavaSound Library, CodecJOrbis)
