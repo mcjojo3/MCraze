@@ -70,6 +70,20 @@ Axes break wood tiles faster, and shovels break dirt, sand, and leaves very quic
 <tr><td>plank</td><td>plank</td></tr>
 </table>
 
+**Furnace** (x1)
+<table>
+<tr><td>cobble</td><td>cobble</td><td>cobble</td></tr>
+<tr><td>cobble</td><td></td><td>cobble</td></tr>
+<tr><td>cobble</td><td>cobble</td><td>cobble</td></tr>
+</table>
+
+**Chest** (x1)
+<table>
+<tr><td>plank</td><td>plank</td><td>plank</td></tr>
+<tr><td>plank</td><td></td><td>plank</td></tr>
+<tr><td>plank</td><td>plank</td><td>plank</td></tr>
+</table>
+
 **Sticks** (x4)
 <table>
 <tr><td>plank</td><td></td></tr>
