@@ -27,15 +27,17 @@ public class PacketInventoryAction extends ClientPacket {
 	public int slotY; // Clicked slot Y coordinate
 	public boolean leftClick; // true = left click, false = right click
 	public boolean craftClick; // true if clicking craft output slot
+	public boolean shiftClick; // true if shift-clicking (e.g., craft all)
 
 	public PacketInventoryAction() {
 	}
 
-	public PacketInventoryAction(int slotX, int slotY, boolean leftClick, boolean craftClick) {
+	public PacketInventoryAction(int slotX, int slotY, boolean leftClick, boolean craftClick, boolean shiftClick) {
 		this.slotX = slotX;
 		this.slotY = slotY;
 		this.leftClick = leftClick;
 		this.craftClick = craftClick;
+		this.shiftClick = shiftClick;
 	}
 
 	@Override
@@ -50,11 +52,12 @@ public class PacketInventoryAction extends ClientPacket {
 
 	@Override
 	public byte[] encode() {
-		ByteBuffer buf = ByteBuffer.allocate(10);
+		ByteBuffer buf = ByteBuffer.allocate(11); // 2 ints + 3 booleans = 11 bytes
 		buf.putInt(slotX);
 		buf.putInt(slotY);
 		buf.put((byte) (leftClick ? 1 : 0));
 		buf.put((byte) (craftClick ? 1 : 0));
+		buf.put((byte) (shiftClick ? 1 : 0));
 		return buf.array();
 	}
 
@@ -63,6 +66,7 @@ public class PacketInventoryAction extends ClientPacket {
 		int slotY = buf.getInt();
 		boolean leftClick = buf.get() == 1;
 		boolean craftClick = buf.get() == 1;
-		return new PacketInventoryAction(slotX, slotY, leftClick, craftClick);
+		boolean shiftClick = buf.get() == 1;
+		return new PacketInventoryAction(slotX, slotY, leftClick, craftClick, shiftClick);
 	}
 }

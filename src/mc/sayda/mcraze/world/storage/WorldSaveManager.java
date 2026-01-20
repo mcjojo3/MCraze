@@ -1,11 +1,6 @@
 package mc.sayda.mcraze.world.storage;
 
 import mc.sayda.mcraze.world.*;
-import mc.sayda.mcraze.world.tile.*;
-import mc.sayda.mcraze.world.gen.*;
-import mc.sayda.mcraze.world.storage.*;
-import mc.sayda.mcraze.player.*;
-import mc.sayda.mcraze.graphics.*;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -21,7 +16,6 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Modern save system with multiple world support
@@ -83,6 +77,19 @@ public class WorldSaveManager {
 		// CRITICAL FIX: Persist custom spawn location
 		public int spawnX;
 		public int spawnY;
+
+		// NEW: Persistence for GameMode and Rules
+		public String gameMode = "CLASSIC"; // Default to CLASSIC
+		public boolean keepInventory = false;
+		public boolean daylightCycle = true;
+		public boolean spelunking = false;
+
+		// NEW: Flag persistence
+		public int flagX = -1;
+		public int flagY = -1;
+
+		// NEW: Generation settings
+		public double noiseModifier = 0.0; // -1.0 to 1.0
 
 		public WorldMetadata() {
 		}
@@ -187,11 +194,27 @@ public class WorldSaveManager {
 					server.world.getSeed(), // CRITICAL FIX: Save actual world seed instead of 0
 					server.world.width,
 					server.world.height);
-			// Save current spawn location
 			if (server.world.spawnLocation != null) {
 				metadata.spawnX = server.world.spawnLocation.x;
 				metadata.spawnY = server.world.spawnLocation.y;
 			}
+			// Save GameMode and Rules
+			if (server.world.gameMode != null) {
+				metadata.gameMode = server.world.gameMode.name();
+			}
+			metadata.keepInventory = server.world.keepInventory;
+			metadata.daylightCycle = server.world.daylightCycle;
+			metadata.spelunking = server.world.spelunking;
+
+			// Save Flag Location
+			if (server.world.flagLocation != null) {
+				metadata.flagX = server.world.flagLocation.x;
+				metadata.flagY = server.world.flagLocation.y;
+			} else {
+				metadata.flagX = -1;
+				metadata.flagY = -1;
+			}
+
 			metadata.lastPlayedTime = Instant.now().toEpochMilli();
 
 			try (FileWriter writer = new FileWriter(levelTemp.toFile())) {
@@ -264,6 +287,24 @@ public class WorldSaveManager {
 			metadata.spawnX = world.spawnLocation.x;
 			metadata.spawnY = world.spawnLocation.y;
 		}
+
+		// Save GameMode and Rules
+		if (world.gameMode != null) {
+			metadata.gameMode = world.gameMode.name();
+		}
+		metadata.keepInventory = world.keepInventory;
+		metadata.daylightCycle = world.daylightCycle;
+		metadata.spelunking = world.spelunking;
+
+		// Save Flag Location
+		if (world.flagLocation != null) {
+			metadata.flagX = world.flagLocation.x;
+			metadata.flagY = world.flagLocation.y;
+		} else {
+			metadata.flagX = -1;
+			metadata.flagY = -1;
+		}
+
 		metadata.lastPlayedTime = Instant.now().toEpochMilli();
 
 		mc.sayda.mcraze.Constants.TileID[][] tilesSnapshot = world.cloneTiles();
@@ -566,20 +607,25 @@ public class WorldSaveManager {
 		// CRITICAL FIX: Restore world seed from metadata
 		if (world != null) {
 			world.setSeed(metadata.seed);
-		}
-
-		if (world != null) {
-			world.setSeed(metadata.seed);
-			// Restore spawn location from metadata if valid (check if non-zero or specific
-			// flag?)
-			// Assuming (0,0) is rarely a valid spawn in center of blocks, but let's trust
-			// metadata if it exists
-			// Gson defaults ints to 0. If saved as 0, it means 0.
-			// Only update if not default constructor state?
-			// The constructor calculates a safe spawn. We overwrite it if metadata has
-			// intent.
-			// Let's assume metadata is authority.
+			// Restore spawn location from metadata
 			world.spawnLocation = new mc.sayda.mcraze.util.Int2(metadata.spawnX, metadata.spawnY);
+
+			// Restore GameMode and Rules
+			try {
+				if (metadata.gameMode != null) {
+					world.gameMode = mc.sayda.mcraze.world.GameMode.valueOf(metadata.gameMode);
+				}
+			} catch (Exception e) {
+				world.gameMode = mc.sayda.mcraze.world.GameMode.SURVIVAL; // Default fallback
+			}
+			world.keepInventory = metadata.keepInventory;
+			world.daylightCycle = metadata.daylightCycle;
+			world.spelunking = metadata.spelunking;
+
+			// Restore Flag Location
+			if (metadata.flagX != -1 && metadata.flagY != -1) {
+				world.flagLocation = new mc.sayda.mcraze.util.Int2(metadata.flagX, metadata.flagY);
+			}
 		}
 
 		return world;

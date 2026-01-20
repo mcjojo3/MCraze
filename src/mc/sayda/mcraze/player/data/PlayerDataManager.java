@@ -331,6 +331,10 @@ public class PlayerDataManager {
 			int height = inv.inventoryItems[0].length;
 			int totalSlots = width * height;
 
+			// Check array length compatibility (graceful degradation if older save format)
+			boolean hasMastercraftedData = data.inventoryItemMastercrafted != null
+					&& data.inventoryItemMastercrafted.length == totalSlots;
+
 			if (data.inventoryItemIds.length == totalSlots) {
 				inv.hotbarIdx = data.inventoryHotbarIdx;
 
@@ -341,6 +345,7 @@ public class PlayerDataManager {
 						String itemId = data.inventoryItemIds[index];
 						int count = data.inventoryItemCounts[index];
 						int uses = data.inventoryToolUses[index];
+						boolean isMastercrafted = hasMastercraftedData && data.inventoryItemMastercrafted[index];
 
 						InventoryItem slot = inv.inventoryItems[x][y];
 
@@ -352,6 +357,15 @@ public class PlayerDataManager {
 								Item clonedItem = item.clone();
 								slot.setItem(clonedItem);
 								slot.setCount(count);
+
+								// [NEW] Restore mastercrafted status
+								if (isMastercrafted) {
+									clonedItem.isMastercrafted = true;
+									if (clonedItem instanceof Tool) {
+										Tool t = (Tool) clonedItem;
+										t.totalUses = (int) (t.totalUses * 1.5f); // Restore boost
+									}
+								}
 
 								if (clonedItem instanceof Tool) {
 									((Tool) clonedItem).uses = uses;
@@ -375,6 +389,16 @@ public class PlayerDataManager {
 						Item clonedItem = item.clone();
 						inv.holding.setItem(clonedItem);
 						inv.holding.setCount(data.holdingItemCount);
+
+						// [NEW] Restore holding mastercrafted status
+						if (data.holdingItemMastercrafted) {
+							clonedItem.isMastercrafted = true;
+							if (clonedItem instanceof Tool) {
+								Tool t = (Tool) clonedItem;
+								t.totalUses = (int) (t.totalUses * 1.5f);
+							}
+						}
+
 						if (clonedItem instanceof Tool) {
 							((Tool) clonedItem).uses = data.holdingToolUses;
 						}
@@ -424,6 +448,7 @@ public class PlayerDataManager {
 		data.inventoryItemIds = new String[totalSlots];
 		data.inventoryItemCounts = new int[totalSlots];
 		data.inventoryToolUses = new int[totalSlots];
+		data.inventoryItemMastercrafted = new boolean[totalSlots];
 		data.inventoryHotbarIdx = inv.hotbarIdx;
 
 		int index = 0;
@@ -436,13 +461,16 @@ public class PlayerDataManager {
 
 					if (slot.item instanceof Tool) {
 						data.inventoryToolUses[index] = ((Tool) slot.item).uses;
-					} else {
 						data.inventoryToolUses[index] = 0;
 					}
+
+					// [NEW] Save mastercrafted status
+					data.inventoryItemMastercrafted[index] = slot.item.isMastercrafted;
 				} else {
 					data.inventoryItemIds[index] = null;
 					data.inventoryItemCounts[index] = 0;
 					data.inventoryToolUses[index] = 0;
+					data.inventoryItemMastercrafted[index] = false;
 				}
 				index++;
 			}
@@ -455,6 +483,8 @@ public class PlayerDataManager {
 		if (inv.holding != null && !inv.holding.isEmpty()) {
 			data.holdingItemId = inv.holding.getItem().itemId;
 			data.holdingItemCount = inv.holding.getCount();
+			// [NEW] Save holding mastercrafted status
+			data.holdingItemMastercrafted = inv.holding.getItem().isMastercrafted;
 			if (inv.holding.getItem() instanceof Tool) {
 				data.holdingToolUses = ((Tool) inv.holding.getItem()).uses;
 			} else {
@@ -464,6 +494,7 @@ public class PlayerDataManager {
 			data.holdingItemId = null;
 			data.holdingItemCount = 0;
 			data.holdingToolUses = 0;
+			data.holdingItemMastercrafted = false;
 		}
 
 		data.lastPlayTime = System.currentTimeMillis();

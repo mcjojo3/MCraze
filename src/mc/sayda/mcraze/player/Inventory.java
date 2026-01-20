@@ -163,7 +163,7 @@ public class Inventory implements java.io.Serializable, Cloneable {
 					connection.sendPacket(packet);
 				} else {
 					mc.sayda.mcraze.network.packet.PacketInventoryAction packet = new mc.sayda.mcraze.network.packet.PacketInventoryAction(
-							position.x, position.y, leftClicked, false);
+							position.x, position.y, leftClicked, false, false);
 					connection.sendPacket(packet);
 				}
 			}
@@ -187,7 +187,7 @@ public class Inventory implements java.io.Serializable, Cloneable {
 			}
 
 			mc.sayda.mcraze.network.packet.PacketInventoryAction packet = new mc.sayda.mcraze.network.packet.PacketInventoryAction(
-					0, 0, leftClicked, true); // craftClick = true
+					0, 0, leftClicked, true, shiftPressed); // craftClick = true, shiftClick = shiftPressed
 			connection.sendPacket(packet);
 			// Let server handle crafting (whether integrated or dedicated)
 			// Server will broadcast the updated inventory back to us
@@ -240,5 +240,22 @@ public class Inventory implements java.io.Serializable, Cloneable {
 		} catch (CloneNotSupportedException e) {
 			throw new AssertionError();
 		}
+	}
+
+	public InventoryItem findItem(String itemId) {
+		if (inventoryItems == null)
+			return null;
+
+		for (int i = 0; i < inventoryItems.length; i++) {
+			for (int j = 0; j < inventoryItems[0].length; j++) {
+				InventoryItem slot = inventoryItems[i][j];
+				if (slot != null && !slot.isEmpty() && slot.getItem() != null) {
+					if (slot.getItem().itemId.equals(itemId)) {
+						return slot;
+					}
+				}
+			}
+		}
+		return null;
 	}
 }

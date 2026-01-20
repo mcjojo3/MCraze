@@ -1,12 +1,12 @@
-package mc.sayda.mcraze.entity.projectiles;
+package mc.sayda.mcraze.entity.projectile;
 
 import mc.sayda.mcraze.entity.Entity;
 import mc.sayda.mcraze.entity.LivingEntity;
 import mc.sayda.mcraze.graphics.GraphicsHandler;
+
 import mc.sayda.mcraze.graphics.Sprite;
 import mc.sayda.mcraze.graphics.SpriteStore;
 import mc.sayda.mcraze.server.SharedWorld;
-import mc.sayda.mcraze.world.World;
 import mc.sayda.mcraze.util.Int2;
 import mc.sayda.mcraze.util.StockMethods;
 

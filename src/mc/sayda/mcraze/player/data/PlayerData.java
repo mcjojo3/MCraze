@@ -51,6 +51,7 @@ public class PlayerData implements Serializable {
 	public String[] inventoryItemIds; // Item IDs
 	public int[] inventoryItemCounts; // Stack counts
 	public int[] inventoryToolUses; // Tool durability
+	public boolean[] inventoryItemMastercrafted; // [NEW] Mastercrafted status
 	public int inventoryHotbarIdx; // Selected hotbar slot
 
 	// Crafting grid size (2 = normal, 3 = workbench)
@@ -68,6 +69,7 @@ public class PlayerData implements Serializable {
 	public String holdingItemId; // Item ID of held item (null if empty)
 	public int holdingItemCount; // Stack count
 	public int holdingToolUses; // Tool durability (0 if not a tool)
+	public boolean holdingItemMastercrafted; // [NEW] Mastercrafted status
 
 	// Metadata
 	public long firstJoinTime;
@@ -102,6 +104,7 @@ public class PlayerData implements Serializable {
 		this.inventoryItemIds = new String[totalSlots];
 		this.inventoryItemCounts = new int[totalSlots];
 		this.inventoryToolUses = new int[totalSlots];
+		this.inventoryItemMastercrafted = new boolean[totalSlots]; // [NEW]
 		this.inventoryHotbarIdx = 0;
 
 		// Timestamps

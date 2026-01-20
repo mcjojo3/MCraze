@@ -177,8 +177,9 @@ public class UIRenderer {
 	/**
 	 * Draw FPS counter and memory usage in top-left corner
 	 * 
-	 * @param g     Graphics handler
-	 * @param delta Time delta in milliseconds
+	 * @param g      Graphics handler
+	 * @param delta  Time delta in milliseconds
+	 * @param client Client instance for debug info
 	 */
 	public void drawFPS(GraphicsHandler g, long delta) {
 		String fps = "Fps: " + 1 / ((float) delta / 1000) + "("

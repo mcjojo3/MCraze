@@ -155,10 +155,10 @@ public class LoginScreen {
 	/**
 	 * Handle mouse click
 	 */
-	public void handleClick(int mouseX, int mouseY) {
+	public void handleClick(GraphicsHandler g, int mouseX, int mouseY) {
 		// Handle input field clicks
-		usernameInput.handleClick(mouseX, mouseY);
-		passwordInput.handleClick(mouseX, mouseY);
+		usernameInput.handleClick(g, mouseX, mouseY);
+		passwordInput.handleClick(g, mouseX, mouseY);
 
 		// Handle checkbox click
 		rememberMeCheckbox.handleClick(mouseX, mouseY);

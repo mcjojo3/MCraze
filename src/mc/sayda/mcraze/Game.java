@@ -184,6 +184,13 @@ public class Game {
 	 * @param password  Authenticated password
 	 */
 	public void startGame(String worldName, boolean load, int width, String username, String password) {
+		// Default overload
+		startGame(worldName, load, width, username, password, mc.sayda.mcraze.world.GameMode.CLASSIC, false, true, 0.0);
+	}
+
+	public void startGame(String worldName, boolean load, int width, String username, String password,
+			mc.sayda.mcraze.world.GameMode gameMode, boolean keepInventory, boolean daylightCycle,
+			double noiseModifier) {
 		this.currentWorldName = worldName;
 
 		// Transition to LOADING state
@@ -243,7 +250,8 @@ public class Game {
 		client.setLoadingProgressImmediate(50);
 		client.render(); // Update display
 
-		server.startGame(width, worldName, username, password, loadedWorld);
+		server.startGame(width, worldName, username, password, loadedWorld, gameMode, keepInventory, daylightCycle,
+				noiseModifier);
 
 		// Update client connection to use the new one from SharedWorld
 		client.switchToMultiplayer(server.getHostClientConnection(), server);

@@ -1,3 +1,15 @@
+/*
+ * Copyright 2026 SaydaGames (mc_jojo3)
+ *
+ * This file is part of MCraze
+ *
+ * MCraze is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * MCraze is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MCraze. If not, see http://www.gnu.org/licenses/.
+ */
+
 package mc.sayda.mcraze.ui.menu;
 
 import mc.sayda.mcraze.ui.component.*;
@@ -150,8 +162,10 @@ public class PauseMenu {
 			if (success) {
 				logger.info("LAN server enabled on port " + port);
 				if (game.getClient() != null && game.getClient().chat != null) {
-					game.getClient().chat.addMessage("LAN server opened on port " + port, mc.sayda.mcraze.graphics.Color.green);
-					game.getClient().chat.addMessage("Other players can now connect!", mc.sayda.mcraze.graphics.Color.green);
+					game.getClient().chat.addMessage("LAN server opened on port " + port,
+							mc.sayda.mcraze.graphics.Color.green);
+					game.getClient().chat.addMessage("Other players can now connect!",
+							mc.sayda.mcraze.graphics.Color.green);
 				}
 			} else {
 				logger.error("Failed to enable LAN server");

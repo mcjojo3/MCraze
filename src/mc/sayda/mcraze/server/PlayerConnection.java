@@ -259,6 +259,13 @@ public class PlayerConnection implements ServerPacketHandler {
 	}
 
 	@Override
+	public void handleEntityInteract(mc.sayda.mcraze.network.packet.PacketEntityInteract packet) {
+		// Handle entity interaction (e.g. taming) - delegate to SharedWorld for
+		// processing
+		sharedWorld.handleEntityInteract(this, packet);
+	}
+
+	@Override
 	public void handlePing(mc.sayda.mcraze.network.packet.PacketPing packet) {
 		// Respond to ping request with pong containing original timestamp
 		mc.sayda.mcraze.network.packet.PacketPong pong = new mc.sayda.mcraze.network.packet.PacketPong(

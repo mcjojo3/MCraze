@@ -26,6 +26,8 @@ import java.util.function.Function;
  * Handles packet ID assignment and deserialization.
  */
 public class PacketRegistry {
+    private static final mc.sayda.mcraze.logging.GameLogger logger = mc.sayda.mcraze.logging.GameLogger.get();
+
     // Maps packet ID to decoder function
     private static final Map<Integer, Function<ByteBuffer, Packet>> DECODERS = new HashMap<>();
 
@@ -53,6 +55,7 @@ public class PacketRegistry {
                                                                                                         // collect
         registerClientPacket(17, PacketClassSelect.class, PacketClassSelect::decode); // Class system
         registerClientPacket(18, PacketSkillUpgrade.class, PacketSkillUpgrade::decode); // Skill tree
+        registerClientPacket(19, PacketEntityInteract.class, PacketEntityInteract::decode); // Entity interaction
 
         // Server → Client packets (IDs 51-100)
         registerServerPacket(51, PacketWorldInit.class, PacketWorldInit::decode);
@@ -74,6 +77,8 @@ public class PacketRegistry {
         registerServerPacket(67, PacketFurnaceOpen.class, PacketFurnaceOpen::decode);
         registerServerPacket(68, PacketItemTrigger.class, PacketItemTrigger::decode); // Item special effects
         registerServerPacket(69, PacketPlaySound.class, PacketPlaySound::decode); // Sound effects
+        registerServerPacket(70, PacketWaveSync.class, PacketWaveSync::decode); // Wave status sync
+        registerServerPacket(71, PacketWorldBulkData.class, PacketWorldBulkData::decode); // Optimized world loading
     }
 
     /**
@@ -122,6 +127,10 @@ public class PacketRegistry {
      * @return Decoded packet
      */
     public static Packet decode(int id, ByteBuffer buffer) {
+        if (logger != null && (id == 71 || id == 61)) {
+            logger.info(
+                    "PacketRegistry: Decoding Packet ID=" + id + " (Remaining in buffer: " + buffer.remaining() + ")");
+        }
         Function<ByteBuffer, Packet> decoder = DECODERS.get(id);
         if (decoder == null) {
             throw new IllegalArgumentException("Unknown packet ID: " + id);

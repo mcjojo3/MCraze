@@ -130,7 +130,8 @@ public class CommandHandler {
      */
     private void registerCommands() {
         // Commands with arguments
-        commandArguments.put("/gamerule", new String[] { "keepInventory", "daylightCycle", "spelunking" });
+        commandArguments.put("/gamerule",
+                new String[] { "keepInventory", "daylightCycle", "spelunking", "mobGriefing", "pvp" });
         commandArguments.put("/time", new String[] { "set", "add" });
         commandArguments.put("/give", new String[] {}); // Item names are too many to list
         commandArguments.put("/summon", new String[] {}); // Item names are too many to list
@@ -138,6 +139,7 @@ public class CommandHandler {
         commandArguments.put("/tp", new String[] {});
         commandArguments.put("/we", new String[] { "set", "fill", "replace", "undo", "sphere" }); // WorldEdit commands
         commandArguments.put("/class", new String[] { "set", "points", "reset" });
+        commandArguments.put("/gamemode", new String[] { "survival", "classic", "horde" });
 
         // Commands without arguments (empty array)
         commandArguments.put("/help", new String[] {});
@@ -300,6 +302,9 @@ public class CommandHandler {
             case "class":
                 handleClass(parts, executingPlayer);
                 break;
+            case "gamemode":
+                handleGamemode(parts);
+                break;
             default:
                 sendMessage("Unknown command: /" + command, new Color(255, 100, 100));
                 sendMessage("Type /help for a list of commands", Color.gray);
@@ -345,6 +350,8 @@ public class CommandHandler {
         sendMessage("/class points - Show your skill points", Color.white);
         sendMessage("/class points set <amount> - Set skill points", Color.white);
         sendMessage("/class points add <amount> - Add skill points", Color.white);
+        sendMessage("=== Game Mode ===", Color.orange);
+        sendMessage("/gamemode <mode> - Set game mode (survival, classic)", Color.white);
     }
 
     private void handleGamerule(String[] parts) {
@@ -354,6 +361,8 @@ public class CommandHandler {
             sendMessage("  keepInventory - Keep items on death (true/false)", Color.gray);
             sendMessage("  daylightCycle - Enable day/night cycle (true/false)", Color.gray);
             sendMessage("  spelunking - Disable darkness (true/false)", Color.gray);
+            sendMessage("  mobGriefing - Enable mob block destruction (true/false)", Color.gray);
+            sendMessage("  pvp - Enable player vs player damage (true/false)", Color.gray);
             return;
         }
 
@@ -370,6 +379,12 @@ public class CommandHandler {
                     break;
                 case "spelunking":
                     sendMessage("spelunking = " + server.world.spelunking, Color.green);
+                    break;
+                case "mobgriefing":
+                    sendMessage("mobGriefing = " + server.world.mobGriefing, Color.green);
+                    break;
+                case "pvp":
+                    sendMessage("pvp = " + server.world.pvp, Color.green);
                     break;
                 default:
                     sendMessage("Unknown gamerule: " + rule, new Color(255, 100, 100));
@@ -406,6 +421,18 @@ public class CommandHandler {
             case "spelunking":
                 server.world.spelunking = boolValue;
                 sendMessage("Set spelunking to " + boolValue, Color.green);
+                if (sharedWorld != null)
+                    sharedWorld.broadcastGamerules(); // Sync to all clients
+                break;
+            case "mobgriefing":
+                server.world.mobGriefing = boolValue;
+                sendMessage("Set mobGriefing to " + boolValue, Color.green);
+                if (sharedWorld != null)
+                    sharedWorld.broadcastGamerules(); // Sync to all clients
+                break;
+            case "pvp":
+                server.world.pvp = boolValue;
+                sendMessage("Set pvp to " + boolValue, Color.green);
                 if (sharedWorld != null)
                     sharedWorld.broadcastGamerules(); // Sync to all clients
                 break;
@@ -856,6 +883,15 @@ public class CommandHandler {
                     56);
             sharedWorld.addEntity(zombie);
             sendMessage("Summoned zombie", Color.green);
+            return;
+        }
+
+        // BOMBER
+        if (id.equals("bomber")) {
+            mc.sayda.mcraze.entity.mob.EntityBomber bomber = new mc.sayda.mcraze.entity.mob.EntityBomber(true, x, y, 28,
+                    56);
+            sharedWorld.addEntity(bomber);
+            sendMessage("Summoned bomber", Color.green);
             return;
         }
 
@@ -1501,6 +1537,66 @@ public class CommandHandler {
         } else {
             sendMessage("Usage: /class points, /class points set <amount>, /class points add <amount>",
                     new Color(255, 200, 100));
+        }
+    }
+
+    private void handleGamemode(String[] parts) {
+        if (parts.length < 2) {
+            mc.sayda.mcraze.world.World world = null;
+            if (sharedWorld != null) {
+                world = sharedWorld.getWorld();
+            } else if (server != null) {
+                world = server.world;
+            }
+            if (world != null && world.gameMode != null) {
+                sendMessage("Current Game Mode: " + world.gameMode.name(), Color.green);
+            } else {
+                sendMessage("Usage: /gamemode <mode>", new Color(255, 200, 100));
+            }
+            return;
+        }
+
+        String modeName = parts[1].toLowerCase();
+        mc.sayda.mcraze.world.GameMode newMode;
+
+        switch (modeName) {
+            case "survival":
+            case "s":
+            case "0":
+                newMode = mc.sayda.mcraze.world.GameMode.SURVIVAL;
+                break;
+            case "classic":
+            case "c":
+            case "1":
+                newMode = mc.sayda.mcraze.world.GameMode.CLASSIC;
+                break;
+            case "horde":
+            case "h":
+            case "2":
+                newMode = mc.sayda.mcraze.world.GameMode.HORDE;
+                break;
+            case "creative":
+                newMode = mc.sayda.mcraze.world.GameMode.CREATIVE;
+                break;
+            default:
+                sendMessage("Unknown game mode: " + modeName, new Color(255, 100, 100));
+                return;
+        }
+
+        mc.sayda.mcraze.world.World world = null;
+        if (sharedWorld != null) {
+            world = sharedWorld.getWorld();
+        } else if (server != null) {
+            world = server.world;
+        }
+
+        if (world != null) {
+            world.gameMode = newMode;
+            sendMessage("Set game mode to " + newMode.name() + " for world", Color.green);
+
+            // Broadcast gamerules/gamemode if needed (currently using gamerules packet?)
+            // We might need a packet for GameMode if clients need to know.
+            // For now, only server needs to know for wave logic.
         }
     }
 

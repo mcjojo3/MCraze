@@ -6,6 +6,8 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionListener;
+import java.awt.event.FocusListener;
+import java.awt.event.FocusEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 
@@ -35,6 +37,7 @@ public class AwtEventsHandler {
 		canvas.addMouseListener(new MouseInputHander());
 		canvas.addMouseWheelListener(new MouseWheelInputHander());
 		canvas.addMouseMotionListener(new MouseMoveInputHander());
+		canvas.addFocusListener(new FocusInputHandler());
 	}
 
 	/**
@@ -158,6 +161,37 @@ public class AwtEventsHandler {
 		public void mouseMoved(MouseEvent arg0) {
 			if (game.getClient() != null) {
 				game.getClient().setMousePosition(arg0.getX(), arg0.getY());
+			}
+		}
+	}
+
+	private class FocusInputHandler implements FocusListener {
+		@Override
+		public void focusGained(FocusEvent e) {
+			// Do nothing
+		}
+
+		@Override
+		public void focusLost(FocusEvent e) {
+			// Reset all input states when focus is lost to prevent phantom inputs
+			if (moveLeft || moveRight || climb || sneak || game.getClient().leftClick || game.getClient().rightClick) {
+				moveLeft = false;
+				moveRight = false;
+				climb = false;
+				sneak = false;
+				if (game.getClient() != null) {
+					game.getClient().setLeftClick(false);
+					game.getClient().setRightClick(false);
+				}
+				sendInputPacket(); // Notify server of reset
+
+				// Also reset shift pressed state
+				shiftPressed = false;
+
+				if (mc.sayda.mcraze.logging.GameLogger.get() != null
+						&& mc.sayda.mcraze.logging.GameLogger.get().isDebugEnabled()) {
+					System.out.println("Focus lost - inputs reset");
+				}
 			}
 		}
 	}
@@ -452,18 +486,36 @@ public class AwtEventsHandler {
 			if (game.getClient() == null)
 				return;
 
-			// Don't process input if in main menu
+			// Check if we should ignore this release event
+			boolean ignoreInput = false;
+
+			// Don't process GENERAL game input (like pause menu toggle) if in main menu
 			if (game.getClient().isInMenu()) {
-				return;
+				ignoreInput = true;
+			}
+			// Don't process GENERAL game input if pause menu is open
+			else if (game.getClient().isInPauseMenu()) {
+				ignoreInput = true;
+			}
+			// Don't process GENERAL game input if chat is open
+			else if (game.getClient().chat.isOpen()) {
+				ignoreInput = true;
 			}
 
-			// Don't process input if pause menu is open
-			if (game.getClient().isInPauseMenu()) {
-				return;
+			// HOWEVER, we MUST process movement key RELEASES even if menus are open
+			// This prevents "stuck" keys if you open a menu while holding a key
+			boolean isMovementKey = false;
+			switch (e.getKeyCode()) {
+				case KeyEvent.VK_W:
+				case KeyEvent.VK_SPACE:
+				case KeyEvent.VK_A:
+				case KeyEvent.VK_D:
+				case KeyEvent.VK_SHIFT:
+					isMovementKey = true;
+					break;
 			}
 
-			// Don't process game input if chat is open
-			if (game.getClient().chat.isOpen()) {
+			if (ignoreInput && !isMovementKey) {
 				return;
 			}
 

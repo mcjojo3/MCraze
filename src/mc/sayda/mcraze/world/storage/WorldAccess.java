@@ -14,10 +14,6 @@ package mc.sayda.mcraze.world.storage;
 
 import mc.sayda.mcraze.world.*;
 import mc.sayda.mcraze.world.tile.*;
-import mc.sayda.mcraze.world.gen.*;
-import mc.sayda.mcraze.world.storage.*;
-import mc.sayda.mcraze.player.*;
-import mc.sayda.mcraze.graphics.*;
 
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;

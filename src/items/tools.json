@@ -3,7 +3,7 @@
     "type": "Sword",
     "power": "Wood",
     "itemId": "wood_sword",
-    "name": "wSword",
+    "name": "Wood Sword",
     "spriteRef": "assets/sprites/tools/wSword.png",
     "recipe": {
       "pattern": [
@@ -30,7 +30,7 @@
     "type": "Sword",
     "power": "Stone",
     "itemId": "stone_sword",
-    "name": "sSword",
+    "name": "Stone Sword",
     "spriteRef": "assets/sprites/tools/sSword.png",
     "recipe": {
       "pattern": [
@@ -57,7 +57,7 @@
     "type": "Sword",
     "power": "Iron",
     "itemId": "iron_sword",
-    "name": "iSword",
+    "name": "Iron Sword",
     "spriteRef": "assets/sprites/tools/iSword.png",
     "recipe": {
       "pattern": [
@@ -84,7 +84,7 @@
     "type": "Sword",
     "power": "Diamond",
     "itemId": "diamond_sword",
-    "name": "dSword",
+    "name": "Diamond Sword",
     "spriteRef": "assets/sprites/tools/dSword.png",
     "recipe": {
       "pattern": [
@@ -111,7 +111,7 @@
     "type": "Pick",
     "power": "Wood",
     "itemId": "wood_pickaxe",
-    "name": "wPick",
+    "name": "Wood Pickaxe",
     "spriteRef": "assets/sprites/tools/wPic.png",
     "recipe": {
       "pattern": [
@@ -138,7 +138,7 @@
     "type": "Pick",
     "power": "Stone",
     "itemId": "stone_pickaxe",
-    "name": "sPick",
+    "name": "Stone Pickaxe",
     "spriteRef": "assets/sprites/tools/sPic.png",
     "recipe": {
       "pattern": [
@@ -165,7 +165,7 @@
     "type": "Pick",
     "power": "Iron",
     "itemId": "iron_pickaxe",
-    "name": "iPick",
+    "name": "Iron Pickaxe",
     "spriteRef": "assets/sprites/tools/iPic.png",
     "recipe": {
       "pattern": [
@@ -192,7 +192,7 @@
     "type": "Pick",
     "power": "Diamond",
     "itemId": "diamond_pickaxe",
-    "name": "dPick",
+    "name": "Diamond Pickaxe",
     "spriteRef": "assets/sprites/tools/dPic.png",
     "recipe": {
       "pattern": [
@@ -219,7 +219,7 @@
     "type": "Axe",
     "power": "Wood",
     "itemId": "wood_axe",
-    "name": "wAxe",
+    "name": "Wood Axe",
     "spriteRef": "assets/sprites/tools/wAxe.png",
     "recipe": {
       "pattern": [
@@ -246,7 +246,7 @@
     "type": "Axe",
     "power": "Stone",
     "itemId": "stone_axe",
-    "name": "sAxe",
+    "name": "Stone Axe",
     "spriteRef": "assets/sprites/tools/sAxe.png",
     "recipe": {
       "pattern": [
@@ -273,7 +273,7 @@
     "type": "Axe",
     "power": "Iron",
     "itemId": "iron_axe",
-    "name": "iAxe",
+    "name": "Iron Axe",
     "spriteRef": "assets/sprites/tools/iAxe.png",
     "recipe": {
       "pattern": [
@@ -300,7 +300,7 @@
     "type": "Axe",
     "power": "Diamond",
     "itemId": "diamond_axe",
-    "name": "dAxe",
+    "name": "Diamond Axe",
     "spriteRef": "assets/sprites/tools/dAxe.png",
     "recipe": {
       "pattern": [
@@ -327,7 +327,7 @@
     "type": "Hoe",
     "power": "Wood",
     "itemId": "wood_hoe",
-    "name": "wHoe",
+    "name": "Wood Hoe",
     "spriteRef": "assets/sprites/tools/wHoe.png",
     "recipe": {
       "pattern": [
@@ -354,7 +354,7 @@
     "type": "Hoe",
     "power": "Stone",
     "itemId": "stone_hoe",
-    "name": "sHoe",
+    "name": "Stone Hoe",
     "spriteRef": "assets/sprites/tools/sHoe.png",
     "recipe": {
       "pattern": [
@@ -381,7 +381,7 @@
     "type": "Hoe",
     "power": "Iron",
     "itemId": "iron_hoe",
-    "name": "iHoe",
+    "name": "Iron Hoe",
     "spriteRef": "assets/sprites/tools/iHoe.png",
     "recipe": {
       "pattern": [
@@ -408,7 +408,7 @@
     "type": "Hoe",
     "power": "Diamond",
     "itemId": "diamond_hoe",
-    "name": "dHoe",
+    "name": "Diamond Hoe",
     "spriteRef": "assets/sprites/tools/dHoe.png",
     "recipe": {
       "pattern": [
@@ -435,7 +435,7 @@
     "type": "Shovel",
     "power": "Wood",
     "itemId": "wood_shovel",
-    "name": "wShov",
+    "name": "Wood Shovel",
     "spriteRef": "assets/sprites/tools/wShovel.png",
     "recipe": {
       "pattern": [
@@ -462,7 +462,7 @@
     "type": "Shovel",
     "power": "Stone",
     "itemId": "stone_shovel",
-    "name": "sShov",
+    "name": "Stone Shovel",
     "spriteRef": "assets/sprites/tools/sShovel.png",
     "recipe": {
       "pattern": [
@@ -489,7 +489,7 @@
     "type": "Shovel",
     "power": "Iron",
     "itemId": "iron_shovel",
-    "name": "iShov",
+    "name": "Iron Shovel",
     "spriteRef": "assets/sprites/tools/iShovel.png",
     "recipe": {
       "pattern": [
@@ -516,7 +516,7 @@
     "type": "Shovel",
     "power": "Diamond",
     "itemId": "diamond_shovel",
-    "name": "dShov",
+    "name": "Diamond Shovel",
     "spriteRef": "assets/sprites/tools/dShovel.png",
     "recipe": {
       "pattern": [
@@ -718,7 +718,7 @@
     "type": "Bow",
     "power": "Wood",
     "itemId": "wood_bow",
-    "name": "wBow",
+    "name": "Wood Bow",
     "spriteRef": "assets/sprites/tools/wBow.png",
     "recipe": {
       "pattern": [

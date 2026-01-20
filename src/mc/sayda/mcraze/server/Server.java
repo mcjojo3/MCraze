@@ -107,7 +107,12 @@ public class Server implements PacketHandler {
 	 * Start a new game with authentication (REFACTORED to use SharedWorld)
 	 * Optionally load an existing world
 	 */
-	public void startGame(int width, String worldName, String username, String password, World loadedWorld) {
+	public void startGame(int width, String worldName, String username, String password, World loadedWorld,
+			mc.sayda.mcraze.world.GameMode gameMode, boolean keepInventory, boolean daylightCycle,
+			double noiseModifier) {
+		// Set global noise modifier for next generation (if any)
+		mc.sayda.mcraze.world.gen.WorldGenerator.noiseModifier = noiseModifier;
+
 		worldWidth = width;
 		deathHandled = false;
 		this.hostUsername = username;
@@ -120,10 +125,16 @@ public class Server implements PacketHandler {
 			gameWorld = loadedWorld;
 			if (logger != null)
 				logger.info("Using loaded world: " + worldName);
+			// Loaded worlds use their saved GameMode/Rules (restored from metadata)
 		} else {
-			gameWorld = new World(worldWidth, worldHeight, random);
+			gameWorld = new World(worldWidth, worldHeight, random, gameMode);
+			// Apply creation settings to NEW world
+			gameWorld.gameMode = gameMode;
+			gameWorld.keepInventory = keepInventory;
+			gameWorld.daylightCycle = daylightCycle;
+
 			if (logger != null)
-				logger.info("Generated new world: " + worldName);
+				logger.info("Generated new world: " + worldName + " Mode: " + gameMode);
 		}
 
 		spawnX = gameWorld.spawnLocation.x;
@@ -182,7 +193,7 @@ public class Server implements PacketHandler {
 	 * Start a new game without loading (generates new world)
 	 */
 	public void startGame(int width, String worldName, String username, String password) {
-		startGame(width, worldName, username, password, null);
+		startGame(width, worldName, username, password, null, mc.sayda.mcraze.world.GameMode.CLASSIC, false, true, 0.0);
 	}
 
 	/**
@@ -192,7 +203,8 @@ public class Server implements PacketHandler {
 	 */
 	@Deprecated
 	public void startGame(int width) {
-		startGame(width, "World1", "Player", "password", null);
+		startGame(width, "World1", "Player", "password", null, mc.sayda.mcraze.world.GameMode.CLASSIC, false, true,
+				0.0);
 	}
 
 	/**

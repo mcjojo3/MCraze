@@ -70,6 +70,7 @@ public class PacketInteract extends ClientPacket {
         OPEN_CRAFTING, // Open 3x3 crafting table
         OPEN_CHEST, // Open chest inventory (future)
         OPEN_FURNACE, // Open furnace UI (future)
-        TOGGLE_INVENTORY // Toggle inventory open/closed (E key)
+        TOGGLE_INVENTORY, // Toggle inventory open/closed (E key)
+        INTERACT // Generic interaction (e.g. right-click trapdoor)
     }
 }

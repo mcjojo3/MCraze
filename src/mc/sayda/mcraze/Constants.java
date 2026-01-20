@@ -10,6 +10,8 @@ import mc.sayda.mcraze.world.tile.TileType;
 
 public class Constants {
 
+	// VERY IMPORTANT!!! Only add new TileIDs to the end of the list. Do not remove
+	// or reorder existing TileIDs.
 	public enum TileID {
 		NONE(null), // NONE/AIR should be first (ordinal 0) to avoid issues with default values
 		AIR(null),
@@ -74,7 +76,10 @@ public class Constants {
 		GRAY_WOOL("gray_wool"),
 		IRRIGATED_FARMLAND("dirt"), // Druid Cultivator special farmland (faster crop growth)
 		SPIKE_TRAP("spike_trap"), // Engineer trap (x2 fall damage)
-		BOULDER_TRAP("boulder_trap"); // Engineer trap (spawns EntityBoulder)
+		BOULDER_TRAP("boulder_trap"), // Engineer trap (spawns EntityBoulder)
+		FLAG("flag"), // The Nexus/Defense Objective
+		TRAPDOOR_CLOSED("trapdoor"),
+		TRAPDOOR("trapdoor");
 
 		// The string ID of the item this tile drops when broken (null = no drop)
 		public final String itemDropId;
@@ -99,6 +104,10 @@ public class Constants {
 			// wheat_seeds instead)
 			if (itemId.equals("wheat"))
 				return null;
+
+			// Special: Flag item places FLAG tile
+			if (itemId.equals("flag"))
+				return FLAG;
 
 			// Direct matches (most tiles match their item drops)
 			for (TileID tileID : values()) {
@@ -190,13 +199,14 @@ public class Constants {
 				TileID.SPAWNER, true, false, 1)));
 		tileTypes.put(TileID.FARMLAND, new Tile(new TileType("assets/sprites/tiles/farmland.png",
 				TileID.FARMLAND)));
-		tileTypes.put(TileID.IRRIGATED_FARMLAND, new Tile(new TileType("assets/sprites/tiles/farmland.png",
-				TileID.IRRIGATED_FARMLAND))); // TODO: Add unique irrigated sprite
-		tileTypes.put(TileID.SPIKE_TRAP, new Tile(new TileType("assets/sprites/tiles/spikes.png",
+		tileTypes.put(TileID.IRRIGATED_FARMLAND, new Tile(new TileType("assets/sprites/tiles/irrigated_farmland.png",
+				TileID.IRRIGATED_FARMLAND)));
+		tileTypes.put(TileID.SPIKE_TRAP, new Tile(new TileType("assets/sprites/tiles/spike_trap.png",
 				TileID.SPIKE_TRAP, true, false, 0))); // Passable (walk into spikes)
-		tileTypes.put(TileID.BOULDER_TRAP, new Tile(new TileType("assets/sprites/tiles/boulder_trap.png",
-				TileID.BOULDER_TRAP, false, false, 0))); // Solid block until triggered? Or passable? User said
-															// "activated". Let's assume solid.
+		tileTypes.put(TileID.BOULDER_TRAP, new Tile(new TileType("assets/sprites/entities/boulder.png",
+				TileID.BOULDER_TRAP, false, false, 0))); // Solid block until triggered
+		tileTypes.put(TileID.FLAG, new Tile(new TileType("assets/sprites/tiles/flag.png",
+				TileID.FLAG, true, false, 0, Constants.LIGHT_VALUE_TORCH, false))); // Emits light!
 		tileTypes.put(TileID.HAY_BLOCK, new Tile(new TileType("assets/sprites/tiles/hay_block.png",
 				TileID.HAY_BLOCK, false, false, 0)));
 		tileTypes.put(TileID.DIAMOND_BLOCK, new Tile(new TileType("assets/sprites/tiles/diamond_block.png",
@@ -227,6 +237,10 @@ public class Constants {
 				TileID.BED_LEFT, true, false, 0))); // Passable - left side of bed
 		tileTypes.put(TileID.BED_RIGHT, new Tile(new TileType("assets/sprites/tiles/bed_bot.png",
 				TileID.BED_RIGHT, true, false, 0))); // Passable - right side of bed
+		tileTypes.put(TileID.TRAPDOOR_CLOSED, new Tile(new TileType("assets/sprites/tiles/trapdoor_closed.png",
+				TileID.TRAPDOOR_CLOSED, false, false, 0)));
+		tileTypes.put(TileID.TRAPDOOR, new Tile(new TileType("assets/sprites/tiles/trapdoor.png",
+				TileID.TRAPDOOR, true, false, 0)));
 		tileTypes.put(TileID.GLASS, new Tile(new TileType("assets/sprites/tiles/glass.png",
 				TileID.GLASS, false, false, 0)));
 		tileTypes.put(TileID.WHITE_WOOL, new Tile(new TileType("assets/sprites/tiles/white_wool.png",

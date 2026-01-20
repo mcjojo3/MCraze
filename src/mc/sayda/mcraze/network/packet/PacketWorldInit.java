@@ -35,6 +35,8 @@ public class PacketWorldInit extends ServerPacket {
 	public boolean spelunking = false;
 	public boolean keepInventory = false;
 	public boolean daylightCycle = true;
+	public boolean mobGriefing = true;
+	public boolean pvp = true;
 
 	public PacketWorldInit() {
 	}
@@ -66,7 +68,7 @@ public class PacketWorldInit extends ServerPacket {
 	@Override
 	public byte[] encode() {
 		byte[] uuidBytes = (playerUUID != null ? playerUUID : "").getBytes(StandardCharsets.UTF_8);
-		ByteBuffer buf = ByteBuffer.allocate(33 + uuidBytes.length); // +3 bytes for gamerules
+		ByteBuffer buf = ByteBuffer.allocate(35 + uuidBytes.length); // +5 bytes for gamerules
 		buf.putInt(worldWidth);
 		buf.putInt(worldHeight);
 		buf.putLong(seed);
@@ -79,6 +81,8 @@ public class PacketWorldInit extends ServerPacket {
 		buf.put((byte) (spelunking ? 1 : 0));
 		buf.put((byte) (keepInventory ? 1 : 0));
 		buf.put((byte) (daylightCycle ? 1 : 0));
+		buf.put((byte) (mobGriefing ? 1 : 0));
+		buf.put((byte) (pvp ? 1 : 0));
 		return buf.array();
 	}
 
@@ -101,6 +105,8 @@ public class PacketWorldInit extends ServerPacket {
 		packet.spelunking = buf.get() == 1;
 		packet.keepInventory = buf.get() == 1;
 		packet.daylightCycle = buf.get() == 1;
+		packet.mobGriefing = buf.get() == 1;
+		packet.pvp = buf.get() == 1;
 
 		return packet;
 	}

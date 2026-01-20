@@ -34,15 +34,24 @@ public class MobSpawner {
     }
 
     public void addRule(SpawnRule rule) {
-        spawnRules.add(rule);
+        // Default Zombies (28x56 px = approx 1x2 blocks)
+        spawnRules.add(new SpawnRule(mc.sayda.mcraze.entity.mob.EntityZombie.class, 100, 1, 3, true, 28, 56,
+                Biome.PLAINS, Biome.FOREST, Biome.DESERT, Biome.MOUNTAIN, Biome.SNOW));
+
+        // Bombers (Rarer)
+        spawnRules.add(new SpawnRule(mc.sayda.mcraze.entity.mob.EntityBomber.class, 30, 1, 1, true, 28, 56,
+                Biome.PLAINS, Biome.FOREST, Biome.DESERT, Biome.MOUNTAIN, Biome.SNOW));
     }
 
     /**
      * Attempt to spawn mobs near players
      */
     public void tick() {
-        // RATE LIMIT: Only try spawning once every 60 ticks (3 seconds at 20 TPS)
-        if (random.nextInt(60) != 0)
+        // RATE LIMIT: Check based on active wave
+        // Normal: 1 in 60 ticks (3s)
+        // Wave: 1 in 10 ticks (0.5s)
+        int rate = isWaveActive ? 10 : 60;
+        if (random.nextInt(rate) != 0)
             return;
 
         if (spawnRules.isEmpty())
@@ -139,6 +148,16 @@ public class MobSpawner {
         if (x < 0 || x >= world.width || y < 0 || y >= world.height - 2) // Ensure y+2 is within bounds
             return false;
 
+        // Check Flag Safe Zone
+        mc.sayda.mcraze.util.Int2 flagLoc = sharedWorld.getFlagLocation();
+        if (flagLoc != null) {
+            float distSq = (flagLoc.x - x) * (flagLoc.x - x) + (flagLoc.y - y) * (flagLoc.y - y);
+            float safeRadius = mc.sayda.mcraze.survival.WaveConfig.SAFE_ZONE_RADIUS;
+            if (distSq < safeRadius * safeRadius) {
+                return false; // Too close to flag!
+            }
+        }
+
         // Check Head (y) -> Must be passable AND NOT LIQUID
         if (isSolid(x, y) || world.tiles[x][y].type.liquid)
             return false;
@@ -161,14 +180,34 @@ public class MobSpawner {
             return false;
         }
 
+        float light = world.getLightValue(x, y);
+
         if (hostile) {
-            float light = world.getLightValue(x, y);
-            // Verify if this is dark enough.
-            // Note: During day, surface is bright. Night surface is dark. Caves are always
-            // dark.
-            // Tunable constant?
+            // Wave Logic: Hostile mobs ignore light during waves
+            if (isWaveActive) {
+                return true;
+            }
+
+            // Normal Hostile Logic: Must be dark
             if (light > 0.4f) {
-                GameLogger.get().info("Spawn failed: Too bright for hostile (" + light + ") at " + x + ", " + y);
+                // GameLogger.get().info("Spawn failed: Too bright for hostile (" + light + ")
+                // at " + x + ", " + y);
+                return false;
+            }
+        } else {
+            // Passive/Animal Logic
+
+            // 1. Animals NEVER spawn at night or during waves (to prevent lit-area spawns
+            // during hordes)
+            if (isWaveActive || world.isNight()) {
+                return false;
+            }
+
+            // 2. Must be bright
+            // They need light to spawn (daytime surface or lit areas)
+            if (light <= 0.4f) {
+                // GameLogger.get().info("Spawn failed: Too dark for animal (" + light + ") at "
+                // + x + ", " + y);
                 return false;
             }
         }
@@ -218,33 +257,68 @@ public class MobSpawner {
         return null;
     }
 
+    // Wave Mode State
+    private boolean isWaveActive = false;
+    private float hpMultiplier = 1.0f;
+    private float damageMultiplier = 1.0f;
+    private float spawnCountMultiplier = 1.0f;
+
+    public void setWaveMode(boolean active) {
+        this.isWaveActive = active;
+        if (active) {
+            GameLogger.get().info("MobSpawner: Wave Mode ENABLED");
+        } else {
+            GameLogger.get().info("MobSpawner: Wave Mode DISABLED");
+        }
+    }
+
+    public void setDifficultyMultipliers(float hp, float dmg, float count) {
+        this.hpMultiplier = hp;
+        this.damageMultiplier = dmg;
+        this.spawnCountMultiplier = count;
+    }
+
     private void spawnEntity(SpawnRule rule, int x, int y) {
         try {
+            Entity entity = null;
             // Instantiate entity
             // Try 5-arg constructor first (standard for some entities)
             try {
-                Entity entity = rule.entityClass
+                entity = rule.entityClass
                         .getConstructor(boolean.class, float.class, float.class, int.class, int.class)
                         .newInstance(true, (float) x, (float) y, rule.width, rule.height);
-                sharedWorld.getEntityManager().add(entity);
-                GameLogger.get().info("Spawned " + rule.entityClass.getSimpleName() + " at " + x + "," + y);
-                return;
             } catch (NoSuchMethodException e) {
                 // Ignore, try fallback
             }
 
             // Fallback: Try 2-arg constructor (float x, float y) for simple entities like
             // Sheep
-            try {
-                Entity entity = rule.entityClass
-                        .getConstructor(float.class, float.class)
-                        .newInstance((float) x, (float) y);
+            if (entity == null) {
+                try {
+                    entity = rule.entityClass
+                            .getConstructor(float.class, float.class)
+                            .newInstance((float) x, (float) y);
+                } catch (NoSuchMethodException e) {
+                    GameLogger.get()
+                            .error("Entity " + rule.entityClass.getSimpleName() + " has no compatible constructor!");
+                    return;
+                }
+            }
+
+            // Apply Wave Scaling if applicable
+            if (entity instanceof mc.sayda.mcraze.entity.mob.EntityZombie) {
+                mc.sayda.mcraze.entity.mob.EntityZombie zombie = (mc.sayda.mcraze.entity.mob.EntityZombie) entity;
+                zombie.applyWaveScaling(hpMultiplier, damageMultiplier);
+
+                // [NEW] Apply Jump Scaling
+                if (sharedWorld.getWaveManager() != null) {
+                    zombie.setJumpMultiplier(sharedWorld.getWaveManager().getJumpMultiplier());
+                }
+            }
+
+            if (entity != null) {
                 sharedWorld.getEntityManager().add(entity);
                 GameLogger.get().info("Spawned " + rule.entityClass.getSimpleName() + " at " + x + "," + y);
-                return;
-            } catch (NoSuchMethodException e) {
-                GameLogger.get()
-                        .error("Entity " + rule.entityClass.getSimpleName() + " has no compatible constructor!");
             }
 
         } catch (Exception e) {

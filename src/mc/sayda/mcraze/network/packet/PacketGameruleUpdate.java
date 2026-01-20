@@ -25,14 +25,19 @@ public class PacketGameruleUpdate extends ServerPacket {
 	public boolean spelunking = false;
 	public boolean keepInventory = false;
 	public boolean daylightCycle = true;
+	public boolean mobGriefing = true;
+	public boolean pvp = true;
 
 	public PacketGameruleUpdate() {
 	}
 
-	public PacketGameruleUpdate(boolean spelunking, boolean keepInventory, boolean daylightCycle) {
+	public PacketGameruleUpdate(boolean spelunking, boolean keepInventory, boolean daylightCycle, boolean mobGriefing,
+			boolean pvp) {
 		this.spelunking = spelunking;
 		this.keepInventory = keepInventory;
 		this.daylightCycle = daylightCycle;
+		this.mobGriefing = mobGriefing;
+		this.pvp = pvp;
 	}
 
 	@Override
@@ -47,10 +52,12 @@ public class PacketGameruleUpdate extends ServerPacket {
 
 	@Override
 	public byte[] encode() {
-		ByteBuffer buf = ByteBuffer.allocate(3);
+		ByteBuffer buf = ByteBuffer.allocate(5);
 		buf.put((byte) (spelunking ? 1 : 0));
 		buf.put((byte) (keepInventory ? 1 : 0));
 		buf.put((byte) (daylightCycle ? 1 : 0));
+		buf.put((byte) (mobGriefing ? 1 : 0));
+		buf.put((byte) (pvp ? 1 : 0));
 		return buf.array();
 	}
 
@@ -59,6 +66,8 @@ public class PacketGameruleUpdate extends ServerPacket {
 		packet.spelunking = buf.get() == 1;
 		packet.keepInventory = buf.get() == 1;
 		packet.daylightCycle = buf.get() == 1;
+		packet.mobGriefing = buf.get() == 1;
+		packet.pvp = buf.get() == 1;
 		return packet;
 	}
 }

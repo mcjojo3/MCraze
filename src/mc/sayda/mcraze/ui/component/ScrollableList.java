@@ -16,7 +16,8 @@ public class ScrollableList<T> {
 	private int scrollOffset = 0;
 
 	private int x, y, width, height;
-	private int offsetX;  // Horizontal offset from center
+	private int offsetX; // Horizontal offset from center
+	private boolean centered = true; // NEW
 	private int itemHeight = 30;
 	private int visibleItems;
 
@@ -24,7 +25,7 @@ public class ScrollableList<T> {
 	private static final int SCROLLBAR_WIDTH = 10;
 
 	public ScrollableList(int x, int y, int width, int height, int itemHeight) {
-		this.offsetX = x;  // Store initial x as offset
+		this.offsetX = x; // Store initial x as offset
 		this.x = x;
 		this.y = y;
 		this.width = width;
@@ -60,6 +61,13 @@ public class ScrollableList<T> {
 	 */
 	public int getSelectedIndex() {
 		return selectedIndex;
+	}
+
+	/**
+	 * Set the selected index
+	 */
+	public void setSelectedIndex(int selectedIndex) {
+		this.selectedIndex = selectedIndex;
 	}
 
 	/**
@@ -210,11 +218,38 @@ public class ScrollableList<T> {
 	 * Update position (for centering with offset)
 	 */
 	public void updatePosition(int screenWidth) {
-		this.x = (screenWidth - width) / 2 + offsetX;
+		if (centered) {
+			this.x = (screenWidth - width) / 2 + offsetX;
+		}
 	}
 
-	public int getX() { return x; }
-	public int getY() { return y; }
-	public int getWidth() { return width; }
-	public int getHeight() { return height; }
+	public void setX(int x) {
+		this.x = x;
+		this.centered = false;
+	}
+
+	public void setOffsetX(int offsetX) {
+		this.offsetX = offsetX;
+		this.centered = true;
+	}
+
+	public void setCentered(boolean centered) {
+		this.centered = centered;
+	}
+
+	public int getX() {
+		return x;
+	}
+
+	public int getY() {
+		return y;
+	}
+
+	public int getWidth() {
+		return width;
+	}
+
+	public int getHeight() {
+		return height;
+	}
 }

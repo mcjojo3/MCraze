@@ -208,16 +208,14 @@ public abstract class Entity implements java.io.Serializable {
 
 				// Check for Spike Trap
 				// Get tile at center bottom
-				int cx = (int) (x + widthPX / 2.0f / 32.0f); // Assuming 32 is TILE_SIZE, prefer passing tileSize but
-																// not available here easily?
-				// Wait, updatePosition gets tileSize.
 				int tx = (int) getCenterX(tileSize);
 				int ty = (int) getBottom(tileSize);
 
 				// Fallback safe check for world bounds
 				if (tx >= 0 && tx < world.width && ty >= 0 && ty < world.height) {
 					if (world.tiles[tx][ty] != null && world.tiles[tx][ty].type.name == Constants.TileID.SPIKE_TRAP) {
-						dmg *= 2; // Double damage from spikes
+						float mult = world.getTrapFallDamageMultiplier(tx, ty);
+						dmg *= mult; // Apply class-specific trap damage multiplier
 					}
 				}
 
@@ -323,10 +321,20 @@ public abstract class Entity implements java.io.Serializable {
 		if (StockMethods.onScreen) {
 			if (damageFlashTicks > 0) {
 				// Apply red tint for damage indication (50% opacity red)
-				g.drawImage(sprite, pos.x, pos.y, widthPX, heightPX,
+				// Scale width/height based on zoom level (tileSize)
+				float scale = (float) tileSize / mc.sayda.mcraze.Constants.TILE_SIZE;
+				int drawW = (int) (widthPX * scale);
+				int drawH = (int) (heightPX * scale);
+
+				g.drawImage(sprite, pos.x, pos.y, drawW, drawH,
 						new mc.sayda.mcraze.graphics.Color(255, 0, 0, 128));
 			} else {
-				sprite.draw(g, pos.x, pos.y, widthPX, heightPX);
+				// Scale width/height based on zoom level (tileSize)
+				float scale = (float) tileSize / mc.sayda.mcraze.Constants.TILE_SIZE;
+				int drawW = (int) (widthPX * scale);
+				int drawH = (int) (heightPX * scale);
+
+				sprite.draw(g, pos.x, pos.y, drawW, drawH);
 			}
 		}
 	}

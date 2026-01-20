@@ -12,8 +12,6 @@ import mc.sayda.mcraze.graphics.GraphicsHandler;
 import mc.sayda.mcraze.graphics.Color;
 import mc.sayda.mcraze.player.Player;
 
-import java.util.Random;
-
 public class EntityWolf extends BasicAnimal {
     private static final long serialVersionUID = 1L;
 
@@ -45,7 +43,7 @@ public class EntityWolf extends BasicAnimal {
         try {
             sprite_idle = SpriteStore.get().getSprite("assets/sprites/entities/wolf.png");
             sprite_sit = SpriteStore.get().getSprite("assets/sprites/entities/wolf_sit.png");
-            sprite_angry = SpriteStore.get().getSprite("assets/sprites/entities/wolf_angry.png");
+            sprite_angry = SpriteStore.get().getSprite("assets/sprites/entities/wolf.png");
             this.sprite = sprite_idle;
         } catch (Exception e) {
             // Fallback handled in draw
@@ -118,16 +116,33 @@ public class EntityWolf extends BasicAnimal {
                 // Scan Mobs (Zombies, Sheep, other Wolves)
                 for (Entity e : allEntities) {
                     if (e instanceof LivingEntity && e != this && !e.dead) {
-                        float d = (e.x - x) * (e.x - x) + (e.y - y) * (e.y - y);
-                        if (d < nearestDistSq) {
-                            nearest = e;
-                            nearestDistSq = d;
+                        // Wild wolves hunt animals!
+                        if (!isTamed() && e instanceof mc.sayda.mcraze.entity.mob.BasicAnimal
+                                && !(e instanceof EntityWolf)) {
+                            float d = (e.x - x) * (e.x - x) + (e.y - y) * (e.y - y);
+                            if (d < nearestDistSq) {
+                                nearest = e;
+                                nearestDistSq = d;
+                            }
+                        }
+
+                        // Rampaging wolves attack anything nearby
+                        else if (isRampaging) {
+                            float d = (e.x - x) * (e.x - x) + (e.y - y) * (e.y - y);
+                            if (d < nearestDistSq) {
+                                nearest = e;
+                                nearestDistSq = d;
+                            }
                         }
                     }
                 }
 
                 if (nearest != null && nearestDistSq < 15 * 15) { // 15 block range
                     rampageTarget = nearest;
+                    if (!isTamed() && nearest instanceof mc.sayda.mcraze.entity.mob.BasicAnimal) {
+                        // Treat hunting like rampaging for AI movement purposes
+                        isRampaging = true;
+                    }
                 }
             }
 
@@ -204,13 +219,11 @@ public class EntityWolf extends BasicAnimal {
                         if (owner.y < y - 1 && onGround() && random.nextInt(20) == 0)
                             wantsToJump = true;
                     } else {
+                        // TODO Cover Wolf AI logic
                         // Close enough, stop following.
                         // We could transition to IDLE, but then BasicAnimal might pick a random wander.
                         // So we stay in FOLLOW state but stop moving? Or switch to IDLE?
                         // If we switch to IDLE, BasicAnimal takes over wandering near owner.
-                        // User request: "Untamed not aggressive mode should follow basic animal logic"
-                        // Tamed mode logic is not explicitly requested to change, but usually pets
-                        // wander near owner.
                         // For now, let's just stop moving but keep customized state to prevent wild
                         // wandering away.
                         currentAction = ACTION_FOLLOW; // Keep following state
@@ -287,18 +300,23 @@ public class EntityWolf extends BasicAnimal {
                 s = sprite_sit;
 
             if (s != null) {
+                // Scale dimensions based on zoom
+                float scale = (float) tileSize / mc.sayda.mcraze.Constants.TILE_SIZE;
+                int drawW = (int) (widthPX * scale);
+                int drawH = (int) (heightPX * scale);
+
                 // Apply red tint for damage indication
                 if (damageFlashTicks > 0) {
                     if (facingRight) {
-                        g.drawImage(s, pos.x, pos.y, widthPX, heightPX, new Color(255, 0, 0, 128));
+                        g.drawImage(s, pos.x, pos.y, drawW, drawH, new Color(255, 0, 0, 128));
                     } else {
-                        g.drawImage(s, pos.x + widthPX, pos.y, -widthPX, heightPX, new Color(255, 0, 0, 128));
+                        g.drawImage(s, pos.x + drawW, pos.y, -drawW, drawH, new Color(255, 0, 0, 128));
                     }
                 } else {
                     if (facingRight) {
-                        s.draw(g, pos.x, pos.y, widthPX, heightPX);
+                        s.draw(g, pos.x, pos.y, drawW, drawH);
                     } else {
-                        s.draw(g, pos.x + widthPX, pos.y, -widthPX, heightPX);
+                        s.draw(g, pos.x + drawW, pos.y, -drawW, drawH);
                     }
                 }
 

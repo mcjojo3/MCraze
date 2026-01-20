@@ -1,5 +1,38 @@
 [
   {
+    "itemId": "bucket",
+    "name": "Bucket",
+    "spriteRef": "assets/sprites/entities/bucket.png",
+    "requiredTool": null,
+    "recipe": {
+      "pattern": [
+        [
+          "iron",
+          null,
+          "iron"
+        ],
+        [
+          null,
+          "iron",
+          null
+        ]
+      ],
+      "yield": 1
+    }
+  },
+  {
+    "itemId": "water_bucket",
+    "name": "Water Bucket",
+    "spriteRef": "assets/sprites/entities/water_bucket.png",
+    "requiredTool": null
+  },
+  {
+    "itemId": "lava_bucket",
+    "name": "Lava Bucket",
+    "spriteRef": "assets/sprites/entities/lava_bucket.png",
+    "requiredTool": null
+  },
+  {
     "itemId": "dirt",
     "name": "Dirt",
     "spriteRef": "assets/sprites/tiles/dirt.png",
@@ -1042,9 +1075,9 @@
     }
   },
   {
-    "itemId": "bed",
-    "name": "Bed",
-    "spriteRef": "assets/sprites/tiles/bed_top.png",
+    "itemId": "trapdoor",
+    "name": "Trapdoor",
+    "spriteRef": "assets/sprites/tiles/trapdoor_closed.png",
     "recipe": {
       "pattern": [
         [
@@ -1053,12 +1086,108 @@
           "plank"
         ],
         [
-          "white_wool",
-          "white_wool",
-          "white_wool"
+          "plank",
+          "plank",
+          "plank"
         ]
       ],
       "yield": 1
+    }
+  },
+  {
+    "itemId": "bed",
+    "name": "Bed",
+    "spriteRef": "assets/sprites/tiles/bed_top.png",
+    "recipe": {
+      "pattern": [
+        [
+          "white_wool",
+          "white_wool",
+          "white_wool"
+        ],
+        [
+          "plank",
+          "plank",
+          "plank"
+        ]
+      ],
+      "yield": 1
+    }
+  },
+  {
+    "itemId": "flag",
+    "name": "Kingdom Flag",
+    "spriteRef": "assets/sprites/tiles/flag.png",
+    "yield": 1
+  },
+  {
+    "itemId": "bone",
+    "name": "Bone",
+    "spriteRef": "assets/sprites/entities/bone.png",
+    "requiredTool": null
+  },
+  {
+    "itemId": "arrow_stone",
+    "name": "Stone Arrow",
+    "spriteRef": "assets/sprites/entities/arrow_stone.png",
+    "recipe": {
+      "pattern": [
+        [
+          "stone"
+        ],
+        [
+          "stick"
+        ]
+      ],
+      "yield": 4
+    }
+  },
+  {
+    "itemId": "arrow_iron",
+    "name": "Iron Arrow",
+    "spriteRef": "assets/sprites/entities/arrow_iron.png",
+    "recipe": {
+      "pattern": [
+        [
+          "iron"
+        ],
+        [
+          "stick"
+        ]
+      ],
+      "yield": 4
+    }
+  },
+  {
+    "itemId": "arrow_gold",
+    "name": "Gold Arrow",
+    "spriteRef": "assets/sprites/entities/arrow_gold.png",
+    "recipe": {
+      "pattern": [
+        [
+          "gold"
+        ],
+        [
+          "stick"
+        ]
+      ],
+      "yield": 4
+    }
+  },
+  {
+    "itemId": "arrow_diamond",
+    "name": "Diamond Arrow",
+    "spriteRef": "assets/sprites/entities/arrow_diamond.png",
+    "recipe": {
+      "pattern": [
+        [
+          "diamond"
+        ],
+        [
+          "stick"
+        ]
+      ],
+      "yield": 4
     }
   }
 ]

@@ -29,6 +29,7 @@ public abstract class LivingEntity extends Entity {
 	public boolean noclip = false; // Noclip mode (ghost through blocks when flying)
 	public boolean sneaking = false; // Sneaking mode (prevents falling off edges, lowers in fly mode)
 	public float speedMultiplier = 1.0f; // Speed multiplier (1.0 = normal speed)
+	public float jumpMultiplier = 1.0f; // Jump height multiplier
 
 	protected final float walkSpeed = .1f;
 	protected final float swimSpeed = .04f;
@@ -40,7 +41,8 @@ public abstract class LivingEntity extends Entity {
 
 	public LivingEntity(boolean gravityApplies, float x, float y, int width, int height) {
 		super(null, gravityApplies, x, y, width, height);
-		this.hitPoints = getMaxHP();
+		this.maxHP = 100;
+		this.hitPoints = maxHP;
 		inventory = new Inventory(10, 4, 3);
 	}
 
@@ -71,7 +73,7 @@ public abstract class LivingEntity extends Entity {
 		}
 
 		if (!this.isInWater(world, tileSize)) {
-			dy = -.3f;
+			dy = -.3f * jumpMultiplier;
 			jumping = true;
 		} else {
 			dy = -maxWaterDY - .000001f;// BIG HACK

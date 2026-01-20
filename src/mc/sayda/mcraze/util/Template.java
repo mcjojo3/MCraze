@@ -12,8 +12,6 @@
 
 package mc.sayda.mcraze.util;
 
-import mc.sayda.mcraze.util.Int2;
-
 public class Template implements java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 

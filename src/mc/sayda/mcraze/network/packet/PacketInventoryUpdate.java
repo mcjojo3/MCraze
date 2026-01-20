@@ -32,6 +32,7 @@ public class PacketInventoryUpdate extends ServerPacket {
 	public String[] itemIds; // Item ID strings (null for empty slots)
 	public int[] itemCounts; // Item counts
 	public int[] toolUses; // Tool durability (0 for non-tools)
+	public boolean[] itemMastercrafted; // [NEW] Mastercrafted status
 	public int hotbarIndex; // Current hotbar selection
 
 	// Inventory UI state
@@ -42,11 +43,13 @@ public class PacketInventoryUpdate extends ServerPacket {
 	public String craftableItemId; // Item ID of craftable result (null if none)
 	public int craftableCount; // Stack count of craftable result
 	public int craftableToolUse; // Tool durability of craftable result
+	public boolean craftableMastercrafted; // [NEW] Mastercrafted status
 
 	// Cursor item (holding item) synchronization
 	public String holdingItemId; // Item ID of item on cursor (null if empty)
 	public int holdingCount; // Stack count of cursor item
 	public int holdingToolUse; // Tool durability (0 if not a tool)
+	public boolean holdingMastercrafted; // [NEW] Mastercrafted status
 
 	public PacketInventoryUpdate() {
 	}
@@ -73,6 +76,7 @@ public class PacketInventoryUpdate extends ServerPacket {
 			totalSize += 2 + itemId.getBytes(StandardCharsets.UTF_8).length; // Each item ID
 			totalSize += 4; // itemCount
 			totalSize += 4; // toolUse
+			totalSize += 1; // itemMastercrafted
 		}
 		totalSize += 4 + 1 + 4; // hotbarIndex + visible + tableSizeAvailable
 
@@ -81,12 +85,14 @@ public class PacketInventoryUpdate extends ServerPacket {
 		totalSize += 2 + craftableId.getBytes(StandardCharsets.UTF_8).length; // craftableItemId
 		totalSize += 4; // craftableCount
 		totalSize += 4; // craftableToolUse
+		totalSize += 1; // craftableMastercrafted
 
 		// Add holding item size
 		String holdingId = (holdingItemId != null) ? holdingItemId : "";
 		totalSize += 2 + holdingId.getBytes(StandardCharsets.UTF_8).length; // holdingItemId
 		totalSize += 4; // holdingCount
 		totalSize += 4; // holdingToolUse
+		totalSize += 1; // holdingMastercrafted
 
 		ByteBuffer buf = ByteBuffer.allocate(totalSize);
 
@@ -105,6 +111,7 @@ public class PacketInventoryUpdate extends ServerPacket {
 			buf.put(itemIdBytes);
 			buf.putInt(itemCounts[i]);
 			buf.putInt(toolUses[i]);
+			buf.put((byte) (itemMastercrafted[i] ? 1 : 0));
 		}
 
 		// Write metadata
@@ -118,6 +125,7 @@ public class PacketInventoryUpdate extends ServerPacket {
 		buf.put(craftableIdBytes);
 		buf.putInt(craftableCount);
 		buf.putInt(craftableToolUse);
+		buf.put((byte) (craftableMastercrafted ? 1 : 0));
 
 		// Write holding item (cursor item)
 		byte[] holdingIdBytes = holdingId.getBytes(StandardCharsets.UTF_8);
@@ -125,6 +133,7 @@ public class PacketInventoryUpdate extends ServerPacket {
 		buf.put(holdingIdBytes);
 		buf.putInt(holdingCount);
 		buf.putInt(holdingToolUse);
+		buf.put((byte) (holdingMastercrafted ? 1 : 0));
 
 		return buf.array();
 	}
@@ -143,6 +152,7 @@ public class PacketInventoryUpdate extends ServerPacket {
 		packet.itemIds = new String[count];
 		packet.itemCounts = new int[count];
 		packet.toolUses = new int[count];
+		packet.itemMastercrafted = new boolean[count];
 
 		// Read each inventory slot
 		for (int i = 0; i < count; i++) {
@@ -153,6 +163,7 @@ public class PacketInventoryUpdate extends ServerPacket {
 			packet.itemIds[i] = itemId.isEmpty() ? null : itemId;
 			packet.itemCounts[i] = buf.getInt();
 			packet.toolUses[i] = buf.getInt();
+			packet.itemMastercrafted[i] = buf.get() == 1;
 		}
 
 		// Read metadata
@@ -168,6 +179,7 @@ public class PacketInventoryUpdate extends ServerPacket {
 		packet.craftableItemId = craftableId.isEmpty() ? null : craftableId;
 		packet.craftableCount = buf.getInt();
 		packet.craftableToolUse = buf.getInt();
+		packet.craftableMastercrafted = buf.get() == 1;
 
 		// Read holding item (cursor item)
 		short holdingIdLen = buf.getShort();
@@ -177,6 +189,7 @@ public class PacketInventoryUpdate extends ServerPacket {
 		packet.holdingItemId = holdingId.isEmpty() ? null : holdingId;
 		packet.holdingCount = buf.getInt();
 		packet.holdingToolUse = buf.getInt();
+		packet.holdingMastercrafted = buf.get() == 1;
 
 		return packet;
 	}

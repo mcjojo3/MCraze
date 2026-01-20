@@ -86,7 +86,8 @@ public class DedicatedServer {
 		if (loadedWorld != null) {
 			sharedWorld = new SharedWorld(loadedWorld, new Random(), worldName, worldDir);
 		} else {
-			sharedWorld = new SharedWorld(worldWidth, new Random(), worldName, worldDir);
+			sharedWorld = new SharedWorld(worldWidth, new Random(), worldName, worldDir,
+					mc.sayda.mcraze.world.GameMode.SURVIVAL);
 			// Save the newly generated world
 			saveWorld();
 		}

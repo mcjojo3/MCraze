@@ -1,9 +1,16 @@
-package mc.sayda.mcraze.ui.menu;
+/*
+ * Copyright 2026 SaydaGames (mc_jojo3)
+ *
+ * This file is part of MCraze
+ *
+ * MCraze is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * MCraze is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MCraze. If not, see http://www.gnu.org/licenses/.
+ */
 
-import mc.sayda.mcraze.ui.component.*;
-import mc.sayda.mcraze.graphics.*;
-import mc.sayda.mcraze.player.*;
-import mc.sayda.mcraze.player.data.*;
+package mc.sayda.mcraze.ui.menu;
 
 import mc.sayda.mcraze.graphics.Color;
 import mc.sayda.mcraze.graphics.GraphicsHandler;
@@ -56,21 +63,28 @@ public class CrashScreen {
         int w = g.getScreenWidth();
         int h = g.getScreenHeight();
 
-        // Dirt pattern background (like other menus)
-        mc.sayda.mcraze.graphics.Sprite dirtSprite = mc.sayda.mcraze.graphics.SpriteStore.get()
-                .getSprite("assets/sprites/tiles/dirt.png");
-        if (dirtSprite != null) {
-            int tileSize = 32;
-            for (int x = 0; x < w; x += tileSize) {
-                for (int y = 0; y < h; y += tileSize) {
-                    dirtSprite.draw(g, x, y, tileSize, tileSize);
-                }
-            }
-        } else {
-            // Fallback to dark background
-            g.setColor(new Color(40, 0, 0));
-            g.fillRect(0, 0, w, h);
-        }
+        // Fallback to red background as requested
+        g.setColor(new Color(139, 0, 0)); // Dark Red
+        g.fillRect(0, 0, w, h);
+
+        /*
+         * // Dirt pattern background (like other menus)
+         * mc.sayda.mcraze.graphics.Sprite dirtSprite =
+         * mc.sayda.mcraze.graphics.SpriteStore.get()
+         * .getSprite("assets/sprites/tiles/dirt.png");
+         * if (dirtSprite != null) {
+         * int tileSize = 32;
+         * for (int x = 0; x < w; x += tileSize) {
+         * for (int y = 0; y < h; y += tileSize) {
+         * dirtSprite.draw(g, x, y, tileSize, tileSize);
+         * }
+         * }
+         * } else {
+         * // Fallback to dark background
+         * g.setColor(new Color(40, 0, 0));
+         * g.fillRect(0, 0, w, h);
+         * }
+         */
 
         // Header
         g.setColor(Color.white);

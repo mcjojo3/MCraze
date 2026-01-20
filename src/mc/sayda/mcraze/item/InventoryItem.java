@@ -101,9 +101,25 @@ public class InventoryItem implements java.io.Serializable, Cloneable {
 				int width = (int) (((float) (tool.totalUses - tool.uses) / tool.totalUses) * (tileSize));
 				int top = y + tileSize - 4;
 				int height = 2;
+
+				// [NEW] Dark Green Background for durability bar
+				g.setColor(new Color(0, 100, 0)); // Dark Green
+				g.fillRect(left, top, tileSize - 4, height); // Full width background
+
 				g.setColor(Color.green);
-				g.fillRect(left, top, width, height);
+				g.fillRect(left, top, width, height); // Actual durability on top
 			}
+		}
+
+		// [NEW] Draw mastercrafted indicator (Gold dot)
+		if (item.isMastercrafted) {
+			// Draw gold square in top-right
+			g.setColor(new Color(255, 215, 0)); // Gold
+			int dotSize = 4;
+			g.fillRect(x + tileSize - dotSize, y, dotSize, dotSize);
+			// Optional: slight border for visibility
+			g.setColor(new Color(180, 140, 0)); // Darker gold
+			g.drawRect(x + tileSize - dotSize, y, dotSize, dotSize);
 		}
 	}
 

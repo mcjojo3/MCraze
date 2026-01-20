@@ -24,6 +24,7 @@ public class Tile implements java.io.Serializable {
 
 	public TileType type; // Foreground tile
 	public TileType backdropType; // Background tile (nullable)
+	public int metadata = 0; // Usage: Fluid level (0-8), Orientation, etc.
 
 	public Tile(TileType type) {
 		this.type = type;

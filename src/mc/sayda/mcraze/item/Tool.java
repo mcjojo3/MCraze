@@ -33,13 +33,13 @@ public class Tool extends Item {
 			ToolType toolType, ToolPower toolPower, boolean shapeless) {
 		super(ref, size, itemId, name, template, templateCount, shapeless);
 		if (toolPower == ToolPower.Wood) {
-			totalUses = 32;
-		} else if (toolPower == ToolPower.Stone) {
 			totalUses = 64;
-		} else if (toolPower == ToolPower.Iron) {
+		} else if (toolPower == ToolPower.Stone) {
 			totalUses = 128;
-		} else if (toolPower == ToolPower.Diamond) {
+		} else if (toolPower == ToolPower.Iron) {
 			totalUses = 256;
+		} else if (toolPower == ToolPower.Diamond) {
+			totalUses = 512;
 		} else {
 			totalUses = 1024;
 		}

@@ -12,13 +12,6 @@
 
 package mc.sayda.mcraze.world.storage;
 
-import mc.sayda.mcraze.world.*;
-import mc.sayda.mcraze.world.tile.*;
-import mc.sayda.mcraze.world.gen.*;
-import mc.sayda.mcraze.world.storage.*;
-import mc.sayda.mcraze.player.*;
-import mc.sayda.mcraze.graphics.*;
-
 import mc.sayda.mcraze.item.Item;
 import mc.sayda.mcraze.item.InventoryItem;
 

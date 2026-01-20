@@ -280,8 +280,19 @@ public class Player extends LivingEntity {
 		float dy = (targetBlockY + 0.5f) - playerY;
 		float distance = (float) Math.sqrt(dx * dx + dy * dy);
 
+		// [NEW] Builder's Range Passive (Lumberjack)
+		float effectiveReach = armLength;
+		if (selectedPaths != null) {
+			for (SpecializationPath path : selectedPaths) {
+				if (path == SpecializationPath.LUMBERJACK) {
+					effectiveReach += 3.0f; // +3 Block Range
+					break;
+				}
+			}
+		}
+
 		// Check if block is within arm's reach
-		if (distance <= armLength) {
+		if (distance <= effectiveReach) {
 			handTargetPos.x = targetBlockX;
 			handTargetPos.y = targetBlockY;
 			handEndX = targetBlockX + 0.5f;
@@ -301,12 +312,18 @@ public class Player extends LivingEntity {
 		Int2 pos = StockMethods.computeDrawLocationInPlace(cameraX, cameraY, screenWidth,
 				screenHeight, tileSize, x, y);
 		if (StockMethods.onScreen) {
+
+			// Scale dimensions based on zoom
+			float scale = (float) tileSize / mc.sayda.mcraze.Constants.TILE_SIZE;
+			int drawW = (int) (widthPX * scale);
+			int drawH = (int) (heightPX * scale);
+
 			// Use sneak sprite if sneaking
 			if (sneaking) {
 				if (facingRight) {
-					sneakSprite.draw(g, pos.x, pos.y, widthPX, heightPX);
+					sneakSprite.draw(g, pos.x, pos.y, drawW, drawH);
 				} else {
-					sneakSprite.draw(g, pos.x + widthPX, pos.y, -widthPX, heightPX);
+					sneakSprite.draw(g, pos.x + drawW, pos.y, -drawW, drawH);
 				}
 			} else {
 				// 3-frame walking animation: right foot → still → left foot → still
@@ -336,17 +353,17 @@ public class Player extends LivingEntity {
 					}
 
 					if (facingRight) {
-						currentSprite.draw(g, pos.x, pos.y, widthPX, heightPX);
+						currentSprite.draw(g, pos.x, pos.y, drawW, drawH);
 					} else {
 						// Flip horizontally when facing left
-						currentSprite.draw(g, pos.x + widthPX, pos.y, -widthPX, heightPX);
+						currentSprite.draw(g, pos.x + drawW, pos.y, -drawW, drawH);
 					}
 				} else {
 					// Standing still
 					if (facingRight) {
-						sprite.draw(g, pos.x, pos.y, widthPX, heightPX);
+						sprite.draw(g, pos.x, pos.y, drawW, drawH);
 					} else {
-						sprite.draw(g, pos.x + widthPX, pos.y, -widthPX, heightPX);
+						sprite.draw(g, pos.x + drawW, pos.y, -drawW, drawH);
 					}
 				}
 			}

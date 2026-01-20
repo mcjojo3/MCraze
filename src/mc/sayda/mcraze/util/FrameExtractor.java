@@ -1,11 +1,8 @@
 package mc.sayda.mcraze.util;
 
-import mc.sayda.mcraze.logging.GameLogger;
-
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 

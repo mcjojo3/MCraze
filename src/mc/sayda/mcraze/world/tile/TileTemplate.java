@@ -86,6 +86,30 @@ public final class TileTemplate implements java.io.Serializable {
 																												// backdrop
 					}, 0, 0));
 
+	public static final TileTemplate skyblockIsland = register("skyblock_island",
+			new TileTemplate(
+					new TileID[][] {
+							{ TileID.NONE, TileID.NONE, TileID.NONE, TileID.GRASS, TileID.DIRT, TileID.DIRT,
+									TileID.STONE, TileID.STONE, TileID.STONE, TileID.NONE },
+							{ TileID.NONE, TileID.NONE, TileID.GRASS, TileID.DIRT, TileID.DIRT, TileID.DIRT,
+									TileID.STONE, TileID.STONE, TileID.STONE, TileID.STONE },
+							{ TileID.NONE, TileID.GRASS, TileID.DIRT, TileID.DIRT, TileID.DIRT, TileID.DIRT,
+									TileID.STONE, TileID.STONE, TileID.STONE, TileID.STONE },
+							{ TileID.GRASS, TileID.DIRT, TileID.DIRT, TileID.DIRT, TileID.DIRT, TileID.STONE,
+									TileID.STONE, TileID.STONE, TileID.STONE, TileID.STONE },
+							{ TileID.GRASS, TileID.DIRT, TileID.DIRT, TileID.DIRT, TileID.STONE, TileID.STONE,
+									TileID.STONE, TileID.STONE, TileID.STONE, TileID.NONE },
+							{ TileID.GRASS, TileID.DIRT, TileID.DIRT, TileID.DIRT, TileID.DIRT, TileID.STONE,
+									TileID.STONE, TileID.STONE, TileID.STONE, TileID.STONE },
+							{ TileID.NONE, TileID.GRASS, TileID.DIRT, TileID.DIRT, TileID.DIRT, TileID.DIRT,
+									TileID.STONE, TileID.STONE, TileID.STONE, TileID.STONE },
+							{ TileID.NONE, TileID.NONE, TileID.CHEST, TileID.DIRT, TileID.DIRT, TileID.DIRT,
+									TileID.STONE, TileID.STONE, TileID.STONE, TileID.STONE },
+							{ TileID.NONE, TileID.NONE, TileID.NONE, TileID.GRASS, TileID.DIRT, TileID.DIRT,
+									TileID.STONE, TileID.STONE, TileID.STONE, TileID.NONE }
+					},
+					null, 4, 0));
+
 	public TileID[][] template; // Foreground tiles
 	public TileID[][] backdropTemplate; // Backdrop tiles (can be null)
 	public int spawnX;

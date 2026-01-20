@@ -11,10 +11,10 @@ import mc.sayda.mcraze.graphics.Sprite;
 public class Button {
 	private final String id;
 	private int x; // Made non-final to allow dynamic positioning
-	private final int y;
+	private int y;
 	private final int width;
 	private final int height;
-	private final boolean centered; // Whether to center horizontally
+	private boolean centered; // Whether to center horizontally
 	private int offsetX = 0; // Horizontal offset from center position
 
 	// Sprite-based button
@@ -133,6 +133,12 @@ public class Button {
 		if (centered) {
 			this.x = (screenWidth - width) / 2 + offsetX;
 		}
+	}
+
+	public void setPosition(int x, int y) {
+		this.x = x;
+		this.y = y;
+		this.centered = false;
 	}
 
 	/**

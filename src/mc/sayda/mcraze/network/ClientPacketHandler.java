@@ -57,4 +57,8 @@ public interface ClientPacketHandler {
     void handleItemTrigger(PacketItemTrigger packet); // NEW: For special item effects
 
     void handlePlaySound(PacketPlaySound packet); // NEW: Play sound effects
+
+    void handleWaveSync(PacketWaveSync packet); // NEW: Sync wave status
+
+    void handleWorldBulkData(PacketWorldBulkData packet); // NEW: Compressed world loading
 }

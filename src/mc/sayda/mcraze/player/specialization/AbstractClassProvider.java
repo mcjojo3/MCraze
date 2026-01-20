@@ -1,4 +1,5 @@
 package mc.sayda.mcraze.player.specialization;
+
 import mc.sayda.mcraze.entity.Entity;
 
 import mc.sayda.mcraze.entity.LivingEntity;
@@ -27,4 +28,12 @@ public abstract class AbstractClassProvider {
     public abstract int getMaxMana();
 
     public abstract float getManaRegen();
+
+    public float getDurabilityMultiplier() {
+        return 1.0f;
+    }
+
+    public float getTrapFallDamageMultiplier() {
+        return 1.0f;
+    }
 }

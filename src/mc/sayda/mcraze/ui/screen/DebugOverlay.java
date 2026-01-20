@@ -69,7 +69,7 @@ public class DebugOverlay {
 
 		// Semi-transparent background for readability
 		g.setColor(new Color(0, 0, 0, 128));
-		g.fillRect(2, 2, 300, 220);
+		g.fillRect(2, 2, 300, 280); // Increased height for more info
 
 		int y = 10;
 		int lineHeight = 14;
@@ -106,6 +106,12 @@ public class DebugOverlay {
 			String state = player.dead ? "Dead" : "Alive";
 			g.drawString("State: " + state, 5, y);
 			y += lineHeight;
+
+			// Class Info (NEW)
+			y += 4;
+			g.drawString("Class: " + (player.selectedClass != null ? player.selectedClass : "None"), 5, y);
+			y += lineHeight;
+			// Future: Paths, Mana, Points
 		}
 
 		// Separator line
@@ -114,10 +120,35 @@ public class DebugOverlay {
 		// World info
 		if (server != null && server.world != null) {
 			World world = server.world;
+			mc.sayda.mcraze.server.SharedWorld sw = server.getSharedWorld();
+
+			// Game Mode
+			g.drawString("Game Mode: " + (world.gameMode != null ? world.gameMode.name() : "NULL"), 5, y);
+			y += lineHeight;
 
 			// World dimensions
 			g.drawString("World: " + world.width + "x" + world.height, 5, y);
 			y += lineHeight;
+
+			// Diagnostics
+			if (sw == null) {
+				g.drawString("Error: SharedWorld is NULL", 5, y);
+				y += lineHeight;
+			} else if (sw.getWaveManager() == null) {
+				g.drawString("Error: WaveManager is NULL", 5, y);
+				y += lineHeight;
+			}
+
+			// Wave Info (Client Side)
+			g.drawString("Wave Day: " + world.waveDay, 5, y);
+			y += lineHeight;
+			g.drawString("Wave: " + (world.waveActive ? "Active" : "Inactive"), 5, y);
+			y += lineHeight;
+			if (world.waveActive) {
+				g.drawString(String.format("Diff: HP x%.1f Dmg x%.1f Jump x%.1f",
+						world.diffMultHP, world.diffMultDmg, world.diffMultJump), 5, y);
+				y += lineHeight;
+			}
 
 			// Seed
 			long seed = world.getSeed();
@@ -131,7 +162,7 @@ public class DebugOverlay {
 			long day = ticks / 20000 + 1;
 			long timeOfDay = ticks % 20000;
 			String timeStr = formatTime(timeOfDay);
-			g.drawString("Day " + day + ", " + timeStr, 5, y);
+			g.drawString("Day " + day + ", " + timeStr + " (Tick " + ticks + ")", 5, y);
 			y += lineHeight;
 
 			// Biome at player location
@@ -174,7 +205,7 @@ public class DebugOverlay {
 		long usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024;
 		long totalMemory = runtime.totalMemory() / 1024 / 1024;
 		long maxMemory = runtime.maxMemory() / 1024 / 1024;
-		g.drawString("Memory: " + usedMemory + "/" + totalMemory + " MB (Max: " + maxMemory + ")", 5, y);
+		g.drawString("Mem: " + usedMemory + "/" + totalMemory + "MB", 5, y);
 		y += lineHeight;
 	}
 

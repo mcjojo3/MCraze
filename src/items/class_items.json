@@ -1,0 +1,104 @@
+[
+    {
+        "itemId": "vanguard_shield",
+        "name": "Tower Shield",
+        "spriteRef": "assets/sprites/tools/shield.png",
+        "requiredClass": "VANGUARD",
+        "recipe": {
+            "pattern": [
+                [
+                    "iron",
+                    "wood",
+                    "iron"
+                ],
+                [
+                    "iron",
+                    "iron",
+                    "iron"
+                ],
+                [
+                    "wood",
+                    "iron",
+                    "wood"
+                ]
+            ],
+            "yield": 1
+        }
+    },
+    {
+        "itemId": "spike_trap",
+        "name": "Spike Trap",
+        "spriteRef": "assets/sprites/tiles/spike_trap.png",
+        "requiredClass": "ENGINEER",
+        "requiredPath": "TRAP_MASTER",
+        "recipe": {
+            "pattern": [
+                [
+                    "iron",
+                    "iron",
+                    "iron"
+                ],
+                [
+                    "wood",
+                    "wood",
+                    "wood"
+                ]
+            ],
+            "yield": 3
+        }
+    },
+    {
+        "itemId": "boulder_trap",
+        "name": "Boulder Trap",
+        "spriteRef": "assets/sprites/entities/boulder.png",
+        "requiredClass": "ENGINEER",
+        "requiredPath": "TRAP_MASTER",
+        "recipe": {
+            "pattern": [
+                [
+                    null,
+                    "stone",
+                    null
+                ],
+                [
+                    "stone",
+                    "ruby",
+                    "stone"
+                ],
+                [
+                    null,
+                    "stone",
+                    null
+                ]
+            ],
+            "yield": 1
+        }
+    },
+    {
+        "itemId": "druid_staff",
+        "name": "Nature Staff",
+        "spriteRef": "assets/sprites/tools/staff.png",
+        "requiredClass": "DRUID",
+        "requiredPath": "CULTIVATOR",
+        "recipe": {
+            "pattern": [
+                [
+                    "wood",
+                    "gem_green",
+                    "wood"
+                ],
+                [
+                    "0",
+                    "wood",
+                    "0"
+                ],
+                [
+                    "0",
+                    "wood",
+                    "0"
+                ]
+            ],
+            "yield": 1
+        }
+    }
+]

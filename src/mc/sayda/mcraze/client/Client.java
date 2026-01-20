@@ -31,6 +31,7 @@ import mc.sayda.mcraze.graphics.UIRenderer;
 import mc.sayda.mcraze.ui.view.InventoryView;
 import mc.sayda.mcraze.ui.view.ChestView;
 import mc.sayda.mcraze.ui.view.FurnaceView;
+
 import mc.sayda.mcraze.util.Int2;
 import mc.sayda.mcraze.util.StockMethods;
 import mc.sayda.mcraze.world.gen.Biome;
@@ -206,7 +207,7 @@ public class Client implements ClientPacketHandler {
 
 						// Handle input for login screen
 						if (leftClick) {
-							loginScreen.handleClick(screenMousePos.x, screenMousePos.y);
+							loginScreen.handleClick(g, screenMousePos.x, screenMousePos.y);
 							leftClick = false;
 						}
 
@@ -498,6 +499,17 @@ public class Client implements ClientPacketHandler {
 		wasLeftClick = leftClick;
 		wasRightClick = rightClick;
 
+		if (justPressedRight && connection != null && !chestFocus && !furnaceFocus && !inventoryFocus && !chatOpen
+				&& !isClassSelectionUIOpen()) {
+
+			// Check if clicking on an entity
+			String clickedEntityUUID = getEntityUUIDAtMouse();
+			if (clickedEntityUUID != null) {
+				connection.sendPacket(new mc.sayda.mcraze.network.packet.PacketEntityInteract(clickedEntityUUID));
+				justPressedRight = false; // Consume click
+			}
+		}
+
 		if (rightClick && connection != null && !chestFocus && !furnaceFocus && !inventoryFocus && !chatOpen
 				&& !isClassSelectionUIOpen()) {
 			if (currentTime - lastRightClickTime >= INTERACT_COOLDOWN_MS) {
@@ -529,6 +541,11 @@ public class Client implements ClientPacketHandler {
 		// Render UI
 		if (isShowingFPS()) {
 			uiRenderer.drawFPS(g, frameDeltaMs);
+		}
+
+		// Render Debug Overlay (F3)
+		if (debugOverlay != null) {
+			debugOverlay.draw(g, this, localServer);
 		}
 
 		uiRenderer.drawBuildMineIcons(g, player, cameraX, cameraY, effectiveTileSize);
@@ -727,6 +744,32 @@ public class Client implements ClientPacketHandler {
 			return;
 		}
 
+		// BOW HANDLING (Right Click)
+		// Must be done BEFORE target check because we can shoot at the sky (-1, -1)
+		if (!isBreak) {
+			mc.sayda.mcraze.item.InventoryItem holding = player.inventory.selectedItem();
+			if (!holding.isEmpty() && holding.getItem() instanceof mc.sayda.mcraze.item.Tool) {
+				mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) holding.getItem();
+				if (tool.toolType == mc.sayda.mcraze.item.Tool.ToolType.Bow) {
+					// Convert mouse to world coords for aiming
+					int effectiveTileSize = getEffectiveTileSize();
+					int screenWidth = mc.sayda.mcraze.graphics.GraphicsHandler.get().getScreenWidth();
+					int screenHeight = mc.sayda.mcraze.graphics.GraphicsHandler.get().getScreenHeight();
+					float cameraX = player.x - screenWidth / effectiveTileSize / 2f;
+					float cameraY = player.y - screenHeight / effectiveTileSize / 2f;
+					float worldMouseX = (cameraX * effectiveTileSize + screenMousePos.x) / effectiveTileSize;
+					float worldMouseY = (cameraY * effectiveTileSize + screenMousePos.y) / effectiveTileSize;
+
+					// Send INTERACT packet with mouse coordinates
+					mc.sayda.mcraze.network.packet.PacketInteract packet = new mc.sayda.mcraze.network.packet.PacketInteract(
+							(int) worldMouseX, (int) worldMouseY,
+							mc.sayda.mcraze.network.packet.PacketInteract.InteractionType.INTERACT);
+					connection.sendPacket(packet);
+					return; // Stop processing block place
+				}
+			}
+		}
+
 		// Get the target block position from player
 		int targetX = player.handTargetPos.x;
 		int targetY = player.handTargetPos.y;
@@ -764,6 +807,15 @@ public class Client implements ClientPacketHandler {
 						mc.sayda.mcraze.network.packet.PacketInteract packet = new mc.sayda.mcraze.network.packet.PacketInteract(
 								targetX, targetY,
 								mc.sayda.mcraze.network.packet.PacketInteract.InteractionType.OPEN_CHEST);
+						connection.sendPacket(packet);
+						return;
+					} else if (type == mc.sayda.mcraze.Constants.TileID.TRAPDOOR ||
+							type == mc.sayda.mcraze.Constants.TileID.TRAPDOOR_CLOSED ||
+							type == mc.sayda.mcraze.Constants.TileID.BOULDER_TRAP) {
+						// Tile Interaction (Toggle/Trigger)
+						mc.sayda.mcraze.network.packet.PacketInteract packet = new mc.sayda.mcraze.network.packet.PacketInteract(
+								targetX, targetY,
+								mc.sayda.mcraze.network.packet.PacketInteract.InteractionType.INTERACT);
 						connection.sendPacket(packet);
 						return;
 					}
@@ -1408,6 +1460,8 @@ public class Client implements ClientPacketHandler {
 					localServer.world.spelunking = packet.spelunking;
 					localServer.world.keepInventory = packet.keepInventory;
 					localServer.world.daylightCycle = packet.daylightCycle;
+					localServer.world.mobGriefing = packet.mobGriefing;
+					localServer.world.pvp = packet.pvp;
 					if (logger != null) {
 						logger.info("Client: Applied gamerules - spelunking=" + packet.spelunking +
 								", keepInventory=" + packet.keepInventory + ", daylightCycle=" + packet.daylightCycle);
@@ -1426,6 +1480,97 @@ public class Client implements ClientPacketHandler {
 			if (logger != null)
 				logger.error("Client.handleWorldInit: localServer is NULL!");
 		}
+	}
+
+	@Override
+	public void handleWorldBulkData(mc.sayda.mcraze.network.packet.PacketWorldBulkData packet) {
+		if (logger != null) {
+			logger.info("Client: handleWorldBulkData CALLED! PacketID=" + packet.getPacketId());
+		}
+
+		if (localServer == null || localServer.world == null) {
+			if (logger != null)
+				logger.warn("Client.handleWorldBulkData: World is null!");
+			return;
+		}
+
+		// OPTIMIZATION & FIX: If we are running on Integrated Server (Host),
+		// we already share the world object with the server. Skip redundant loading.
+		// We use instanceof LocalConnection as the gold standard for Host detection.
+		boolean isHost = (connection instanceof mc.sayda.mcraze.network.LocalConnection);
+
+		if (isHost) {
+			if (logger != null) {
+				logger.info("Client: host host detected. Skipping redundant Bulk World Load.");
+				if (localServer.world != null)
+					localServer.world.refreshLighting();
+				return;
+			}
+		}
+
+		mc.sayda.mcraze.world.storage.WorldAccess worldAccess = localServer.getWorldAccess();
+		if (worldAccess == null) {
+			if (logger != null)
+				logger.info("Client: WorldAccess is null, applying bulk data directly to world (Multiplayer)");
+		}
+
+		byte[] decompressed = packet.decompress();
+		if (decompressed == null) {
+			if (logger != null)
+				logger.error("Client.handleWorldBulkData: Decompression failed!");
+			return;
+		}
+
+		// Apply bulk data to world
+		// Data format: [TileIDs (WxH)] + [Metadata (WxH)] + [Backdrops (WxH)]
+		// We know dimensions from packet
+		int width = packet.width;
+		int height = packet.height;
+		int layerSize = width * height; // Size of one layer
+
+		if (logger != null)
+			logger.info("Client: Received Bulk World Data (" + packet.compressedData.length + " bytes compressed, "
+					+ decompressed.length + " bytes raw)");
+
+		// Validate data size
+		// Minimum: Tiles + Meta (2 layers). Backdrops (3rd layer) optional for compat
+		// if needed, but we expect all 3 now.
+		if (logger != null) {
+			logger.info(
+					"Client: Parsing Bulk Data. Width=" + width + ", Height=" + height + ", LayerSize=" + layerSize);
+			logger.info("Client: Decompressed Size=" + decompressed.length + " (Expected " + (layerSize * 3) + ")");
+		}
+
+		if (decompressed.length < layerSize * 2) {
+			if (logger != null)
+				logger.warn("Client: Bulk data size mismatch! Expected at least " + (layerSize * 2) + " but got "
+						+ decompressed.length);
+		}
+
+		// OPTIMIZATION & FIX: If we are running on Integrated Server and we already
+		// have a world,
+		// DO NOT overwrite it with packet data! The client already shares the world
+		// object with the server.
+		// Overwriting it causes a race condition or data wipe if the packet is slightly
+		// desynced
+		// or if we are verifying "nothing rendered" issues.
+
+		// Apply bulk data to world
+		if (worldAccess != null) {
+			if (logger != null)
+				logger.info("Client: Applying bulk data with WorldAccess lock");
+			worldAccess.updateWithLock(world -> {
+				applyBulkToWorld(world, decompressed, layerSize, width, height, packet.x, packet.y);
+			});
+		} else {
+			applyBulkToWorld(localServer.world, decompressed, layerSize, width, height, packet.x, packet.y);
+		}
+
+		if (logger != null)
+			logger.info("Client: World Bulk Data Applied successfully.");
+
+		// Force full re-render
+		localServer.world.refreshLighting();
 	}
 
 	@Override
@@ -1585,6 +1730,27 @@ public class Client implements ClientPacketHandler {
 					if (logger != null) {
 						logger.debug("Client: Created Zombie entity (UUID: " + entityUUID + ")");
 					}
+				} else if ("Arrow".equals(entityType)) {
+					String itemId = (packet.itemIds != null && i < packet.itemIds.length) ? packet.itemIds[i] : null;
+					mc.sayda.mcraze.entity.projectile.EntityArrow.ArrowType type = mc.sayda.mcraze.entity.projectile.EntityArrow.ArrowType.STONE;
+					if (itemId != null) {
+						for (mc.sayda.mcraze.entity.projectile.EntityArrow.ArrowType t : mc.sayda.mcraze.entity.projectile.EntityArrow.ArrowType
+								.values()) {
+							if (t.itemId.equals(itemId)) {
+								type = t;
+								break;
+							}
+						}
+					}
+					entity = new mc.sayda.mcraze.entity.projectile.EntityArrow(packet.entityX[i], packet.entityY[i],
+							null, type);
+					if (logger != null)
+						logger.debug("Client: Created Arrow (UUID: " + entityUUID + ")");
+				} else if ("Boulder".equals(entityType)) {
+					entity = new mc.sayda.mcraze.entity.projectile.EntityBoulder(packet.entityX[i], packet.entityY[i],
+							packet.facingRight[i]);
+					if (logger != null)
+						logger.debug("Client: Created Boulder (UUID: " + entityUUID + ")");
 				} else {
 					// Create Player entity
 					entity = new mc.sayda.mcraze.player.Player(
@@ -1801,6 +1967,7 @@ public class Client implements ClientPacketHandler {
 			if (item != null) {
 				// Clone item and set count
 				mc.sayda.mcraze.item.Item clonedItem = item.clone();
+				clonedItem.isMastercrafted = packet.craftableMastercrafted; // [NEW] Sync mastercrafted status
 				craftable.setItem(clonedItem);
 				craftable.setCount(packet.craftableCount);
 
@@ -1808,6 +1975,11 @@ public class Client implements ClientPacketHandler {
 				if (clonedItem instanceof mc.sayda.mcraze.item.Tool) {
 					mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) clonedItem;
 					tool.uses = packet.craftableToolUse;
+					// Durability boost calculation isn't strictly needed on client for rendering,
+					// but consistency is good
+					if (packet.craftableMastercrafted) {
+						tool.totalUses = (int) (tool.totalUses * 1.5f);
+					}
 				}
 			} else {
 				// Item not found in registry
@@ -1828,6 +2000,7 @@ public class Client implements ClientPacketHandler {
 			if (item != null) {
 				// Clone item and set count
 				mc.sayda.mcraze.item.Item clonedItem = item.clone();
+				clonedItem.isMastercrafted = packet.holdingMastercrafted; // [NEW] Sync mastercrafted status
 				inv.holding.setItem(clonedItem);
 				inv.holding.setCount(packet.holdingCount);
 
@@ -1835,6 +2008,9 @@ public class Client implements ClientPacketHandler {
 				if (clonedItem instanceof mc.sayda.mcraze.item.Tool) {
 					mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) clonedItem;
 					tool.uses = packet.holdingToolUse;
+					if (packet.holdingMastercrafted) {
+						tool.totalUses = (int) (tool.totalUses * 1.5f);
+					}
 				}
 			} else {
 				// Item not found in registry
@@ -1848,34 +2024,45 @@ public class Client implements ClientPacketHandler {
 		int index = 0;
 		for (int y = 0; y < height; y++) {
 			for (int x = 0; x < width; x++) {
-				String itemId = packet.itemIds[index];
-				int count = packet.itemCounts[index];
-				int uses = packet.toolUses[index];
+				// String itemId = packet.itemIds[index]; // Original line, replaced by direct
+				// access
+				// int count = packet.itemCounts[index]; // Original line, replaced by direct
+				// access
+				// int uses = packet.toolUses[index]; // Original line, replaced by direct
+				// access
 
 				mc.sayda.mcraze.item.InventoryItem slot = inv.inventoryItems[x][y];
 
-				if (itemId == null || count == 0) {
+				if (packet.itemIds[index] == null || packet.itemCounts[index] == 0) { // Use packet.itemCounts[index]
+																						// for count check
 					// Empty slot
 					slot.setEmpty();
 				} else {
 					// Get item from registry
-					mc.sayda.mcraze.item.Item item = mc.sayda.mcraze.Constants.itemTypes.get(itemId);
+					mc.sayda.mcraze.item.Item item = mc.sayda.mcraze.Constants.itemTypes.get(packet.itemIds[index]);
 					if (item != null) {
 						// Clone item and set count
 						mc.sayda.mcraze.item.Item clonedItem = item.clone();
+						if (packet.itemMastercrafted != null && packet.itemMastercrafted.length > index) {
+							clonedItem.isMastercrafted = packet.itemMastercrafted[index]; // [NEW] Sync mastercrafted
+																							// status
+						}
 						slot.setItem(clonedItem);
-						slot.setCount(count);
+						slot.setCount(packet.itemCounts[index]);
 
 						// Restore tool durability
 						if (clonedItem instanceof mc.sayda.mcraze.item.Tool) {
 							mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) clonedItem;
-							tool.uses = uses;
+							tool.uses = packet.toolUses[index];
+							if (clonedItem.isMastercrafted) {
+								tool.totalUses = (int) (tool.totalUses * 1.5f);
+							}
 						}
 					} else {
 						// Item not found in registry
 						slot.setEmpty();
 						if (logger != null)
-							logger.warn("Client.handleInventoryUpdate: Unknown item ID: " + itemId);
+							logger.warn("Client.handleInventoryUpdate: Unknown item ID: " + packet.itemIds[index]);
 					}
 				}
 
@@ -2195,6 +2382,8 @@ public class Client implements ClientPacketHandler {
 			localServer.world.spelunking = packet.spelunking;
 			localServer.world.keepInventory = packet.keepInventory;
 			localServer.world.daylightCycle = packet.daylightCycle;
+			localServer.world.mobGriefing = packet.mobGriefing;
+			localServer.world.pvp = packet.pvp;
 
 			if (logger != null) {
 				logger.info("Client: Gamerules updated - spelunking=" + packet.spelunking +
@@ -2322,6 +2511,110 @@ public class Client implements ClientPacketHandler {
 	public void closeSkillUI() {
 		if (skillAssignmentUI != null) {
 			skillAssignmentUI.setVisible(false);
+		}
+	}
+
+	public mc.sayda.mcraze.server.Server getServer() {
+		return localServer;
+	}
+
+	@Override
+	public void handleWaveSync(mc.sayda.mcraze.network.packet.PacketWaveSync packet) {
+		// Always update the logical world view for rendering/logic
+		// Also update localServer world if it exists (Integrated Server case / LAN
+		// Host)
+		// This keeps the "client's server view" in sync if it exists locally
+		if (localServer != null && localServer.world != null) {
+			localServer.world.waveDay = packet.waveDay;
+			localServer.world.waveActive = packet.waveActive;
+			localServer.world.diffMultHP = packet.diffMultHP;
+			localServer.world.diffMultDmg = packet.diffMultDmg;
+			localServer.world.diffMultJump = packet.diffMultJump;
+		}
+	}
+
+	/**
+	 * Internal helper to apply decompressed bulk data to a world object
+	 */
+	private void applyBulkToWorld(mc.sayda.mcraze.world.World targetWorld, byte[] decompressed, int layerSize,
+			int width,
+			int height, int startX, int startY) {
+		int index = 0;
+		int debugCount = 0;
+		boolean foundNonZero = false;
+
+		for (int x = startX; x < startX + width; x++) {
+			for (int y = startY; y < startY + height; y++) {
+				if (index >= layerSize)
+					break;
+
+				// 1. Reconstruct Foreground
+				int tileIdInt = decompressed[index] & 0xFF;
+
+				if (tileIdInt != 0 && !foundNonZero) {
+					foundNonZero = true;
+					if (logger != null)
+						logger.info("Client: Found VALID DATA at " + x + "," + y + " ID=" + tileIdInt);
+				}
+
+				if (debugCount < 5 && logger != null) {
+					logger.info("Debug Tile [" + x + "," + y + "]: ID=" + tileIdInt);
+					debugCount++;
+				}
+
+				// 2. Metadata
+				int metaIndex = index + layerSize;
+				int metadata = 0;
+				if (metaIndex < decompressed.length) {
+					metadata = decompressed[metaIndex] & 0xFF;
+				}
+
+				// 3. Backdrops (3rd layer)
+				int backdropIndex = index + (layerSize * 2);
+				int backdropIdInt = 0;
+				if (backdropIndex < decompressed.length) {
+					backdropIdInt = decompressed[backdropIndex] & 0xFF;
+				}
+
+				// Create Tile Object
+				mc.sayda.mcraze.world.tile.Tile t = null;
+				if (tileIdInt > 0 && tileIdInt < Constants.TileID.values().length) {
+					Constants.TileID type = Constants.TileID.values()[tileIdInt];
+					if (type != null && type != Constants.TileID.AIR) {
+						mc.sayda.mcraze.world.tile.Tile template = mc.sayda.mcraze.Constants.tileTypes.get(type);
+						if (template != null) {
+							t = new mc.sayda.mcraze.world.tile.Tile(template.type);
+							t.metadata = metadata;
+						}
+					}
+				}
+
+				// Handle Backdrop
+				if (backdropIdInt > 0 && backdropIdInt < Constants.TileID.values().length) {
+					Constants.TileID bgType = Constants.TileID.values()[backdropIdInt];
+					if (bgType != null && bgType != Constants.TileID.AIR) {
+						mc.sayda.mcraze.world.tile.Tile bgTemplate = Constants.tileTypes.get(bgType);
+						if (bgTemplate != null) {
+							// If we don't have a foreground tile yet, create an AIR tile to hold the
+							// backdrop
+							if (t == null) {
+								mc.sayda.mcraze.world.tile.Tile airTemplate = Constants.tileTypes
+										.get(Constants.TileID.AIR);
+								if (airTemplate != null) {
+									t = new mc.sayda.mcraze.world.tile.Tile(airTemplate.type);
+								}
+							}
+							if (t != null) {
+								t.backdropType = bgTemplate.type;
+							}
+						}
+					}
+				}
+
+				// Apply to world
+				targetWorld.setTileNoUpdate(x, y, t);
+				index++;
+			}
 		}
 	}
 }

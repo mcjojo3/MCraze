@@ -1,3 +1,15 @@
+/*
+ * Copyright 2026 SaydaGames (mc_jojo3)
+ *
+ * This file is part of MCraze
+ *
+ * MCraze is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * MCraze is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MCraze. If not, see http://www.gnu.org/licenses/.
+ */
+
 package mc.sayda.mcraze.ui.menu;
 
 import mc.sayda.mcraze.ui.component.*;
@@ -46,6 +58,8 @@ public class MainMenu {
 	private static final int BUTTON_SPACING = 10;
 
 	// World size constants
+	private static final int WORLD_SIZE_TINY = 128;
+	private static final int WORLD_SIZE_SMALL = 256;
 	private static final int WORLD_SIZE_MEDIUM = 512;
 	private static final int WORLD_SIZE_LARGE = 1024;
 	private static final int WORLD_SIZE_HUGE = 2048;
@@ -56,10 +70,21 @@ public class MainMenu {
 	private List<Button> currentButtons;
 	private TextInput ipInput; // For multiplayer connection
 	private TextInput worldNameInput; // For world creation
-	private int selectedWorldSize = WORLD_SIZE_MEDIUM; // Default world size
+	private TextInput noiseModifierInput; // For noise override
+	private ScrollableList<String> gamemodeList;
+	private ScrollableList<String> rulesList;
+	private double selectedNoiseModifier = 0.0;
 	private long ticksRunning = 0;
 	private SharedSettings sharedSettings; // Shared settings component
 	private String currentSplash; // Dynamic splash text
+
+	// Selected options for new world
+	private mc.sayda.mcraze.world.GameMode selectedGameMode = mc.sayda.mcraze.world.GameMode.CLASSIC; // Default CLASSIC
+	private boolean selectedKeepInventory = false;
+	private boolean selectedDaylightCycle = true;
+	private boolean selectedSpelunking = false;
+	private boolean selectedMobGriefing = true;
+	private int selectedWorldSize = WORLD_SIZE_MEDIUM; // Default Medium
 
 	// World selection state
 	private ScrollableList<mc.sayda.mcraze.world.storage.WorldSaveManager.WorldMetadata> worldList;
@@ -217,61 +242,152 @@ public class MainMenu {
 	}
 
 	/**
-	 * Show world creation menu (name input + size selection)
+	 * Show world creation menu (2-column layout)
 	 */
 	private void showWorldCreationMenu() {
 		currentButtons.clear();
 		currentState = MenuState.WORLD_CREATE;
 
-		int startY = 200;
+		int startY = 170; // Start below logo (ends at ~148)
+		int colWidth = BUTTON_WIDTH;
+		int spacing = 65; // Keeping good vertical spacing
 
-		// Create world name input
-		worldNameInput = new TextInput("world_name", startY, BUTTON_WIDTH, BUTTON_HEIGHT, 20);
-		worldNameInput.setText("New World");
+		// Center-relative offsets for two-column layout (moved closer)
+		int leftOffset = -colWidth / 2 - 20; // 40px total gap
+		int rightOffset = colWidth / 2 + 20;
 
-		// World size buttons
-		Button mediumBtn = new Button(
-				"medium",
-				"Medium (512x256)",
-				startY + BUTTON_HEIGHT + BUTTON_SPACING * 3,
-				BUTTON_WIDTH,
+		// Preserve typed values
+		String defaultName = "New World";
+		if (worldNameInput != null)
+			defaultName = worldNameInput.getText();
+
+		String defaultNoise = "0.0";
+		if (noiseModifierInput != null)
+			defaultNoise = noiseModifierInput.getText();
+
+		// 1. World Name (Top Left)
+		worldNameInput = new TextInput("world_name", startY, colWidth, BUTTON_HEIGHT, 20);
+		worldNameInput.setText(defaultName);
+		worldNameInput.setOffsetX(leftOffset);
+
+		// 2. World Size (Below Name)
+		String sizeLabel = "Size: Medium";
+		if (selectedWorldSize == WORLD_SIZE_TINY)
+			sizeLabel = "Size: Tiny";
+		else if (selectedWorldSize == WORLD_SIZE_SMALL)
+			sizeLabel = "Size: Small";
+		else if (selectedWorldSize == WORLD_SIZE_MEDIUM)
+			sizeLabel = "Size: Medium";
+		else if (selectedWorldSize == WORLD_SIZE_LARGE)
+			sizeLabel = "Size: Large";
+		else if (selectedWorldSize == WORLD_SIZE_HUGE)
+			sizeLabel = "Size: Huge";
+
+		Button sizeBtn = new Button(
+				"size",
+				sizeLabel,
+				startY + spacing,
+				colWidth,
 				BUTTON_HEIGHT).setOnClick(() -> {
-					selectedWorldSize = WORLD_SIZE_MEDIUM;
-					createNewWorld();
+					// Cycle sizes
+					if (selectedWorldSize == WORLD_SIZE_TINY)
+						selectedWorldSize = WORLD_SIZE_SMALL;
+					else if (selectedWorldSize == WORLD_SIZE_SMALL)
+						selectedWorldSize = WORLD_SIZE_MEDIUM;
+					else if (selectedWorldSize == WORLD_SIZE_MEDIUM)
+						selectedWorldSize = WORLD_SIZE_LARGE;
+					else if (selectedWorldSize == WORLD_SIZE_LARGE)
+						selectedWorldSize = WORLD_SIZE_HUGE;
+					else
+						selectedWorldSize = WORLD_SIZE_TINY;
+					showWorldCreationMenu(); // Refresh label
 				});
+		sizeBtn.setOffsetX(leftOffset);
+		currentButtons.add(sizeBtn);
 
-		Button largeBtn = new Button(
-				"large",
-				"Large (1024x256)",
-				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 2 + BUTTON_SPACING * 2,
-				BUTTON_WIDTH,
-				BUTTON_HEIGHT).setOnClick(() -> {
-					selectedWorldSize = WORLD_SIZE_LARGE;
-					createNewWorld();
-				});
+		// 3. Noise Modifier (Below Size)
+		noiseModifierInput = new TextInput("noise_mod", startY + spacing * 2, colWidth, BUTTON_HEIGHT, 10);
+		noiseModifierInput.setText(defaultNoise);
+		noiseModifierInput.setOffsetX(leftOffset);
 
-		Button hugeBtn = new Button(
-				"huge",
-				"Huge (2048x256)",
-				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 3 + BUTTON_SPACING * 2,
-				BUTTON_WIDTH,
-				BUTTON_HEIGHT).setOnClick(() -> {
-					selectedWorldSize = WORLD_SIZE_HUGE;
-					createNewWorld();
-				});
+		// 4. Create World Button (Bottom of Column 1)
+		Button createBtn = new Button("create", "Create World", startY + spacing * 3, colWidth, BUTTON_HEIGHT)
+				.setOnClick(() -> createNewWorld());
+		createBtn.setOffsetX(leftOffset);
+		currentButtons.add(createBtn);
 
-		// Back button
-		Button backBtn = new Button(
-				"back",
-				"Back",
-				startY + (BUTTON_HEIGHT + BUTTON_SPACING) * 5,
-				BUTTON_WIDTH,
-				BUTTON_HEIGHT).setOnClick(this::showSingleplayerMenu);
-
-		currentButtons.add(mediumBtn);
-		currentButtons.add(largeBtn);
-		currentButtons.add(hugeBtn);
+		// 5. Back Button (Below Create)
+		Button backBtn = new Button("back", "Back", startY + spacing * 4, colWidth, BUTTON_HEIGHT)
+				.setOnClick(() -> showSingleplayerMenu());
+		backBtn.setOffsetX(leftOffset);
 		currentButtons.add(backBtn);
+
+		// Right Column: Scrollable Lists
+
+		// Right Column: Scrollable Lists (Aligned with Name/Size and Noise
+		// respectively)
+
+		// 6. GameMode List (Top Right)
+		if (gamemodeList == null) {
+			gamemodeList = new ScrollableList<>(0, startY, colWidth, 90, 22);
+			gamemodeList.setOffsetX(rightOffset);
+			updateGameModeList();
+		} else {
+			gamemodeList = new ScrollableList<>(0, startY, colWidth, 90, 22);
+			gamemodeList.setOffsetX(rightOffset);
+			updateGameModeList();
+		}
+
+		// 7. Rules List (Below Mode)
+		if (rulesList == null) {
+			rulesList = new ScrollableList<>(0, startY + spacing * 2, colWidth, 120, 22);
+			rulesList.setOffsetX(rightOffset);
+			updateRulesList();
+		} else {
+			rulesList = new ScrollableList<>(0, startY + spacing * 2, colWidth, 120, 22);
+			rulesList.setOffsetX(rightOffset);
+			updateRulesList();
+		}
+	}
+
+	private void updateGameModeList() {
+		if (gamemodeList == null)
+			return;
+		List<String> modes = new ArrayList<>();
+		List<String> names = new ArrayList<>();
+		int index = 0;
+		int selection = -1;
+		for (mc.sayda.mcraze.world.GameMode mode : mc.sayda.mcraze.world.GameMode.values()) {
+			modes.add(mode.name());
+			names.add(mode.name());
+			if (mode == selectedGameMode) {
+				selection = index;
+			}
+			index++;
+		}
+		gamemodeList.setItems(modes, names);
+		gamemodeList.setSelectedIndex(selection);
+	}
+
+	private void updateRulesList() {
+		if (rulesList == null)
+			return;
+		List<String> keys = new ArrayList<>();
+		List<String> names = new ArrayList<>();
+
+		keys.add("keepInventory");
+		names.add("keepInventory: " + (selectedKeepInventory ? "TRUE" : "FALSE"));
+
+		keys.add("daylightCycle");
+		names.add("daylightCycle: " + (selectedDaylightCycle ? "TRUE" : "FALSE"));
+
+		keys.add("spelunking");
+		names.add("spelunking: " + (selectedSpelunking ? "TRUE" : "FALSE"));
+
+		keys.add("mobGriefing");
+		names.add("mobGriefing: " + (selectedMobGriefing ? "TRUE" : "FALSE"));
+
+		rulesList.setItems(keys, names);
 	}
 
 	/**
@@ -495,7 +611,16 @@ public class MainMenu {
 		String username = game.getLoggedInUsername();
 		String password = game.getLoggedInPassword();
 
-		game.startGame(worldName, false, selectedWorldSize, username, password);
+		double noiseMod = 0.0;
+		try {
+			if (noiseModifierInput != null) {
+				noiseMod = Double.parseDouble(noiseModifierInput.getText());
+			}
+		} catch (Exception e) {
+		}
+
+		game.startGame(worldName, false, selectedWorldSize, username, password,
+				selectedGameMode, selectedKeepInventory, selectedDaylightCycle, noiseMod);
 	}
 
 	/**
@@ -635,11 +760,6 @@ public class MainMenu {
 
 			g.popState();
 
-			// Reset font? AwtGraphicsHandler doesn't expose getFont, so we might effect
-			// others.
-			// Ideally we reset to default, but we don't know it.
-			// Assuming other components set their own font or rely on default.
-			// Let's set it back to plain 12 just in case.
 			g.setFont("Dialog", GraphicsHandler.FONT_PLAIN, 12);
 		}
 
@@ -662,16 +782,53 @@ public class MainMenu {
 		}
 
 		// Draw world name input if in world creation menu
-		if (currentState == MenuState.WORLD_CREATE && worldNameInput != null) {
-			worldNameInput.updatePosition(screenWidth);
-			worldNameInput.draw(g);
+		if (currentState == MenuState.WORLD_CREATE) {
+			// Draw menu title just below logo
 
-			// Draw label above input
+			if (worldNameInput != null) {
+				worldNameInput.updatePosition(screenWidth);
+				worldNameInput.draw(g);
+
+				// Draw label above input
+				g.setColor(mc.sayda.mcraze.graphics.Color.white);
+				String label = "World Name:";
+				g.drawString(label, worldNameInput.getX(), worldNameInput.getY() - 4);
+			}
+
+			// Draw Size Label (Button is at offset leftOffset)
 			g.setColor(mc.sayda.mcraze.graphics.Color.white);
-			String label = "World Name:";
-			int labelX = screenWidth / 2 - g.getStringWidth(label) / 2;
-			worldNameInput.updatePosition(screenWidth);
-			g.drawString(label, labelX, worldNameInput.getY() - 20);
+			int leftX = (screenWidth - BUTTON_WIDTH) / 2 + (-BUTTON_WIDTH / 2 - 20);
+			g.drawString("World Size:", leftX, 170 + 65 - 4); // startY + spacing - 4
+
+			if (noiseModifierInput != null) {
+				noiseModifierInput.updatePosition(screenWidth);
+				noiseModifierInput.draw(g);
+
+				// Draw label
+				g.setColor(mc.sayda.mcraze.graphics.Color.white);
+				String label = "Noise Modifier:";
+				g.drawString(label, noiseModifierInput.getX(), noiseModifierInput.getY() - 4);
+			}
+
+			if (gamemodeList != null) {
+				gamemodeList.updatePosition(screenWidth);
+				gamemodeList.draw(g);
+
+				// Label
+				g.setColor(mc.sayda.mcraze.graphics.Color.white);
+				String label = "Game Mode:";
+				g.drawString(label, gamemodeList.getX(), gamemodeList.getY() - 4);
+			}
+
+			if (rulesList != null) {
+				rulesList.updatePosition(screenWidth);
+				rulesList.draw(g);
+
+				// Label
+				g.setColor(mc.sayda.mcraze.graphics.Color.white);
+				String label = "Game Rules:";
+				g.drawString(label, rulesList.getX(), rulesList.getY() - 4);
+			}
 		}
 
 		// Draw world selection list if in world select menu
@@ -704,19 +861,57 @@ public class MainMenu {
 		// Handle clicks
 		if (game.getClient().leftClick) {
 			game.getClient().leftClick = false;
+			boolean settingsClicked = false;
 
 			// Check IP input click first
 			if (currentState == MenuState.MULTIPLAYER && ipInput != null) {
-				ipInput.handleClick(mouseX, mouseY);
+				ipInput.handleClick(g, mouseX, mouseY);
 			}
 
 			// Check world name input click
-			if (currentState == MenuState.WORLD_CREATE && worldNameInput != null) {
-				worldNameInput.handleClick(mouseX, mouseY);
+			if (currentState == MenuState.WORLD_CREATE) {
+				if (worldNameInput != null)
+					worldNameInput.handleClick(g, mouseX, mouseY);
+				if (noiseModifierInput != null)
+					noiseModifierInput.handleClick(g, mouseX, mouseY);
+
+				if (gamemodeList != null && gamemodeList.handleClick(mouseX, mouseY)) {
+					String modeName = gamemodeList.getSelectedItem();
+					if (modeName != null) {
+						try {
+							selectedGameMode = mc.sayda.mcraze.world.GameMode.valueOf(modeName);
+							updateGameModeList();
+						} catch (Exception e) {
+						}
+					}
+					settingsClicked = true;
+				}
+
+				if (rulesList != null && rulesList.handleClick(mouseX, mouseY)) {
+					String key = rulesList.getSelectedItem();
+					if (key != null) {
+						switch (key) {
+							case "keepInventory":
+								selectedKeepInventory = !selectedKeepInventory;
+								break;
+							case "daylightCycle":
+								selectedDaylightCycle = !selectedDaylightCycle;
+								break;
+							case "spelunking":
+								selectedSpelunking = !selectedSpelunking;
+								break;
+							case "mobgriefing":
+								selectedMobGriefing = !selectedMobGriefing;
+								break;
+						}
+						updateRulesList();
+						rulesList.clearSelection();
+					}
+					settingsClicked = true;
+				}
 			}
 
 			// Handle settings clicks in OPTIONS menu
-			boolean settingsClicked = false;
 			if (currentState == MenuState.OPTIONS && sharedSettings != null) {
 				settingsClicked = sharedSettings.handleClick(mouseX, mouseY, screenWidth);
 			}
@@ -758,8 +953,11 @@ public class MainMenu {
 	public void handleKeyTyped(char c) {
 		if (currentState == MenuState.MULTIPLAYER && ipInput != null) {
 			ipInput.handleKeyTyped(c);
-		} else if (currentState == MenuState.WORLD_CREATE && worldNameInput != null) {
-			worldNameInput.handleKeyTyped(c);
+		} else if (currentState == MenuState.WORLD_CREATE) {
+			if (worldNameInput != null)
+				worldNameInput.handleKeyTyped(c);
+			if (noiseModifierInput != null)
+				noiseModifierInput.handleKeyTyped(c);
 		}
 	}
 
@@ -769,8 +967,11 @@ public class MainMenu {
 	public void handleKeyPressed(int keyCode, boolean shiftPressed, boolean ctrlPressed) {
 		if (currentState == MenuState.MULTIPLAYER && ipInput != null) {
 			ipInput.handleKeyPressed(keyCode, shiftPressed, ctrlPressed);
-		} else if (currentState == MenuState.WORLD_CREATE && worldNameInput != null) {
-			worldNameInput.handleKeyPressed(keyCode, shiftPressed, ctrlPressed);
+		} else if (currentState == MenuState.WORLD_CREATE) {
+			if (worldNameInput != null)
+				worldNameInput.handleKeyPressed(keyCode, shiftPressed, ctrlPressed);
+			if (noiseModifierInput != null)
+				noiseModifierInput.handleKeyPressed(keyCode, shiftPressed, ctrlPressed);
 		}
 	}
 
@@ -780,6 +981,13 @@ public class MainMenu {
 	public void handleMouseWheel(int mouseX, int mouseY, int wheelRotation) {
 		if (currentState == MenuState.WORLD_SELECT && worldList != null) {
 			worldList.handleScroll(mouseX, mouseY, wheelRotation);
+		} else if (currentState == MenuState.WORLD_CREATE) {
+			if (gamemodeList != null) {
+				gamemodeList.handleScroll(mouseX, mouseY, wheelRotation);
+			}
+			if (rulesList != null) {
+				rulesList.handleScroll(mouseX, mouseY, wheelRotation);
+			}
 		}
 	}
 

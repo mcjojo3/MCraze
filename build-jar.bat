@@ -20,8 +20,6 @@ echo Compilation successful!
 
 REM Copy resources
 echo Copying resources...
-xcopy /E /I /Y src\sprites build\sprites
-xcopy /E /I /Y src\sounds build\sounds
 xcopy /E /I /Y src\items build\items
 xcopy /E /I /Y src\assets build\assets
 if exist src\META-INF xcopy /E /I /Y src\META-INF build\META-INF
@@ -34,7 +32,7 @@ echo Class-Path: lib/easyogg.jar lib/gson-2.1.jar lib/jogg-0.0.7.jar lib/jorbis-
 REM Create JAR
 echo Creating JAR file...
 cd build
-"C:\Program Files\Java\jdk-21\bin\jar.exe" cvfm ..\MCraze.jar manifest.txt mc sprites sounds items assets
+"C:\Program Files\Java\jdk-21\bin\jar.exe" cvfm ..\MCraze.jar manifest.txt mc items assets
 if exist META-INF "C:\Program Files\Java\jdk-21\bin\jar.exe" uvf ..\MCraze.jar META-INF
 cd ..
 

@@ -25,6 +25,10 @@ public class Item extends Entity implements Cloneable {
 	public Tool.ToolType requiredToolType;
 	public Tool.ToolPower requiredToolPower;
 
+	// Class Requirement (null = available to all)
+	public mc.sayda.mcraze.player.specialization.PlayerClass requiredClass;
+	public mc.sayda.mcraze.player.specialization.SpecializationPath requiredPath; // [NEW] Path restriction
+
 	// Fuel properties (null/0 if not fuel)
 	public int fuelBurnTime = 0; // In ticks
 
@@ -39,7 +43,13 @@ public class Item extends Entity implements Cloneable {
 		this.itemId = itemId;
 		this.name = name;
 		this.spawnTime = System.currentTimeMillis();
+		this.requiredClass = null; // Default: No class restriction
+		this.requiredPath = null; // Default: No path restriction
+		this.isMastercrafted = false; // Default: Standard item
 	}
+
+	// [NEW] Mastercrafted status (Visuals + Persistence)
+	public boolean isMastercrafted = false;
 
 	@Override
 	public Item clone() {
@@ -47,6 +57,7 @@ public class Item extends Entity implements Cloneable {
 			Item cloned = (Item) super.clone();
 			// Reset spawn time for cloned items (e.g., when picking up from inventory)
 			cloned.spawnTime = System.currentTimeMillis();
+			// isMastercrafted is preserved by super.clone()
 			return cloned;
 		} catch (CloneNotSupportedException e) {
 			return null; // should never happen

@@ -58,4 +58,6 @@ public interface ServerPacketHandler {
     void handleClassSelect(PacketClassSelect packet); // NEW: For class system
 
     void handleSkillUpgrade(PacketSkillUpgrade packet); // NEW: For skill tree upgrades
+
+    void handleEntityInteract(PacketEntityInteract packet); // NEW: For entity interactions (e.g. taming)
 }

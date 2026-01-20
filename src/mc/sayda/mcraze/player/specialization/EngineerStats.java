@@ -1,4 +1,5 @@
 package mc.sayda.mcraze.player.specialization;
+
 import mc.sayda.mcraze.entity.Entity;
 
 import mc.sayda.mcraze.entity.LivingEntity;
@@ -50,5 +51,13 @@ public class EngineerStats extends AbstractClassProvider {
     @Override
     public float getManaRegen() {
         return 0;
+    }
+
+    @Override
+    public float getTrapFallDamageMultiplier() {
+        if (paths.contains(SpecializationPath.TRAP_MASTER)) {
+            return 2.0f; // Double damage from spikes (Spike Specialist)
+        }
+        return 1.0f;
     }
 }

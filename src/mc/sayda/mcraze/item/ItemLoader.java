@@ -35,27 +35,46 @@ public class ItemLoader {
 	public static HashMap<String, Item> loadItems(int size) {
 		ToolDefinition[] tools = null;
 		ItemDefinition[] items = null;
+		ItemDefinition[] classItems = null; // [NEW] Class items
+
 		// TODO: use the streaming API: https://sites.google.com/site/gson/streaming
 		try {
-			tools = gson
-					.fromJson(StockMethods.readFile("items/tools.json"), ToolDefinition[].class);
-			items = gson
-					.fromJson(StockMethods.readFile("items/items.json"), ItemDefinition[].class);
+			tools = gson.fromJson(StockMethods.readFile("items/tools.json"), ToolDefinition[].class);
+			items = gson.fromJson(StockMethods.readFile("items/items.json"), ItemDefinition[].class);
+
+			// [NEW] Load class items
+			String classItemsJson = StockMethods.readFile("items/class_items.json");
+			if (classItemsJson != null) {
+				classItems = gson.fromJson(classItemsJson, ItemDefinition[].class);
+			}
 		} catch (IOException e) {
+			logger.warn("Failed to load some item definition files: " + e.getMessage());
 		}
 
-		// Store definitions for furnace recipe lookup
-		itemDefs = items;
-		for (ItemDefinition def : items) {
-			if (def.itemId != null) {
-				itemDefMap.put(def.itemId, def);
+		// Store definitions for furnace recipe lookup (merge regular and class items)
+		// We need to merge arrays or just iterate both
+		int totalItems = (items != null ? items.length : 0) + (classItems != null ? classItems.length : 0);
+		itemDefs = new ItemDefinition[totalItems];
+
+		int idx = 0;
+		if (items != null) {
+			for (ItemDefinition def : items) {
+				itemDefs[idx++] = def;
+				if (def.itemId != null)
+					itemDefMap.put(def.itemId, def);
+			}
+		}
+		if (classItems != null) {
+			for (ItemDefinition def : classItems) {
+				itemDefs[idx++] = def;
+				if (def.itemId != null)
+					itemDefMap.put(def.itemId, def);
 			}
 		}
 
 		if (tools == null || items == null) {
-			logger.error("Failed to load items from json.");
-			// System.exit(5); // Don't kill the JVM, just log error. Caller might handle or
-			// crash gracefully later.
+			logger.error("Failed to load core item files (tools.json or items.json).");
+			// System.exit(5);
 		}
 
 		HashMap<String, Item> itemTypes = new HashMap<String, Item>();
@@ -64,6 +83,12 @@ public class ItemLoader {
 		}
 		for (ItemDefinition id : items) {
 			itemTypes.put(id.itemId, id.makeItem(size));
+		}
+		// [NEW] Register class items
+		if (classItems != null) {
+			for (ItemDefinition id : classItems) {
+				itemTypes.put(id.itemId, id.makeItem(size));
+			}
 		}
 		return itemTypes;
 	}
@@ -77,6 +102,8 @@ public class ItemLoader {
 		public Integer fuel; // Burn time in ticks (null if not fuel)
 		public String requiredTool;
 		public String requiredPower;
+		public String requiredClass; // [NEW] Class restriction
+		public String requiredPath; // [NEW] Subclass/Path restriction
 
 		// No-arg constructor for Gson
 		public ItemDefinition() {
@@ -103,6 +130,27 @@ public class ItemLoader {
 			}
 			// Set fuel burn time (0 if not fuel)
 			item.fuelBurnTime = (fuel != null) ? fuel : 0;
+
+			// [NEW] Set required class
+			if (requiredClass != null) {
+				try {
+					item.requiredClass = mc.sayda.mcraze.player.specialization.PlayerClass
+							.valueOf(requiredClass.toUpperCase());
+				} catch (IllegalArgumentException e) {
+					logger.error("Invalid requiredClass: " + requiredClass + " for " + itemId);
+				}
+			}
+
+			// [NEW] Set required path
+			if (requiredPath != null) {
+				try {
+					item.requiredPath = mc.sayda.mcraze.player.specialization.SpecializationPath
+							.valueOf(requiredPath.toUpperCase());
+				} catch (IllegalArgumentException e) {
+					logger.error("Invalid requiredPath: " + requiredPath + " for " + itemId);
+				}
+			}
+
 			return item;
 		}
 	}
@@ -123,7 +171,30 @@ public class ItemLoader {
 			} catch (IllegalArgumentException e) {
 				System.err.println("Invalid tool type or power: " + type + ", " + power);
 			}
-			return new Tool(spriteRef, size, itemId, name, pattern, yield, t, p, shapeless);
+
+			Tool tool = new Tool(spriteRef, size, itemId, name, pattern, yield, t, p, shapeless);
+
+			// [NEW] Set required class for tools
+			if (requiredClass != null) {
+				try {
+					tool.requiredClass = mc.sayda.mcraze.player.specialization.PlayerClass
+							.valueOf(requiredClass.toUpperCase());
+				} catch (IllegalArgumentException e) {
+					logger.error("Invalid requiredClass: " + requiredClass + " for tool " + itemId);
+				}
+			}
+
+			// [NEW] Set required path for tools
+			if (requiredPath != null) {
+				try {
+					tool.requiredPath = mc.sayda.mcraze.player.specialization.SpecializationPath
+							.valueOf(requiredPath.toUpperCase());
+				} catch (IllegalArgumentException e) {
+					logger.error("Invalid requiredPath: " + requiredPath + " for tool " + itemId);
+				}
+			}
+
+			return tool;
 		}
 	}
 

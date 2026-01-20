@@ -27,14 +27,21 @@ import java.util.Random;
 import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.Constants.TileID;
 import mc.sayda.mcraze.util.Int2;
-import mc.sayda.mcraze.Constants.TileID;
-import mc.sayda.mcraze.util.Int2;
+import mc.sayda.mcraze.world.World;
+import mc.sayda.mcraze.world.storage.ChestData;
+import mc.sayda.mcraze.world.tile.TileTemplate;
 
 public class WorldGenerator {
+
+	public enum GeneratorType {
+		DEFAULT,
+		VOID // Skyblock
+	}
 
 	public static boolean[][] visibility;
 	public static Int2 playerLocation;
 	public static TileID[][] backdrops; // Track backdrops during generation
+	public static double noiseModifier = 0.0; // Global noise override
 
 	/**
 	 * Biome-specific terrain generation parameters
@@ -228,10 +235,10 @@ public class WorldGenerator {
 		Biome[] biomes = new Biome[width];
 
 		// Calculate biome sizes based on world width
-		int oceanWidth = Math.max(60, width / 12); // Ocean is ~8.3% of world width (min 60 blocks) - REDUCED from
-													// width/8
-		int minLandBiomeWidth = Math.max(60, width / 16); // Min land biome width scales with world
-		int maxLandBiomeWidth = Math.max(150, width / 6); // Max land biome width scales with world
+		// SCALED: Reduced minimums to support Tiny (128) and Small (256) worlds
+		int oceanWidth = Math.max(15, width / 12);
+		int minLandBiomeWidth = Math.max(20, width / 16);
+		int maxLandBiomeWidth = Math.max(50, width / 6);
 
 		// Get all non-ocean biomes for guaranteed placement
 		Biome[] landBiomes = { Biome.PLAINS, Biome.FOREST, Biome.DESERT, Biome.MOUNTAIN };
@@ -412,6 +419,96 @@ public class WorldGenerator {
 	}
 
 	public static TileID[][] generate(int width, int height, Random random, Biome[] biomeMap, World worldObj) {
+		return generate(width, height, random, biomeMap, worldObj, GeneratorType.DEFAULT);
+	}
+
+	public static TileID[][] generate(int width, int height, Random random, Biome[] biomeMap, World worldObj,
+			GeneratorType type) {
+		if (type == GeneratorType.VOID) {
+			return generateVoid(width, height, random, worldObj);
+		}
+		// Default generation
+		return generateDefault(width, height, random, biomeMap, worldObj);
+	}
+
+	public static TileID[][] generateVoid(int width, int height, Random random, World worldObj) {
+		TileID[][] world = new TileID[width][height];
+		visibility = new boolean[width][height];
+		backdrops = new TileID[width][height];
+
+		// Initialize empty world
+		for (int i = 0; i < width; i++) {
+			for (int j = 0; j < height; j++) {
+				visibility[i][j] = true;
+				world[i][j] = TileID.AIR;
+				backdrops[i][j] = null;
+			}
+		}
+
+		// Calculate center position
+		int centerX = width / 2;
+		int centerY = height / 2;
+
+		// Set player spawn on top of the island
+		// Island template has Y anchor at 0 (top), so player should be slightly above
+		playerLocation = new Int2(centerX, centerY - 2);
+
+		// Place Skyblock Island
+		Int2 islandPos = new Int2(centerX, centerY);
+		if (TileTemplate.skyblockIsland != null) {
+			addTemplate(world, TileTemplate.skyblockIsland, islandPos);
+
+			// Populate the starter chest
+			// Based on calculation: Chest is at column 7, row 2 relative to template origin
+			// Template origin is at (centerX - 4, centerY - 0)
+			// Wait, addTemplate uses: x = position.x - spawnY + i
+			// our spawnY is 4.
+			// Chest is at index i=7, j=2
+			// World X = centerX - 4 + 7 = centerX + 3
+			// World Y = centerY - 0 + 2 = centerY + 2
+
+			if (worldObj != null) {
+				int chestX = centerX + 7;
+				int chestY = centerY - 2;
+
+				// Verify if chest block was actually placed there
+				if (chestX >= 0 && chestX < width && chestY >= 0 && chestY < height
+						&& world[chestX][chestY] == TileID.CHEST) {
+					ChestData chest = worldObj.getOrCreateChest(chestX, chestY);
+					java.util.List<mc.sayda.mcraze.item.InventoryItem> loot = LootTable.SKYBLOCK_STARTER
+							.generate(random);
+
+					int slot = 0;
+					for (mc.sayda.mcraze.item.InventoryItem item : loot) {
+						if (slot >= 27)
+							break;
+						int slotX = slot % 9;
+						int slotY = slot / 9;
+						chest.setInventoryItem(slotX, slotY, item);
+						slot++;
+					}
+				}
+			}
+		}
+
+		// Place a tree on the island
+		// Island top grass is at i=3 (centerX - 1), j=0 (centerY)
+		// Tree should be on top of that.
+		// Tree template spawnY=2, spawnX=5.
+		// We want tree base (row 5) to be at Y=centerY-1.
+		// So tree position.y - spawnX + 5 = centerY - 1 => position.y - 5 + 5 = centerY
+		// - 1 => position.y = centerY - 1
+		// Tree column 2 (trunk) should be at X=centerX - 1.
+		// Tree position.x - spawnY + 2 = centerX - 1 => position.x - 2 + 2 = centerX -
+		// 1 => position.x = centerX - 1
+
+		Int2 treePos = new Int2(centerX - 1, centerY - 1);
+		addTemplate(world, TileTemplate.tree, treePos);
+
+		return world;
+	}
+
+	public static TileID[][] generateDefault(int width, int height, Random random, Biome[] biomeMap, World worldObj) {
 		TileID[][] world = new TileID[width][height];
 		visibility = new boolean[width][height];
 		backdrops = new TileID[width][height]; // Initialize backdrop tracking
@@ -453,16 +550,20 @@ public class WorldGenerator {
 			// Generate dirt depth with some randomness
 			dirtDepth = minDirtDepth + terrainRandom.nextInt(maxDirtDepth - minDirtDepth + 1);
 
+			// Apply noise modifier (base variation scaled by (1.0 + modifier), clamped to
+			// min 0.05)
+			double effectiveVariation = Math.max(0.05, biomeParams.surfaceVariation * (1.0 + noiseModifier));
+
 			// Multi-frequency sine wave terrain generation
 			// Large features (4 cycles across world) - major hills and valleys
-			double wave1 = Math.sin(i * Math.PI * 2 * 4.0 / width) * biomeParams.surfaceVariation * 6;
+			double wave1 = Math.sin(i * Math.PI * 2 * 4.0 / width) * effectiveVariation * 6;
 			// Medium features (12 cycles) - moderate bumps
-			double wave2 = Math.sin(i * Math.PI * 2 * 12.0 / width) * biomeParams.surfaceVariation * 3;
+			double wave2 = Math.sin(i * Math.PI * 2 * 12.0 / width) * effectiveVariation * 3;
 			// Small details (30 cycles) - fine texture
-			double wave3 = Math.sin(i * Math.PI * 2 * 30.0 / width) * biomeParams.surfaceVariation * 1.5;
+			double wave3 = Math.sin(i * Math.PI * 2 * 30.0 / width) * effectiveVariation * 1.5;
 
 			// Add random noise for natural variation
-			double randomNoise = (terrainRandom.nextDouble() - 0.5) * biomeParams.surfaceVariation * 2;
+			double randomNoise = (terrainRandom.nextDouble() - 0.5) * effectiveVariation * 2;
 
 			// Combine all layers (total amplitude: ~12.5x surfaceVariation)
 			// Add +0.1 bias then round upward (0.5+ rounds up) - keeps terrain slightly

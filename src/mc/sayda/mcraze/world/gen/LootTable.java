@@ -104,10 +104,27 @@ public class LootTable {
 	 * and utility items (torches).
 	 */
 	public static final LootTable DUNGEON = new LootTable()
-			.add(Constants.itemTypes.get("coal_ore"), 3, 8, 0.8) // 80% chance: 3-8 coal ore
-			.add(Constants.itemTypes.get("iron_ore"), 1, 4, 0.5) // 50% chance: 1-4 iron ore
-			.add(Constants.itemTypes.get("gold_ore"), 1, 3, 0.3) // 30% chance: 1-3 gold ore
-			.add(Constants.itemTypes.get("diamond_ore"), 1, 2, 0.1) // 10% chance: 1-2 diamonds
+			.add(Constants.itemTypes.get("coal"), 3, 8, 0.8) // 80% chance: 3-8 coal ore
+			.add(Constants.itemTypes.get("iron"), 1, 4, 0.5) // 50% chance: 1-4 iron ore
+			.add(Constants.itemTypes.get("gold"), 1, 3, 0.3) // 30% chance: 1-3 gold ore
+			.add(Constants.itemTypes.get("diamond"), 1, 2, 0.1) // 10% chance: 1-2 diamonds
 			.add(Constants.itemTypes.get("torch"), 4, 12, 0.7) // 70% chance: 4-12 torches
 			.add(Constants.itemTypes.get("wood"), 5, 15, 0.6); // 60% chance: 5-15 wood
+
+	/**
+	 * Loot table for Skyblock starter chest.
+	 *
+	 * Contains essential items for survival:
+	 * - Lava & Water buckets (for cobble generator)
+	 * - Saplings (in case the tree drops none)
+	 * - Seeds (for food)
+	 * - Bone meal (to grow tree faster)
+	 */
+	public static final LootTable SKYBLOCK_STARTER = new LootTable()
+			.add(Constants.itemTypes.get("water_bucket"), 1, 1, 1.0) // 100% chance: 1 Water Bucket
+			.add(Constants.itemTypes.get("lava_bucket"), 1, 1, 1.0) // 100% chance: 1 Lava Bucket
+			.add(Constants.itemTypes.get("sapling"), 1, 2, 1.0) // 100% chance: 1-2 Saplings (backup)
+			.add(Constants.itemTypes.get("wheat_seeds"), 1, 3, 1.0) // 100% chance: 1-3 Seeds
+			.add(Constants.itemTypes.get("bone_meal"), 3, 6, 1.0) // 100% chance: 3-6 Bone Meal
+			.add(Constants.itemTypes.get("bread"), 5, 10, 1.0); // 100% chance: 5-10 Bread
 }

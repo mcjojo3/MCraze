@@ -13,10 +13,11 @@ import java.io.IOException;
 public class TextInput {
 	private final String id;
 	private int x;
-	private final int y;
+	private int y;
+	private int offsetX; // NEW
 	private final int width;
 	private final int height;
-	private final boolean centered;
+	private boolean centered;
 
 	private StringBuilder text;
 	private final int maxLength;
@@ -27,16 +28,16 @@ public class TextInput {
 	private String placeholder;
 
 	// Enhanced editing features
-	private int cursorPosition;  // Current cursor position (0 to text.length())
-	private int selectionStart;  // Selection start (-1 if no selection)
-	private int selectionEnd;    // Selection end (-1 if no selection)
+	private int cursorPosition; // Current cursor position (0 to text.length())
+	private int selectionStart; // Selection start (-1 if no selection)
+	private int selectionEnd; // Selection end (-1 if no selection)
 
 	/**
 	 * Create a centered text input field
 	 */
 	public TextInput(String id, int y, int width, int height, int maxLength) {
 		this.id = id;
-		this.x = 0;  // Will be calculated during draw
+		this.x = 0; // Will be calculated during draw
 		this.y = y;
 		this.width = width;
 		this.height = height;
@@ -58,8 +59,22 @@ public class TextInput {
 	 */
 	public void updatePosition(int screenWidth) {
 		if (centered) {
-			this.x = (screenWidth - width) / 2;
+			this.x = (screenWidth - width) / 2 + offsetX;
 		}
+	}
+
+	public void setOffsetX(int offsetX) {
+		this.offsetX = offsetX;
+		this.centered = true;
+	}
+
+	public void setX(int x) {
+		this.x = x;
+		this.centered = false;
+	}
+
+	public void setCentered(boolean centered) {
+		this.centered = centered;
 	}
 
 	/**
@@ -72,15 +87,35 @@ public class TextInput {
 	/**
 	 * Handle click event - position cursor at click location
 	 */
-	public void handleClick(int mouseX, int mouseY) {
+	public void handleClick(GraphicsHandler g, int mouseX, int mouseY) {
 		boolean wasFocused = focused;
 		focused = contains(mouseX, mouseY);
 
 		if (focused && wasFocused) {
 			// Click inside text to position cursor
 			int relativeX = mouseX - (x + 8);
-			int charWidth = 7;
-			int clickedPosition = Math.max(0, Math.min(text.length(), relativeX / charWidth));
+
+			// Use GraphicsHandler to find the character index at the click position
+			String displayText = text.toString();
+			if (passwordMode) {
+				StringBuilder masked = new StringBuilder();
+				for (int i = 0; i < displayText.length(); i++)
+					masked.append('*');
+				displayText = masked.toString();
+			}
+
+			// Accurate character index calculation
+			int clickedPosition = 0;
+			int currentWidth = 0;
+			for (int i = 0; i < displayText.length(); i++) {
+				int charWidth = g.getStringWidth(displayText.substring(i, i + 1));
+				if (currentWidth + charWidth / 2 > relativeX) {
+					break;
+				}
+				currentWidth += charWidth;
+				clickedPosition = i + 1;
+			}
+
 			cursorPosition = clickedPosition;
 			clearSelection();
 		} else if (focused) {
@@ -94,7 +129,8 @@ public class TextInput {
 	 * Handle key typed event (printable characters)
 	 */
 	public void handleKeyTyped(char c) {
-		if (!focused) return;
+		if (!focused)
+			return;
 
 		if (c == '\b') {
 			// Backspace - handled in handleKeyPressed for better control
@@ -114,7 +150,8 @@ public class TextInput {
 	 * Call this from your key event handler with the key code
 	 */
 	public void handleKeyPressed(int keyCode, boolean shiftPressed, boolean ctrlPressed) {
-		if (!focused) return;
+		if (!focused)
+			return;
 
 		// Reset cursor blink on any key
 		lastBlinkTime = System.currentTimeMillis();
@@ -140,7 +177,7 @@ public class TextInput {
 
 		// Handle navigation and editing keys
 		switch (keyCode) {
-			case 8:   // Backspace
+			case 8: // Backspace
 				if (hasSelection()) {
 					deleteSelection();
 				} else if (cursorPosition > 0) {
@@ -157,7 +194,7 @@ public class TextInput {
 				}
 				break;
 
-			case 37:  // Left arrow
+			case 37: // Left arrow
 				if (shiftPressed) {
 					moveCursorWithSelection(-1);
 				} else {
@@ -170,7 +207,7 @@ public class TextInput {
 				}
 				break;
 
-			case 39:  // Right arrow
+			case 39: // Right arrow
 				if (shiftPressed) {
 					moveCursorWithSelection(1);
 				} else {
@@ -183,7 +220,7 @@ public class TextInput {
 				}
 				break;
 
-			case 36:  // Home
+			case 36: // Home
 				if (shiftPressed) {
 					setSelection(0, cursorPosition);
 				} else {
@@ -192,7 +229,7 @@ public class TextInput {
 				cursorPosition = 0;
 				break;
 
-			case 35:  // End
+			case 35: // End
 				if (shiftPressed) {
 					setSelection(cursorPosition, text.length());
 				} else {
@@ -290,7 +327,8 @@ public class TextInput {
 	 * Delete selected text
 	 */
 	private void deleteSelection() {
-		if (!hasSelection()) return;
+		if (!hasSelection())
+			return;
 
 		text.delete(selectionStart, selectionEnd);
 		cursorPosition = selectionStart;
@@ -301,7 +339,8 @@ public class TextInput {
 	 * Get selected text
 	 */
 	private String getSelectedText() {
-		if (!hasSelection()) return "";
+		if (!hasSelection())
+			return "";
 		return text.substring(selectionStart, selectionEnd);
 	}
 
@@ -320,7 +359,8 @@ public class TextInput {
 	 * Copy selection to clipboard
 	 */
 	private void copySelection() {
-		if (!hasSelection()) return;
+		if (!hasSelection())
+			return;
 
 		String selectedText = getSelectedText();
 		try {
@@ -336,7 +376,8 @@ public class TextInput {
 	 * Cut selection to clipboard
 	 */
 	private void cutSelection() {
-		if (!hasSelection()) return;
+		if (!hasSelection())
+			return;
 
 		copySelection();
 		deleteSelection();
@@ -479,36 +520,47 @@ public class TextInput {
 				displayText = masked.toString();
 			}
 
-			// Calculate scroll offset to keep cursor visible
-			int charWidth = 7;
-			int visibleChars = (width - 16) / charWidth;
-			int scrollOffset = 0;
+			// Calculate accurate cursor position in pixels
+			int cursorXOffset = g.getStringWidth(displayText.substring(0, cursorPosition));
 
-			if (cursorPosition > visibleChars) {
-				scrollOffset = cursorPosition - visibleChars + 2;
+			// Calculate scroll offset to keep cursor visible
+			int visibleWidth = width - 16;
+			int scrollOffsetXPX = 0;
+
+			if (cursorXOffset > visibleWidth) {
+				scrollOffsetXPX = cursorXOffset - visibleWidth + 20; // 20px padding
 			}
 
-			int displayX = x + 8 - (scrollOffset * charWidth);
+			int displayX = x + 8 - scrollOffsetXPX;
 
 			// Draw selection highlight
 			if (hasSelection() && focused) {
-				int selStart = Math.max(0, selectionStart - scrollOffset);
-				int selEnd = Math.min(displayText.length() - scrollOffset, selectionEnd - scrollOffset);
-				if (selEnd > selStart && selStart < visibleChars) {
+				int selStartPX = g.getStringWidth(displayText.substring(0, selectionStart));
+				int selEndPX = g.getStringWidth(displayText.substring(0, selectionEnd));
+
+				int renderStart = displayX + selStartPX;
+				int renderEnd = displayX + selEndPX;
+
+				// Clip to visible area
+				int clipLeft = x + 8;
+				int clipRight = x + width - 8;
+
+				renderStart = Math.max(clipLeft, renderStart);
+				renderEnd = Math.min(clipRight, renderEnd);
+
+				if (renderEnd > renderStart) {
 					g.setColor(selectionColor);
-					g.fillRect(displayX + selStart * charWidth, y + 8,
-					          (selEnd - selStart) * charWidth, height - 16);
+					g.fillRect(renderStart, y + 8, renderEnd - renderStart, height - 16);
 				}
 			}
 
 			// Draw text
 			g.setColor(textColor);
-			String visibleText = displayText.substring(Math.min(scrollOffset, displayText.length()));
-			g.drawString(visibleText, displayX, y + (height / 2) + 2);
+			g.drawString(displayText, displayX, y + (height / 2) + 2);
 
 			// Draw cursor when focused
 			if (focused && cursorVisible) {
-				int cursorX = displayX + (cursorPosition - scrollOffset) * charWidth;
+				int cursorX = displayX + cursorXOffset;
 				if (cursorX >= x + 8 && cursorX <= x + width - 8) {
 					g.fillRect(cursorX, y + 8, 2, height - 16);
 				}

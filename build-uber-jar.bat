@@ -37,8 +37,6 @@ cd ..\..
 
 REM Copy resources
 echo Copying resources...
-xcopy /E /I /Y src\sprites build\sprites
-xcopy /E /I /Y src\sounds build\sounds
 xcopy /E /I /Y src\items build\items
 xcopy /E /I /Y src\assets build\assets
 

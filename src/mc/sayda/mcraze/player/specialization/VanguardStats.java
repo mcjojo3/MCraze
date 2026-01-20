@@ -58,4 +58,12 @@ public class VanguardStats extends AbstractClassProvider {
     public float getManaRegen() {
         return 0;
     }
+
+    @Override
+    public float getDurabilityMultiplier() {
+        if (paths.contains(SpecializationPath.BLACKSMITH)) {
+            return 1.50f; // +50% Durability (Reinforced Craft)
+        }
+        return 1.0f;
+    }
 }

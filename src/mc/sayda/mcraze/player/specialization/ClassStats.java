@@ -1,4 +1,5 @@
 package mc.sayda.mcraze.player.specialization;
+
 import mc.sayda.mcraze.entity.Entity;
 
 import mc.sayda.mcraze.entity.LivingEntity;
@@ -92,6 +93,24 @@ public class ClassStats {
         if (provider == null)
             return 0;
         return provider.getManaRegen();
+    }
+
+    /**
+     * Get durability multiplier for crafted tools.
+     */
+    public float getDurabilityMultiplier() {
+        if (provider == null)
+            return 1.0f;
+        return provider.getDurabilityMultiplier();
+    }
+
+    /**
+     * Get fall damage multiplier for traps.
+     */
+    public float getTrapFallDamageMultiplier() {
+        if (provider == null)
+            return 1.0f;
+        return provider.getTrapFallDamageMultiplier();
     }
 
     public enum GatheringType {

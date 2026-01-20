@@ -27,11 +27,15 @@ public class EntityZombie extends LivingEntity {
     private static final int ACTION_IDLE = 0;
     private static final int ACTION_WALK_LEFT = 1;
     private static final int ACTION_WALK_RIGHT = 2;
-    private static final int ACTION_CHASE = 3; // Dynamically track player
-    private int currentAction = ACTION_IDLE;
+    protected static final int ACTION_CHASE = 3; // Dynamically track player
+    protected static final int ACTION_ATTACK_FLAG = 4; // Target and break flag
+    protected int currentAction = ACTION_IDLE;
 
     private Entity target; // Target to chase/attack
     private static final float CHASE_SPEED_MULTIPLIER = 1.2f; // Faster when chasing
+
+    // Combat Stats
+    private int attackDamage = 5;
 
     // Sprites
     private transient Sprite sprite_down;
@@ -94,15 +98,21 @@ public class EntityZombie extends LivingEntity {
                 }
             }
 
-            // Aggro range 10 tiles = 320 px.
-            if (nearest != null && nearestDistSq < 320 * 320) {
+            // Aggro range 10 tiles = 320 px. (10 * 32)
+            if (nearest != null && nearestDistSq < 100) {
                 target = nearest;
                 currentAction = ACTION_CHASE; // Immediately switch to chase
                 actionTimer = 60;
             } else {
-                if (currentAction == ACTION_CHASE) {
+                // No player target found - Check for FLAG
+                mc.sayda.mcraze.util.Int2 flagLoc = sharedWorld.getFlagLocation();
+                if (flagLoc != null) {
+                    // Target the flag!
+                    currentAction = ACTION_ATTACK_FLAG;
+                    actionTimer = 60;
+                } else if (currentAction == ACTION_CHASE || currentAction == ACTION_ATTACK_FLAG) {
                     target = null;
-                    currentAction = ACTION_IDLE; // Lost target
+                    currentAction = ACTION_IDLE; // Lost target / Flag gone
                 }
             }
         }
@@ -110,6 +120,24 @@ public class EntityZombie extends LivingEntity {
         // Attack Logic if chasing
         if (attackCooldown > 0)
             attackCooldown--;
+
+        // FLAG ATTACK LOGIC
+        if (currentAction == ACTION_ATTACK_FLAG) {
+            mc.sayda.mcraze.util.Int2 flagLoc = sharedWorld.getFlagLocation();
+            if (flagLoc != null) {
+                float distSq = (flagLoc.x - x) * (flagLoc.x - x) + (flagLoc.y - y) * (flagLoc.y - y);
+                if (distSq < 1.0f * 1.0f) { // Range 1.0 blocks (reduced from 1.5 to prevent hitting through walls)
+                    if (attackCooldown <= 0) {
+                        // Break the flag!
+                        sharedWorld.mobBreakBlock(flagLoc.x, flagLoc.y, this);
+                        attackCooldown = 60; // Cooldown
+                        currentAction = ACTION_IDLE; // Mission accomplished
+                    }
+                }
+            } else {
+                currentAction = ACTION_IDLE; // Flag is gone
+            }
+        }
 
         if (currentAction == ACTION_CHASE && target != null) {
             float distSq = (target.x - x) * (target.x - x) + (target.y - y) * (target.y - y);
@@ -119,7 +147,7 @@ public class EntityZombie extends LivingEntity {
                 if (attackCooldown <= 0) {
                     // ATTACK!
                     if (((LivingEntity) target).invulnerabilityTicks <= 0) {
-                        ((LivingEntity) target).takeDamage(5);
+                        ((LivingEntity) target).takeDamage(attackDamage);
 
                         // Play hurt sound if target is player
                         if (target instanceof mc.sayda.mcraze.player.Player) {
@@ -132,6 +160,23 @@ public class EntityZombie extends LivingEntity {
                 }
             }
         }
+    }
+
+    /**
+     * Apply difficulty scaling from WaveManager
+     */
+    public void applyWaveScaling(float hpMultiplier, float damageMultiplier) {
+        // Scale HP
+        this.maxHP = (int) (100 * hpMultiplier); // Base HP 100
+        this.hitPoints = this.maxHP;
+
+        // Scale Damage
+        this.attackDamage = (int) (5 * damageMultiplier); // Base Dmg 5
+    }
+
+    // Allow external setting of jump multiplier (called by WaveManager/Spawner)
+    public void setJumpMultiplier(float jumpMult) {
+        this.jumpMultiplier = jumpMult;
     }
 
     @Override
@@ -163,6 +208,28 @@ public class EntityZombie extends LivingEntity {
             // manually here)
             // We'll rely on our manual jump check below.
 
+        } else if (currentAction == ACTION_ATTACK_FLAG) {
+            // Move towards Flag
+            mc.sayda.mcraze.util.Int2 flagLoc = world.flagLocation;
+            if (flagLoc != null) {
+                float diffX = flagLoc.x - x;
+                if (diffX < -0.5f) {
+                    startLeft(false);
+                    facingRight = false;
+                } else if (diffX > 0.5f) {
+                    startRight(false);
+                    facingRight = true;
+                } else {
+                    stopLeft();
+                    stopRight();
+                }
+
+                // Jump if flag is above
+                if (flagLoc.y < y - 1.0f && random.nextInt(20) == 0) {
+                    if (onGround())
+                        jump(world, tileSize);
+                }
+            }
         } else {
             // Wander / Idle Logic
             actionTimer--;
@@ -264,19 +331,24 @@ public class EntityZombie extends LivingEntity {
                 screenWidth, screenHeight, tileSize, x, y);
 
         if (mc.sayda.mcraze.util.StockMethods.onScreen) {
+            // Scale dimensions based on zoom
+            float scale = (float) tileSize / mc.sayda.mcraze.Constants.TILE_SIZE;
+            int drawW = (int) (widthPX * scale);
+            int drawH = (int) (heightPX * scale);
+
             if (damageFlashTicks > 0) {
                 if (facingRight) {
-                    graphics.drawImage(sprite, pos.x, pos.y, widthPX, heightPX,
+                    graphics.drawImage(sprite, pos.x, pos.y, drawW, drawH,
                             new mc.sayda.mcraze.graphics.Color(255, 0, 0, 128));
                 } else {
-                    graphics.drawImage(sprite, pos.x + widthPX, pos.y, -widthPX, heightPX,
+                    graphics.drawImage(sprite, pos.x + drawW, pos.y, -drawW, drawH,
                             new mc.sayda.mcraze.graphics.Color(255, 0, 0, 128));
                 }
             } else {
                 if (facingRight) {
-                    sprite.draw(graphics, pos.x, pos.y, widthPX, heightPX);
+                    sprite.draw(graphics, pos.x, pos.y, drawW, drawH);
                 } else {
-                    sprite.draw(graphics, pos.x + widthPX, pos.y, -widthPX, heightPX);
+                    sprite.draw(graphics, pos.x + drawW, pos.y, -drawW, drawH);
                 }
             }
         }

@@ -36,6 +36,7 @@ public class World implements java.io.Serializable {
 	public int width;
 	public int height;
 	public Int2 spawnLocation;
+	public Int2 flagLocation = null;
 
 	private int chunkNeedsUpdate;
 	private int chunkCount;
@@ -56,6 +57,17 @@ public class World implements java.io.Serializable {
 	public boolean spelunking = false; // Disable darkness
 	public boolean keepInventory = false; // Keep items on death
 	public boolean daylightCycle = true; // Enable day/night cycle
+	public boolean mobGriefing = true; // Enable mob block destruction/pickup
+	public boolean pvp = true; // Enable player-vs-player damage
+
+	// Wave Status (Synced from server for client display)
+	public int waveDay = 0;
+	public boolean waveActive = false;
+	public float diffMultHP = 1.0f; // Current difficulty multiplier for HP
+	public float diffMultDmg = 1.0f; // Current difficulty multiplier for Damage
+	public float diffMultJump = 1.0f; // Current difficulty multiplier for Jump Height
+	// Game Mode (SURVIVAL, CLASSIC, etc.)
+	public GameMode gameMode = GameMode.SURVIVAL;
 
 	// Chest storage (position -> chest data)
 	private java.util.Map<String, ChestData> chests = new java.util.HashMap<>();
@@ -149,7 +161,8 @@ public class World implements java.io.Serializable {
 		return tiles[x][y];
 	}
 
-	public World(int width, int height, Random random) {
+	public World(int width, int height, Random random, GameMode gameMode) {
+		this.gameMode = gameMode;
 		// Store seed for display in debug menu
 		this.seed = random.nextLong();
 		random.setSeed(this.seed); // Use the stored seed
@@ -157,7 +170,12 @@ public class World implements java.io.Serializable {
 		// Generate biome map before terrain generation
 		this.biomeMap = WorldGenerator.generateBiomes(width, random);
 
-		TileID[][] generated = WorldGenerator.generate(width, height, random, this.biomeMap, this);
+		mc.sayda.mcraze.world.gen.WorldGenerator.GeneratorType genType = mc.sayda.mcraze.world.gen.WorldGenerator.GeneratorType.DEFAULT;
+		if (gameMode == GameMode.SKYBLOCK) {
+			genType = mc.sayda.mcraze.world.gen.WorldGenerator.GeneratorType.VOID;
+		}
+
+		TileID[][] generated = WorldGenerator.generate(width, height, random, this.biomeMap, this, genType);
 		WorldGenerator.visibility = null;
 		// Store suggested spawn from WorldGenerator
 		Int2 suggestedSpawn = WorldGenerator.playerLocation;
@@ -194,6 +212,14 @@ public class World implements java.io.Serializable {
 		this.spawnLocation = findSafeSpawn(suggestedSpawn.x);
 		if (GameLogger.get() != null)
 			GameLogger.get().info("World: Spawn location set to (" + spawnLocation.x + ", " + spawnLocation.y + ")");
+
+		// PERFORMANCE: Pre-allocate all Color objects for lighting
+		// Initialize cache before lighting engines to be safe/consistent
+		for (int i = 0; i < 256; i++) {
+			lightTintCache[i] = new Color(16, 16, 16, 255 - i);
+			int backdropLight = (int) (i * 0.6);
+			backdropTintCache[i] = new Color(16, 16, 16, 255 - backdropLight);
+		}
 
 		lightingEngineSun = new LightingEngine(width, height, tiles, true);
 		lightingEngineSourceBlocks = new LightingEngine(width, height, tiles, false);
@@ -512,17 +538,53 @@ public class World implements java.io.Serializable {
 						}
 					}
 				} else if (tiles[x][y].type.liquid) {
-					if (isAir(x + 1, y)) {
-						changeTile(x + 1, y, tiles[x][y]);
-						changes.add(new BlockChange(x + 1, y, tiles[x][y].type.name));
-					}
-					if (isAir(x - 1, y)) {
-						changeTile(x - 1, y, tiles[x][y]);
-						changes.add(new BlockChange(x - 1, y, tiles[x][y].type.name));
-					}
-					if (isAir(x, y + 1)) {
-						changeTile(x, y + 1, tiles[x][y]);
-						changes.add(new BlockChange(x, y + 1, tiles[x][y].type.name));
+					// Improved Fluid Physics
+					// Metadata: 0 = Source/Falling (Full strength), 1-7 = Flow distance
+					Tile thisTile = tiles[x][y];
+					int level = thisTile.metadata;
+					int maxFlow = 7; // Max horizontal spread
+
+					// Randomize flow speed to prevent instant chunk flooding
+					if (random.nextDouble() < 0.25) { // 25% chance per tick to spread
+
+						// 1. Flow Down
+						if (y + 1 < height) {
+							Tile down = tiles[x][y + 1];
+							if (down.type.name == TileID.AIR || (down.type.liquid && down.metadata > 0
+									&& down.type.name != thisTile.type.name)) {
+								// Falling water resets strength to 0 (acts as source)
+								setLiquid(x, y + 1, thisTile.type, 0, changes);
+							} else if (down.type.liquid && down.type.name == thisTile.type.name && down.metadata > 0) {
+								// Merging with water below -> ensure it is full strength
+								if (down.metadata != 0) {
+									setLiquid(x, y + 1, thisTile.type, 0, changes);
+								}
+							}
+						}
+
+						// 2. Flow Horizontally (only if supported by block below)
+						boolean grounded = (y + 1 < height)
+								&& (!tiles[x][y + 1].type.passable || tiles[x][y + 1].type.liquid);
+
+						if (grounded && level < maxFlow) {
+							int nextLevel = level + 1;
+
+							// Left
+							if (x - 1 >= 0) {
+								Tile left = tiles[x - 1][y];
+								if (left.type.name == TileID.AIR) {
+									setLiquid(x - 1, y, thisTile.type, nextLevel, changes);
+								}
+							}
+
+							// Right
+							if (x + 1 < width) {
+								Tile right = tiles[x + 1][y];
+								if (right.type.name == TileID.AIR) {
+									setLiquid(x + 1, y, thisTile.type, nextLevel, changes);
+								}
+							}
+						}
 					}
 				}
 				if ((!tiles[x][y].type.passable || tiles[x][y].type.liquid)
@@ -619,6 +681,29 @@ public class World implements java.io.Serializable {
 		return name;
 	}
 
+	/**
+	 * Set tile directly without triggering updates (lighting, physics, etc).
+	 * USE ONLY for bulk loading or generation!
+	 */
+	public void setTileNoUpdate(int x, int y, Tile tile) {
+		if (x < 0 || x >= width || y < 0 || y >= height)
+			return;
+
+		// Ensure we don't put nulls in the array if possible, or handle it
+		// The World expects non-null tiles usually.
+		if (tile == null) {
+			// Fallback to AIR if null is passed
+			if (Constants.tileTypes.get(TileID.AIR) != null) {
+				tile = new Tile(Constants.tileTypes.get(TileID.AIR).type);
+			} else {
+				// Absolute fallback
+				tile = new Tile(new TileType("assets/sprites/tiles/air.png", TileID.AIR));
+			}
+		}
+
+		tiles[x][y] = tile;
+	}
+
 	public void changeTile(int x, int y, Tile tile) {
 		// CRITICAL FIX: Create NEW Tile instance to prevent backdrop hivemind bug
 		// Directly assigning references causes multiple tiles to share the same object
@@ -709,6 +794,30 @@ public class World implements java.io.Serializable {
 
 	public void setChest(int x, int y, ChestData chest) {
 		chests.put(ChestData.makeKey(x, y), chest);
+	}
+
+	/**
+	 * Provider interface for external logic to modify trap damage.
+	 */
+	public interface TrapMultiplierProvider extends java.io.Serializable {
+		float getMultiplier(int x, int y);
+	}
+
+	private TrapMultiplierProvider trapMultiplierProvider = null;
+
+	public void setTrapMultiplierProvider(TrapMultiplierProvider provider) {
+		this.trapMultiplierProvider = provider;
+	}
+
+	/**
+	 * Get the fall damage multiplier for a trap at (x, y).
+	 * Overridden in SharedWorld to provide class-specific bonuses.
+	 */
+	public float getTrapFallDamageMultiplier(int x, int y) {
+		if (trapMultiplierProvider != null) {
+			return trapMultiplierProvider.getMultiplier(x, y);
+		}
+		return 1.0f; // Default: no multiplier
 	}
 
 	// Furnace management
@@ -985,26 +1094,61 @@ public class World implements java.io.Serializable {
 	 * @return Safe spawn location as Int2, or null if none found
 	 */
 	public Int2 findSafeSpawn(int startX) {
-		// Search from top to bottom for solid ground with air above (finds surface)
-		// Player is 1.75 tiles tall, so need 3 blocks of air to be safe
-		for (int y = 3; y < height; y++) {
-			// Check if this position has solid ground and 3 blocks of air above
-			if (!isBreakable(startX, y)) {
-				continue; // Not solid ground
+		// Search for SAFE spawn: Above sea level (y < height/2), solid ground, air
+		// above.
+		// Search outwards from startX (center) until a valid column is found.
+
+		int maxRadius = width / 2;
+		for (int r = 0; r < maxRadius; r++) {
+			// Check left and right offsets (0, +1, -1, +2, -2...)
+			// Alternate signs: 0, 1, -1, 2, -2
+			// Actually simpler to just check both sides each radius step
+			int[] offsets = (r == 0) ? new int[] { 0 } : new int[] { r, -r };
+
+			for (int offset : offsets) {
+				int x = startX + offset;
+				if (x < 0 || x >= width)
+					continue;
+
+				// Search this column from top to bottom
+				// Stop at sea level (height/2) because we want ABOVE sea level
+				// NOTE: y=0 is sky, y=height is bedrock
+				int seaLevel = height / 2;
+
+				for (int y = 3; y < seaLevel; y++) {
+					// Check if this position has solid ground
+					if (!isBreakable(x, y)) {
+						continue; // Not solid ground
+					}
+					// Check for 3 blocks of air above (for player clearance)
+					if (!isAir(x, y - 1) || !isAir(x, y - 2) || !isAir(x, y - 3)) {
+						continue; // Obstructed
+					}
+
+					// Found safe spawn ABOVE sea level!
+					if (GameLogger.get() != null)
+						GameLogger.get()
+								.info("World.findSafeSpawn: Found safe surface spawn at (" + x + ", " + (y - 2) + ")");
+					return new Int2(x, y - 2);
+				}
 			}
-			if (!isAir(startX, y - 1) || !isAir(startX, y - 2) || !isAir(startX, y - 3)) {
-				continue; // Not enough air above (need 3 blocks for player height of 1.75 tiles)
-			}
-			// Found safe spawn: solid ground with 3 blocks of air above
-			// Spawn 2 blocks above ground to prevent clipping into ground
-			if (GameLogger.get() != null)
-				GameLogger.get().info("World.findSafeSpawn: Found safe spawn at (" + startX + ", " + (y - 2) + ")");
-			return new Int2(startX, y - 2); // Spawn 2 blocks above ground for better clearance
 		}
-		// Fallback: return center if no safe spawn found
+
+		// Fallback 1: If no surface spawn found above sea level, try ANY valid surface
+		// (even if low)
+		// This handles worlds that might be entirely low (unlikely but possible)
 		if (GameLogger.get() != null)
-			GameLogger.get()
-					.error("World.findSafeSpawn: Could not find safe spawn at x=" + startX + ", using fallback");
+			GameLogger.get().warn("World.findSafeSpawn: No high surface found, searching for ANY surface...");
+
+		for (int y = 3; y < height - 5; y++) {
+			if (isBreakable(startX, y) && isAir(startX, y - 1) && isAir(startX, y - 2) && isAir(startX, y - 3)) {
+				return new Int2(startX, y - 2);
+			}
+		}
+
+		// Fallback 2: Center
+		if (GameLogger.get() != null)
+			GameLogger.get().error("World.findSafeSpawn: CRITICAL FAILURE, using default center fallback");
 		return new Int2(startX, height / 2);
 	}
 
@@ -1065,6 +1209,17 @@ public class World implements java.io.Serializable {
 			return duskSky.interpolateTo(midnightSky, 4 * (time - 0.5f));
 		} else {
 			return midnightSky.interpolateTo(dawnSky, 4 * (time - 0.75f));
+		}
+	}
+
+	public void setLiquid(int x, int y, TileType type, int metadata, java.util.List<BlockChange> changes) {
+		Tile newTile = new Tile(type);
+		newTile.metadata = metadata;
+		tiles[x][y] = newTile; // Direct set to avoid recursion loop in changeTile logic if any
+
+		changeTile(x, y, newTile);
+		if (changes != null) {
+			changes.add(new BlockChange(x, y, type.name));
 		}
 	}
 
