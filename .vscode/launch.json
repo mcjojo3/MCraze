@@ -3,6 +3,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "WorldEditor",
+            "request": "launch",
+            "mainClass": "mc.sayda.mcraze.tools.WorldEditor",
+            "projectName": "MCraze_2b969b80"
+        },
+        {
+            "type": "java",
             "name": "MCraze1",
             "request": "launch",
             "mainClass": "mc.sayda.mcraze.Game",
@@ -28,6 +35,13 @@
             "request": "launch",
             "mainClass": "mc.sayda.mcraze.Game",
             "args": "--server --port 25565 --world-width 512"
+        },
+        {
+            "type": "java",
+            "name": "MCraze Editor",
+            "request": "launch",
+            "mainClass": "mc.sayda.mcraze.Game",
+            "args": "--editor"
         },
         {
             "type": "java",

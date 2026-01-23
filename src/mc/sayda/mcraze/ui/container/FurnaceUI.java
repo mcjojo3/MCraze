@@ -186,7 +186,7 @@ public class FurnaceUI {
 
         if (!overUI) {
             dragHandler.cancelDrag(connection);
-            return false;
+            return true; // Block world interaction even if outside UI bounds
         }
 
         // Handle drag using DragHandler

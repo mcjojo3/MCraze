@@ -39,6 +39,8 @@ public class PacketEntityUpdate extends ServerPacket {
 	public String[] itemIds; // Item ID (for Item entities only, null for others)
 	public String[] playerNames; // Player username (for Player entities only, null for others)
 	public int[] damageFlashTicks; // Red flash duration (sync for all entities)
+	public int[] widthPX; // Entity width in pixels
+	public int[] heightPX; // Entity height in pixels
 
 	// Movement states (LivingEntity fields)
 	public boolean[] flying;
@@ -57,11 +59,26 @@ public class PacketEntityUpdate extends ServerPacket {
 	public int[] handTargetX;
 	public int[] handTargetY;
 
+	// Stats sync (Player fields)
+	public int[] essence;
+	public int[] maxEssence;
+	public int[] mana;
+	public int[] maxMana;
+
+	// Bow Charge Sync
+	public int[] bowCharge;
+	public int[] maxBowCharge;
+
 	// Held item synchronization (Player fields) - FIX for invisible held items
-	public int[] hotbarIndex; // Selected hotbar slot (0-8)
-	public String[] selectedItemId; // Item ID of held item (null if empty)
-	public int[] selectedItemCount; // Stack count
+	public int[] hotbarIndex; // Current selected hotbar slot
+	public String[] selectedItemId; // Item ID of held item
+	public int[] selectedItemCount; // Stack count of held item
 	public int[] selectedItemDurability; // Tool uses (0 if not a tool)
+	public int[] skillPoints; // Skill points for specialization
+
+	// Bomber specific states
+	public boolean[] isExploding;
+	public int[] fuseTimer;
 
 	// PERFORMANCE: Reusable ByteBuffer to avoid allocation in encode()
 	// This is thread-safe because each SharedWorld instance has its own
@@ -120,7 +137,23 @@ public class PacketEntityUpdate extends ServerPacket {
 			selectedItemId = new String[size];
 			selectedItemCount = new int[size];
 			selectedItemDurability = new int[size];
+			skillPoints = new int[size];
+			isExploding = new boolean[size];
+			fuseTimer = new int[size];
 			damageFlashTicks = new int[size];
+			widthPX = new int[size];
+			heightPX = new int[size];
+			// Initialize dimensions to Player defaults (28x64) to prevent "negative pixels"
+			// bug
+			// and ensure host renders correctly even if entity data hasn't been synced yet
+			java.util.Arrays.fill(widthPX, 28);
+			java.util.Arrays.fill(heightPX, 56);
+			essence = new int[size];
+			maxEssence = new int[size];
+			mana = new int[size];
+			maxMana = new int[size];
+			bowCharge = new int[size];
+			maxBowCharge = new int[size];
 		}
 		// If arrays exist and are large enough, we reuse them (no allocation!)
 		// DO NOT invalidate cache here - we're just reusing existing arrays
@@ -156,10 +189,8 @@ public class PacketEntityUpdate extends ServerPacket {
 		int count = this.count;
 
 		// PERFORMANCE FIX: Eliminate double iteration by using estimated size
-		// Old code iterated twice: once to calculate size, once to write
-		// New code: Pre-allocate reasonable buffer size to avoid most resizing
-		// For 10 entities: ~150 bytes per entity = ~1500 bytes total
-		int estimatedSize = 4 + (count * 150); // Entity count + estimated per-entity size
+		// Each entity is roughly 200-300 bytes now with all sync fields
+		int estimatedSize = 4 + (count * 400); // Very safe estimate
 		ByteBuffer buf = (encodeBuffer != null && encodeBuffer.capacity() >= estimatedSize)
 				? encodeBuffer
 				: ByteBuffer.allocate(Math.max(estimatedSize, 2048));
@@ -175,12 +206,14 @@ public class PacketEntityUpdate extends ServerPacket {
 			buf.putInt(entityIds[i]);
 
 			// Entity type
-			byte[] typeBytes = entityTypes[i].getBytes(StandardCharsets.UTF_8);
+			String typeStr = (entityTypes[i] != null) ? entityTypes[i] : "Unknown";
+			byte[] typeBytes = typeStr.getBytes(StandardCharsets.UTF_8);
 			buf.putShort((short) typeBytes.length);
 			buf.put(typeBytes);
 
 			// Entity UUID
-			byte[] uuidBytes = entityUUIDs[i].getBytes(StandardCharsets.UTF_8);
+			String uuidStr = (entityUUIDs[i] != null) ? entityUUIDs[i] : "";
+			byte[] uuidBytes = uuidStr.getBytes(StandardCharsets.UTF_8);
 			buf.putShort((short) uuidBytes.length);
 			buf.put(uuidBytes);
 
@@ -240,7 +273,22 @@ public class PacketEntityUpdate extends ServerPacket {
 			buf.put(selectedItemBytes);
 			buf.putInt(selectedItemCount[i]);
 			buf.putInt(selectedItemDurability[i]);
+			buf.putInt(skillPoints[i]);
+			buf.put((byte) (isExploding[i] ? 1 : 0));
+			buf.putInt(fuseTimer[i]);
 			buf.putInt(damageFlashTicks[i]);
+			buf.putInt(widthPX[i]);
+			buf.putInt(heightPX[i]);
+
+			// Stats sync
+			buf.putInt(essence[i]);
+			buf.putInt(maxEssence[i]);
+			buf.putInt(mana[i]);
+			buf.putInt(maxMana[i]);
+
+			// Bow Charge
+			buf.putInt(bowCharge[i]);
+			buf.putInt(maxBowCharge[i]);
 		}
 
 		// PERFORMANCE: Return right-sized array (buffer may be larger than actual data)
@@ -291,7 +339,18 @@ public class PacketEntityUpdate extends ServerPacket {
 		packet.selectedItemId = new String[count];
 		packet.selectedItemCount = new int[count];
 		packet.selectedItemDurability = new int[count];
+		packet.skillPoints = new int[count];
+		packet.isExploding = new boolean[count];
+		packet.fuseTimer = new int[count];
 		packet.damageFlashTicks = new int[count];
+		packet.widthPX = new int[count];
+		packet.heightPX = new int[count];
+		packet.essence = new int[count];
+		packet.maxEssence = new int[count];
+		packet.mana = new int[count];
+		packet.maxMana = new int[count];
+		packet.bowCharge = new int[count];
+		packet.maxBowCharge = new int[count];
 
 		// Read each entity
 		for (int i = 0; i < count; i++) {
@@ -369,7 +428,20 @@ public class PacketEntityUpdate extends ServerPacket {
 			packet.selectedItemId[i] = selectedItem.isEmpty() ? null : selectedItem;
 			packet.selectedItemCount[i] = buf.getInt();
 			packet.selectedItemDurability[i] = buf.getInt();
+			packet.skillPoints[i] = buf.getInt();
+			packet.isExploding[i] = buf.get() == 1;
+			packet.fuseTimer[i] = buf.getInt();
 			packet.damageFlashTicks[i] = buf.getInt();
+			packet.widthPX[i] = buf.getInt();
+			packet.heightPX[i] = buf.getInt();
+
+			packet.essence[i] = buf.getInt();
+			packet.maxEssence[i] = buf.getInt();
+			packet.mana[i] = buf.getInt();
+			packet.maxMana[i] = buf.getInt();
+
+			packet.bowCharge[i] = buf.getInt();
+			packet.maxBowCharge[i] = buf.getInt();
 		}
 
 		return packet;

@@ -98,12 +98,12 @@ public class MobSpawner {
         }
 
         if (validYs.isEmpty()) {
-            // GameLogger.get().info("MobSpawner: No valid spots in column X=" + spawnX);
+            // logger.info("MobSpawner: No valid spots in column X=" + spawnX);
             return;
         }
 
-        GameLogger.get().info("MobSpawner: Finding spot around " + player.username + " ... Found " + validYs.size()
-                + " candidates at X=" + spawnX);
+        logger.info("MobSpawner: Finding spot around " + player.username + " ... Found " + validYs.size()
+                + " spots in column X=" + spawnX);
 
         // Pick a random valid Y from candidates
         int spawnY = validYs.get(random.nextInt(validYs.size()));
@@ -176,7 +176,7 @@ public class MobSpawner {
     // Overloaded to support hostile check
     private boolean isValidSpawnSpot(int x, int y, boolean hostile) {
         if (!isValidSpawnSpot(x, y)) {
-            // GameLogger.get().debug("Spawn spot invalid: " + x + ", " + y);
+            // logger.debug("Spawn spot invalid: " + x + ", " + y);
             return false;
         }
 
@@ -190,7 +190,7 @@ public class MobSpawner {
 
             // Normal Hostile Logic: Must be dark
             if (light > 0.4f) {
-                // GameLogger.get().info("Spawn failed: Too bright for hostile (" + light + ")
+                // logger.info("Spawn failed: Too bright for hostile (" + light + ")
                 // at " + x + ", " + y);
                 return false;
             }
@@ -206,7 +206,7 @@ public class MobSpawner {
             // 2. Must be bright
             // They need light to spawn (daytime surface or lit areas)
             if (light <= 0.4f) {
-                // GameLogger.get().info("Spawn failed: Too dark for animal (" + light + ") at "
+                // logger.info("Spawn failed: Too dark for animal (" + light + ") at "
                 // + x + ", " + y);
                 return false;
             }
@@ -263,12 +263,14 @@ public class MobSpawner {
     private float damageMultiplier = 1.0f;
     private float spawnCountMultiplier = 1.0f;
 
+    private final mc.sayda.mcraze.logging.GameLogger logger = mc.sayda.mcraze.logging.GameLogger.get();
+
     public void setWaveMode(boolean active) {
         this.isWaveActive = active;
         if (active) {
-            GameLogger.get().info("MobSpawner: Wave Mode ENABLED");
+            logger.info("MobSpawner: Wave Mode ENABLED");
         } else {
-            GameLogger.get().info("MobSpawner: Wave Mode DISABLED");
+            logger.info("MobSpawner: Wave Mode DISABLED");
         }
     }
 
@@ -299,8 +301,9 @@ public class MobSpawner {
                             .getConstructor(float.class, float.class)
                             .newInstance((float) x, (float) y);
                 } catch (NoSuchMethodException e) {
-                    GameLogger.get()
-                            .error("Entity " + rule.entityClass.getSimpleName() + " has no compatible constructor!");
+                    logger
+                            .info("MobSpawner: Forced spawn of " + rule.entityClass.getSimpleName()
+                                    + " at " + x + "," + y);
                     return;
                 }
             }
@@ -318,7 +321,7 @@ public class MobSpawner {
 
             if (entity != null) {
                 sharedWorld.getEntityManager().add(entity);
-                GameLogger.get().info("Spawned " + rule.entityClass.getSimpleName() + " at " + x + "," + y);
+                logger.info("Spawned " + rule.entityClass.getSimpleName() + " at " + x + "," + y);
             }
 
         } catch (Exception e) {
@@ -337,6 +340,14 @@ public class MobSpawner {
             // Don't despawn players or persistent entities (if any)
             if (e instanceof Player)
                 continue;
+
+            // Don't despawn tamed wolves
+            if (e instanceof mc.sayda.mcraze.entity.mob.EntityWolf) {
+                if (((mc.sayda.mcraze.entity.mob.EntityWolf) e).isTamed()) {
+                    continue;
+                }
+            }
+
             if (!(e instanceof LivingEntity))
                 continue; // Only despawn mobs
 

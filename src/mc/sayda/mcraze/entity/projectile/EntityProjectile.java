@@ -8,7 +8,7 @@ import java.util.List;
 public abstract class EntityProjectile extends Entity {
 
     protected Entity owner;
-    protected float damage;
+    public float damage;
     protected boolean active = true;
     protected int lifeTime = 0;
     protected int maxLifeTime = 600; // 30 seconds default

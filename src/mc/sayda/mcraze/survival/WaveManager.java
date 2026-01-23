@@ -3,6 +3,7 @@ package mc.sayda.mcraze.survival;
 import mc.sayda.mcraze.server.SharedWorld;
 import mc.sayda.mcraze.logging.GameLogger;
 import mc.sayda.mcraze.network.packet.PacketChatMessage;
+import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.graphics.Color;
 
 /**
@@ -15,6 +16,8 @@ public class WaveManager {
     private boolean isWaveActive = false;
     private int currentDay = 0;
 
+    private final GameLogger logger = GameLogger.get();
+
     public WaveManager(SharedWorld sharedWorld) {
         this.sharedWorld = sharedWorld;
     }
@@ -23,31 +26,26 @@ public class WaveManager {
      * Called every tick by SharedWorld
      */
     public void tick() {
-        long worldTime = sharedWorld.getTime();
-        long timeOfDay = worldTime % WaveConfig.DAY_LENGTH;
+        mc.sayda.mcraze.world.World world = sharedWorld.getWorld();
+        if (world == null)
+            return;
+
+        long worldTime = world.getTicksAlive();
+        float timeOfDay = world.getTimeOfDay();
 
         // Calculate current day (0-indexed)
-        int newDay = (int) (worldTime / WaveConfig.DAY_LENGTH);
+        int newDay = (int) (worldTime / world.daylightSpeed);
 
         if (newDay != currentDay) {
             currentDay = newDay;
-            // New day logic (midnight/morning rollover) is handled by specific time
-            // triggers below
         }
 
-        // Robust Wave Logic: Use range checks instead of exact equality
-        // This handles world loading (already at night) and tick skipping
-
-        // Night / Wave Active Range: [DUSK_TIME, 24000)
-        // Day / Wave Inactive Range: [DAWN_TIME, DUSK_TIME)
-
-        if (timeOfDay >= WaveConfig.DUSK_TIME) {
-            // It is Night
+        // Night / Wave Active: timeOfDay >= 0.5f (Dusk)
+        if (timeOfDay >= 0.5f) {
             if (!isWaveActive) {
                 startNightWave();
             }
         } else {
-            // It is Day (timeOfDay < DUSK_TIME)
             if (isWaveActive) {
                 endNightWave();
             }
@@ -68,7 +66,7 @@ public class WaveManager {
         float dmgMult = WaveConfig.getDamageMultiplier(dayCount);
         float spawnMult = WaveConfig.getSpawnCountMultiplier(dayCount);
 
-        GameLogger.get().info("WaveManager: Night " + dayCount + " started! Difficulty: HP x" + hpMult);
+        logger.info("WaveManager: Night " + dayCount + " started! Difficulty: HP x" + hpMult);
 
         // Notify players
         String message = "Night " + dayCount + " has fallen. The horde approaches...";
@@ -97,11 +95,17 @@ public class WaveManager {
             return;
 
         isWaveActive = false;
-        GameLogger.get().info("WaveManager: Night ended. Wave cleared.");
+        logger.info("WaveManager: Night ended. Wave cleared.");
 
         // Notify players
         sharedWorld.broadcastPacket(
                 new PacketChatMessage("Dawn Breaks. The horde retreats... for now.", new Color(255, 200, 100)));
+
+        // Reward: Award 1 skillpoint every 7 days (Dawn of Day 8, 15, 22...)
+        int dayCount = currentDay + 1;
+        if (dayCount % 7 == 0) {
+            sharedWorld.broadcastSkillpointReward(1);
+        }
 
         // Reset MobSpawner
         if (sharedWorld.getMobSpawner() != null) {
@@ -129,7 +133,9 @@ public class WaveManager {
     }
 
     public float getJumpMultiplier() {
-        // Linear increase: +2.5% jump height per day
-        return 1.0f + (currentDay * 0.025f);
+        // Centralized in WaveConfig
+        float jumpVelocity = WaveConfig.getZombieJumpHeight(currentDay + 1);
+        // Mult is ratio of scaled velocity to base (-0.3f)
+        return jumpVelocity / WaveConfig.ZOMBIE_BASE_JUMP;
     }
 }

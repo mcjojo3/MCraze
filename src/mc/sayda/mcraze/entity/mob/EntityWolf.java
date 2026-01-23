@@ -58,12 +58,33 @@ public class EntityWolf extends BasicAnimal {
         return ownerUUID;
     }
 
+    /**
+     * Alert this wolf to a specific target (usually from owner defense/offense).
+     */
+    public void alertTarget(Entity target) {
+        if (target == null || target.dead || target == this)
+            return;
+
+        // Don't attack own owner!
+        if (isTamed() && target.getUUID() != null && target.getUUID().equals(ownerUUID)) {
+            return;
+        }
+
+        this.rampageTarget = target;
+        this.isRampaging = true;
+        this.isSitting = false; // Stand up to fight!
+    }
+
     public boolean isTamed() {
         return ownerUUID != null;
     }
 
     public void setSitting(boolean sitting) {
         this.isSitting = sitting;
+    }
+
+    public boolean isSitting() {
+        return isSitting;
     }
 
     @Override
@@ -116,8 +137,18 @@ public class EntityWolf extends BasicAnimal {
                 // Scan Mobs (Zombies, Sheep, other Wolves)
                 for (Entity e : allEntities) {
                     if (e instanceof LivingEntity && e != this && !e.dead) {
+                        // Tamed wolves ONLY auto-target hostile mobs if not sitting
+                        if (isTamed() && !isSitting) {
+                            if (e instanceof EntityZombie || (e instanceof EntityWolf && !((EntityWolf) e).isTamed())) {
+                                float d = (e.x - x) * (e.x - x) + (e.y - y) * (e.y - y);
+                                if (d < 10 * 10 && d < nearestDistSq) { // Support 10 block auto-aggro
+                                    nearest = e;
+                                    nearestDistSq = d;
+                                }
+                            }
+                        }
                         // Wild wolves hunt animals!
-                        if (!isTamed() && e instanceof mc.sayda.mcraze.entity.mob.BasicAnimal
+                        else if (!isTamed() && e instanceof mc.sayda.mcraze.entity.mob.BasicAnimal
                                 && !(e instanceof EntityWolf)) {
                             float d = (e.x - x) * (e.x - x) + (e.y - y) * (e.y - y);
                             if (d < nearestDistSq) {
@@ -126,8 +157,8 @@ public class EntityWolf extends BasicAnimal {
                             }
                         }
 
-                        // Rampaging wolves attack anything nearby
-                        else if (isRampaging) {
+                        // Rampaging wolves attack anything nearby (Wild OR explicitly alerted)
+                        else if (isRampaging && !isTamed()) {
                             float d = (e.x - x) * (e.x - x) + (e.y - y) * (e.y - y);
                             if (d < nearestDistSq) {
                                 nearest = e;
@@ -177,17 +208,36 @@ public class EntityWolf extends BasicAnimal {
                     if (rampageTarget instanceof LivingEntity) {
                         LivingEntity targetLiving = (LivingEntity) rampageTarget;
                         if (targetLiving.invulnerabilityTicks <= 0) {
-                            targetLiving.takeDamage(6); // High damage
+                            // DRUID: Beast Tamer damage boost (+50%)
+                            int damage = 6;
+                            if (isTamed() && ownerUUID != null) {
+                                // Find owner to check for passive
+                                for (mc.sayda.mcraze.server.PlayerConnection pc : sharedWorld.getPlayers()) {
+                                    if (pc.getPlayer() != null && pc.getPlayer().getUUID().equals(ownerUUID)) {
+                                        Player owner = pc.getPlayer();
+                                        if (owner.selectedClass == mc.sayda.mcraze.player.specialization.PlayerClass.DRUID
+                                                && owner.unlockedPassives.contains(
+                                                        mc.sayda.mcraze.player.specialization.PassiveEffectType.TAME_WOLVES)) {
+                                            damage = 9;
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // Fix: Attribute damage to "this" wolf so owner gets credit!
+                            targetLiving.takeDamage(damage, mc.sayda.mcraze.entity.DamageType.PHYSICAL, this);
 
                             // Play hurt sound (like zombie does)
-                            sharedWorld.broadcastPacket(new mc.sayda.mcraze.network.packet.PacketPlaySound("hurt.wav"));
+                            sharedWorld.broadcastPacket(new mc.sayda.mcraze.network.packet.PacketPlaySound("hurt.wav",
+                                    rampageTarget.x, rampageTarget.y));
                         }
                     }
-                    actionTimer = 20; // Cooldown (using super.actionTimer is safe)
+                    actionTimer = 20; // Cooldown
                 }
-                if (actionTimer > 0)
-                    actionTimer--;
             }
+            if (actionTimer > 0)
+                actionTimer--;
 
         } else {
             // --- Peace AI ---
@@ -204,6 +254,16 @@ public class EntityWolf extends BasicAnimal {
 
                 if (owner != null) {
                     float dist = (owner.x - x) * (owner.x - x) + (owner.y - y) * (owner.y - y);
+
+                    // TELEPORT if too far
+                    if (dist > 32 * 32) {
+                        this.x = owner.x;
+                        this.y = owner.y;
+                        this.dx = 0;
+                        this.dy = 0;
+                        return;
+                    }
+
                     if (dist > 5 * 5) { // Follow if > 5 blocks away
                         currentAction = ACTION_FOLLOW;
                         if (owner.x < x) {
@@ -219,26 +279,17 @@ public class EntityWolf extends BasicAnimal {
                         if (owner.y < y - 1 && onGround() && random.nextInt(20) == 0)
                             wantsToJump = true;
                     } else {
-                        // TODO Cover Wolf AI logic
-                        // Close enough, stop following.
-                        // We could transition to IDLE, but then BasicAnimal might pick a random wander.
-                        // So we stay in FOLLOW state but stop moving? Or switch to IDLE?
-                        // If we switch to IDLE, BasicAnimal takes over wandering near owner.
-                        // For now, let's just stop moving but keep customized state to prevent wild
-                        // wandering away.
-                        currentAction = ACTION_FOLLOW; // Keep following state
+                        // Close enough, stop moving
+                        currentAction = ACTION_FOLLOW;
                         movingLeft = false;
                         movingRight = false;
                     }
                 }
             } else if (!isSitting) {
                 // Untamed & Not Sitting -> Use BasicAnimal Logic!
-                // We do NOTHING here. super.tick() doesn't do AI.
-                // updatePosition() will call skipAI(), which will return FALSE.
-                // So BasicAnimal.updateAI() runs.
             } else {
                 // Sitting
-                currentAction = ACTION_IDLE; // Or custom SIT action
+                currentAction = ACTION_IDLE;
                 movingLeft = false;
                 movingRight = false;
             }
@@ -253,10 +304,13 @@ public class EntityWolf extends BasicAnimal {
 
     @Override
     protected void customUpdatePosition(World world, int tileSize) {
+        // Boost speed if tamed
+        this.speedMultiplier = isTamed() ? 1.2f : 0.9f;
+
         // Handle specialized movement application here (Chase/Follow)
         if (currentAction == ACTION_CHASE || currentAction == ACTION_FOLLOW) {
-            // Determine if we should use slow walk (idle/wander/follow) or fast (chase)
-            boolean slowWalk = (currentAction != ACTION_CHASE);
+            // Determine if we should use slow walk (idle/wander) or fast (chase/follow)
+            boolean slowWalk = (currentAction != ACTION_CHASE && currentAction != ACTION_FOLLOW);
 
             // Apply movement
             if (movingLeft) {

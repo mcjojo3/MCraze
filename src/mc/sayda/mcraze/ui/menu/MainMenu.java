@@ -42,7 +42,8 @@ public class MainMenu {
 		WORLD_SELECT,
 		WORLD_CREATE,
 		MULTIPLAYER,
-		OPTIONS
+		OPTIONS,
+		RENAMING_WORLD
 	}
 
 	// Menu sprites
@@ -71,12 +72,15 @@ public class MainMenu {
 	private TextInput ipInput; // For multiplayer connection
 	private TextInput worldNameInput; // For world creation
 	private TextInput noiseModifierInput; // For noise override
+	private TextInput renameInput; // For world renaming
 	private ScrollableList<String> gamemodeList;
 	private ScrollableList<String> rulesList;
 	private double selectedNoiseModifier = 0.0;
 	private long ticksRunning = 0;
 	private SharedSettings sharedSettings; // Shared settings component
 	private String currentSplash; // Dynamic splash text
+	private String lastErrorMessage; // Error message to display on menus
+	private long errorDisplayTicks = 0; // Duration to show error
 
 	// Selected options for new world
 	private mc.sayda.mcraze.world.GameMode selectedGameMode = mc.sayda.mcraze.world.GameMode.CLASSIC; // Default CLASSIC
@@ -84,6 +88,8 @@ public class MainMenu {
 	private boolean selectedDaylightCycle = true;
 	private boolean selectedSpelunking = false;
 	private boolean selectedMobGriefing = true;
+	private boolean selectedPVP = true;
+	private boolean selectedInsomnia = false;
 	private int selectedWorldSize = WORLD_SIZE_MEDIUM; // Default Medium
 
 	// World selection state
@@ -387,6 +393,12 @@ public class MainMenu {
 		keys.add("mobGriefing");
 		names.add("mobGriefing: " + (selectedMobGriefing ? "TRUE" : "FALSE"));
 
+		keys.add("pvp");
+		names.add("pvp: " + (selectedPVP ? "TRUE" : "FALSE"));
+
+		keys.add("insomnia");
+		names.add("insomnia: " + (selectedInsomnia ? "TRUE" : "FALSE"));
+
 		rulesList.setItems(keys, names);
 	}
 
@@ -497,10 +509,50 @@ public class MainMenu {
 		if (worldList != null) {
 			mc.sayda.mcraze.world.storage.WorldSaveManager.WorldMetadata world = worldList.getSelectedItem();
 			if (world != null) {
-				// TODO: Implement rename dialog
-				System.out.println("Rename world: " + world.worldName);
+				currentState = MenuState.RENAMING_WORLD;
+				renameInput = new TextInput("rename_input", 250, 300, 40, 20);
+				renameInput.setText(world.worldName);
+
+				currentButtons.clear();
+				Button confirmBtn = new Button("confirm_rename", "Rename", 310, 140, 40)
+						.setOnClick(this::confirmRenameWorld);
+				Button cancelBtn = new Button("cancel_rename", "Cancel", 310, 140, 40)
+						.setOffsetX(80)
+						.setOnClick(this::showWorldSelectionMenu);
+				confirmBtn.setOffsetX(-80);
+
+				currentButtons.add(confirmBtn);
+				currentButtons.add(cancelBtn);
 			}
 		}
+	}
+
+	/**
+	 * Finalize the world rename
+	 */
+	private void confirmRenameWorld() {
+		if (worldList != null && renameInput != null) {
+			mc.sayda.mcraze.world.storage.WorldSaveManager.WorldMetadata world = worldList.getSelectedItem();
+			String newName = renameInput.getText().trim();
+			if (world != null && !newName.isEmpty() && !newName.equals(world.worldName)) {
+				boolean success = mc.sayda.mcraze.world.storage.WorldSaveManager.renameWorld(world.worldName, newName);
+				if (success) {
+					showWorldSelectionMenu();
+				} else {
+					setError("Failed to rename world! Name might be taken.");
+				}
+			} else {
+				showWorldSelectionMenu();
+			}
+		}
+	}
+
+	/**
+	 * Set an error message to display on the menu
+	 */
+	public void setError(String msg) {
+		this.lastErrorMessage = msg;
+		this.errorDisplayTicks = 300; // Show for ~5 seconds at 60fps
 	}
 
 	/**
@@ -620,7 +672,9 @@ public class MainMenu {
 		}
 
 		game.startGame(worldName, false, selectedWorldSize, username, password,
-				selectedGameMode, selectedKeepInventory, selectedDaylightCycle, noiseMod);
+				selectedGameMode, selectedKeepInventory, selectedDaylightCycle, selectedMobGriefing, selectedPVP,
+				selectedInsomnia,
+				noiseMod);
 	}
 
 	/**
@@ -831,6 +885,13 @@ public class MainMenu {
 			}
 		}
 
+		if (currentState == MenuState.RENAMING_WORLD && renameInput != null) {
+			renameInput.updatePosition(screenWidth);
+			renameInput.draw(g);
+			g.setColor(mc.sayda.mcraze.graphics.Color.white);
+			g.drawString("New Name:", renameInput.getX(), renameInput.getY() - 4);
+		}
+
 		// Draw world selection list if in world select menu
 		if (currentState == MenuState.WORLD_SELECT && worldList != null) {
 			worldList.updatePosition(screenWidth);
@@ -858,6 +919,16 @@ public class MainMenu {
 			sharedSettings.renderSettings(g, mouseX, mouseY, false);
 		}
 
+		// Draw error message if present
+		if (lastErrorMessage != null && errorDisplayTicks > 0) {
+			errorDisplayTicks--;
+			g.setColor(mc.sayda.mcraze.graphics.Color.red);
+			g.setFont("Dialog", GraphicsHandler.FONT_BOLD, 14);
+			int errX = screenWidth / 2 - g.getStringWidth(lastErrorMessage) / 2;
+			g.drawString(lastErrorMessage, errX, 135);
+			g.setFont("Dialog", GraphicsHandler.FONT_PLAIN, 12);
+		}
+
 		// Handle clicks
 		if (game.getClient().leftClick) {
 			game.getClient().leftClick = false;
@@ -866,6 +937,10 @@ public class MainMenu {
 			// Check IP input click first
 			if (currentState == MenuState.MULTIPLAYER && ipInput != null) {
 				ipInput.handleClick(g, mouseX, mouseY);
+			}
+
+			if (currentState == MenuState.RENAMING_WORLD && renameInput != null) {
+				renameInput.handleClick(g, mouseX, mouseY);
 			}
 
 			// Check world name input click
@@ -902,6 +977,12 @@ public class MainMenu {
 								break;
 							case "mobgriefing":
 								selectedMobGriefing = !selectedMobGriefing;
+								break;
+							case "pvp":
+								selectedPVP = !selectedPVP;
+								break;
+							case "insomnia":
+								selectedInsomnia = !selectedInsomnia;
 								break;
 						}
 						updateRulesList();
@@ -972,6 +1053,8 @@ public class MainMenu {
 				worldNameInput.handleKeyPressed(keyCode, shiftPressed, ctrlPressed);
 			if (noiseModifierInput != null)
 				noiseModifierInput.handleKeyPressed(keyCode, shiftPressed, ctrlPressed);
+		} else if (currentState == MenuState.RENAMING_WORLD && renameInput != null) {
+			renameInput.handleKeyPressed(keyCode, shiftPressed, ctrlPressed);
 		}
 	}
 
@@ -1008,6 +1091,8 @@ public class MainMenu {
 				return "Connect to Server";
 			case OPTIONS:
 				return "Options";
+			case RENAMING_WORLD:
+				return "Rename World";
 			default:
 				return null;
 		}

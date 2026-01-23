@@ -291,26 +291,15 @@ public class PlayerDataManager {
 		player.y = data.y;
 		player.dx = data.dx;
 		player.dy = data.dy;
-		player.hitPoints = data.health;
 		player.facingRight = data.facingRight;
+		player.spawnX = data.spawnX; // Restore spawn point
+		player.spawnY = data.spawnY;
+		player.mana = data.mana;
+		player.maxMana = data.maxMana;
+		player.essence = data.essence;
+		player.maxEssence = data.maxEssence;
 
-		// Restore Class System
-		if (data.selectedClass != null && !data.selectedClass.equals("NONE")) {
-			try {
-				PlayerClass pClass = PlayerClass.valueOf(data.selectedClass);
-				SpecializationPath[] pPaths = new SpecializationPath[data.selectedPaths.length];
-				for (int i = 0; i < data.selectedPaths.length; i++) {
-					pPaths[i] = SpecializationPath.valueOf(data.selectedPaths[i]);
-				}
-				player.selectClass(pClass, pPaths);
-				// Re-apply HP after class selection potentially changed maxHP
-				player.hitPoints = data.health;
-			} catch (IllegalArgumentException e) {
-				logger.error("Failed to restore class from playerdata: " + data.selectedClass);
-			}
-		}
-
-		// Restore Skill Points and Unlocked Passives
+		// Restore Skill Points and Unlocked Passives (MUST happen before selectClass)
 		player.skillPoints = data.skillPoints;
 		player.unlockedPassives.clear();
 		if (data.unlockedAbilityIds != null) {
@@ -321,6 +310,25 @@ public class PlayerDataManager {
 				} catch (IllegalArgumentException e) {
 					logger.warn("Unknown passive ability in playerdata: " + abilityName);
 				}
+			}
+		}
+
+		// Restore Class System
+		if (data.selectedClass != null && !data.selectedClass.equals("NONE")) {
+			try {
+				PlayerClass pClass = PlayerClass.valueOf(data.selectedClass);
+				SpecializationPath[] pPaths = new SpecializationPath[data.selectedPaths.length];
+				for (int i = 0; i < data.selectedPaths.length; i++) {
+					pPaths[i] = SpecializationPath.valueOf(data.selectedPaths[i]);
+				}
+				player.selectClass(pClass, pPaths);
+				// Re-apply HP/Mana/Essence after class selection potentially changed/capped
+				// them
+				player.hitPoints = data.health;
+				player.mana = data.mana;
+				player.essence = data.essence;
+			} catch (IllegalArgumentException e) {
+				logger.error("Failed to restore class from playerdata: " + data.selectedClass);
 			}
 		}
 
@@ -407,6 +415,40 @@ public class PlayerDataManager {
 					// No cursor item - ensure it's empty
 					inv.holding.setEmpty();
 				}
+
+				// [NEW] Restore equipment
+				if (data.equipmentItemIds != null && data.equipmentItemIds.length == 10) {
+					boolean hasEqMastercrafted = data.equipmentItemMastercrafted != null
+							&& data.equipmentItemMastercrafted.length == 10;
+
+					for (int i = 0; i < 10; i++) {
+						String itemId = data.equipmentItemIds[i];
+						int count = data.equipmentItemCounts[i];
+
+						if (itemId != null && count > 0) {
+							Item item = Constants.itemTypes.get(itemId);
+							if (item != null) {
+								Item clonedItem = item.clone();
+								inv.equipment[i].setItem(clonedItem);
+								inv.equipment[i].setCount(count);
+
+								if (hasEqMastercrafted && data.equipmentItemMastercrafted[i]) {
+									clonedItem.isMastercrafted = true;
+									if (clonedItem instanceof Tool) {
+										Tool t = (Tool) clonedItem;
+										t.totalUses = (int) (t.totalUses * 1.5f);
+									}
+								}
+
+								if (clonedItem instanceof Tool) {
+									((Tool) clonedItem).uses = data.equipmentToolUses[i];
+								}
+							}
+						} else {
+							inv.equipment[i].setEmpty();
+						}
+					}
+				}
 			}
 		}
 	}
@@ -424,6 +466,12 @@ public class PlayerDataManager {
 		data.dx = player.dx;
 		data.dy = player.dy;
 		data.facingRight = player.facingRight;
+		data.spawnX = player.spawnX; // Save spawn point
+		data.spawnY = player.spawnY;
+		data.mana = player.mana;
+		data.maxMana = player.maxMana;
+		data.essence = player.essence;
+		data.maxEssence = player.maxEssence;
 
 		// Extract Class System
 		data.selectedClass = player.selectedClass.name();
@@ -461,7 +509,6 @@ public class PlayerDataManager {
 
 					if (slot.item instanceof Tool) {
 						data.inventoryToolUses[index] = ((Tool) slot.item).uses;
-						data.inventoryToolUses[index] = 0;
 					}
 
 					// [NEW] Save mastercrafted status
@@ -490,11 +537,32 @@ public class PlayerDataManager {
 			} else {
 				data.holdingToolUses = 0;
 			}
-		} else {
-			data.holdingItemId = null;
-			data.holdingItemCount = 0;
-			data.holdingToolUses = 0;
-			data.holdingItemMastercrafted = false;
+		}
+
+		// [NEW] Save equipment
+		data.equipmentItemIds = new String[10];
+		data.equipmentItemCounts = new int[10];
+		data.equipmentToolUses = new int[10];
+		data.equipmentItemMastercrafted = new boolean[10];
+
+		for (int i = 0; i < 10; i++) {
+			InventoryItem slot = inv.equipment[i];
+			if (slot != null && !slot.isEmpty()) {
+				data.equipmentItemIds[i] = slot.getItem().itemId;
+				data.equipmentItemCounts[i] = slot.getCount();
+				data.equipmentItemMastercrafted[i] = slot.getItem().isMastercrafted;
+
+				if (slot.getItem() instanceof Tool) {
+					data.equipmentToolUses[i] = ((Tool) slot.getItem()).uses;
+				} else {
+					data.equipmentToolUses[i] = 0;
+				}
+			} else {
+				data.equipmentItemIds[i] = null;
+				data.equipmentItemCounts[i] = 0;
+				data.equipmentToolUses[i] = 0;
+				data.equipmentItemMastercrafted[i] = false;
+			}
 		}
 
 		data.lastPlayTime = System.currentTimeMillis();
@@ -512,12 +580,12 @@ public class PlayerDataManager {
 			Files.deleteIfExists(playerDataFile);
 			Files.deleteIfExists(backupFile);
 
-			if (GameLogger.get() != null)
-				GameLogger.get().info("Deleted playerdata for " + username + " in world " + worldName);
+			if (logger != null)
+				logger.info("Deleted playerdata for " + username + " in world " + worldName);
 			return true;
 		} catch (IOException e) {
-			if (GameLogger.get() != null)
-				GameLogger.get().error("Failed to delete playerdata: " + e.getMessage());
+			if (logger != null)
+				logger.error("Failed to delete playerdata: " + e.getMessage());
 			return false;
 		}
 	}

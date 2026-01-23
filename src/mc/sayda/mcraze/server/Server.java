@@ -108,8 +108,8 @@ public class Server implements PacketHandler {
 	 * Optionally load an existing world
 	 */
 	public void startGame(int width, String worldName, String username, String password, World loadedWorld,
-			mc.sayda.mcraze.world.GameMode gameMode, boolean keepInventory, boolean daylightCycle,
-			double noiseModifier) {
+			mc.sayda.mcraze.world.GameMode gameMode, boolean keepInventory, boolean daylightCycle, boolean mobGriefing,
+			boolean pvp, boolean insomnia, double noiseModifier) {
 		// Set global noise modifier for next generation (if any)
 		mc.sayda.mcraze.world.gen.WorldGenerator.noiseModifier = noiseModifier;
 
@@ -193,7 +193,8 @@ public class Server implements PacketHandler {
 	 * Start a new game without loading (generates new world)
 	 */
 	public void startGame(int width, String worldName, String username, String password) {
-		startGame(width, worldName, username, password, null, mc.sayda.mcraze.world.GameMode.CLASSIC, false, true, 0.0);
+		startGame(width, worldName, username, password, null, mc.sayda.mcraze.world.GameMode.CLASSIC, false, true, true,
+				true, false, 0.0);
 	}
 
 	/**
@@ -204,13 +205,8 @@ public class Server implements PacketHandler {
 	@Deprecated
 	public void startGame(int width) {
 		startGame(width, "World1", "Player", "password", null, mc.sayda.mcraze.world.GameMode.CLASSIC, false, true,
-				0.0);
+				true, true, false, 0.0);
 	}
-
-	/**
-	 * REMOVED: sendInitialWorldState() is now handled by SharedWorld.addPlayer()
-	 * SharedWorld automatically sends all initial packets when a player connects.
-	 */
 
 	/**
 	 * Server tick - process packets and update game state (REFACTORED)

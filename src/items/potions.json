@@ -1,0 +1,145 @@
+[
+    {
+        "itemId": "bottle",
+        "name": "Empty Bottle",
+        "spriteRef": "assets/sprites/entities/bottle.png",
+        "recipe": {
+            "pattern": [
+                [
+                    "glass",
+                    null,
+                    "glass"
+                ],
+                [
+                    null,
+                    "glass",
+                    null
+                ]
+            ],
+            "yield": 3
+        }
+    },
+    {
+        "itemId": "water_bottle",
+        "name": "Water Bottle",
+        "layers": [
+            {
+                "spriteRef": "assets/sprites/entities/bottle.png"
+            },
+            {
+                "spriteRef": "assets/sprites/entities/bottle_overlay.png",
+                "hexColor": "#3399FF"
+            }
+        ]
+    },
+    {
+        "itemId": "health_potion",
+        "name": "Health Potion",
+        "layers": [
+            {
+                "spriteRef": "assets/sprites/entities/bottle.png"
+            },
+            {
+                "spriteRef": "assets/sprites/entities/bottle_overlay.png",
+                "hexColor": "#FF0000"
+            }
+        ],
+        "usage": {
+            "healingAmount": 25,
+            "remains": "bottle"
+        },
+        "alchemy": {
+            "ingredients": [
+                "red_dye"
+            ],
+            "bottle": "water_bottle",
+            "essence": 50,
+            "time": 400,
+            "yield": 1
+        }
+    },
+    {
+        "itemId": "speed_potion",
+        "name": "Speed Potion",
+        "layers": [
+            {
+                "spriteRef": "assets/sprites/entities/bottle.png"
+            },
+            {
+                "spriteRef": "assets/sprites/entities/bottle_overlay.png",
+                "hexColor": "#FFFFFF"
+            }
+        ],
+        "usage": {
+            "buffType": "SPEED",
+            "buffDuration": 3600,
+            "buffAmplifier": 0,
+            "remains": "bottle"
+        },
+        "alchemy": {
+            "ingredients": [
+                "lapis"
+            ],
+            "bottle": "water_bottle",
+            "essence": 75,
+            "time": 600,
+            "yield": 1
+        }
+    },
+    {
+        "itemId": "strength_potion",
+        "name": "Strength Potion",
+        "layers": [
+            {
+                "spriteRef": "assets/sprites/entities/bottle.png"
+            },
+            {
+                "spriteRef": "assets/sprites/entities/bottle_overlay.png",
+                "hexColor": "#FF9900"
+            }
+        ],
+        "usage": {
+            "buffType": "STRENGTH",
+            "buffDuration": 2400,
+            "buffAmplifier": 0,
+            "remains": "bottle"
+        },
+        "alchemy": {
+            "ingredients": [
+                "ruby"
+            ],
+            "bottle": "water_bottle",
+            "essence": 100,
+            "time": 800,
+            "yield": 1
+        }
+    },
+    {
+        "itemId": "resistance_potion",
+        "name": "Resistance Potion",
+        "layers": [
+            {
+                "spriteRef": "assets/sprites/entities/bottle.png"
+            },
+            {
+                "spriteRef": "assets/sprites/entities/bottle_overlay.png",
+                "hexColor": "#999999"
+            }
+        ],
+        "usage": {
+            "buffType": "DAMAGE_RESISTANCE",
+            "buffDuration": 2400,
+            "buffAmplifier": 0,
+            "remains": "bottle"
+        },
+        "alchemy": {
+            "ingredients": [
+                "iron"
+            ],
+            "bottle": "water_bottle",
+            "essence": 125,
+            "time": 800,
+            "yield": 1
+        }
+    }
+]

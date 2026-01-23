@@ -21,8 +21,17 @@ echo Preparing input files...
 copy MCraze.jar installer\input\
 xcopy /E /I /Y lib installer\input\lib
 
-REM Get version from Game.java or use default
-set VERSION=1.0.0
+REM Get version from Java Constants
+for /f "usebackq delims=" %%v in (`
+    "C:\Program Files\Java\jdk-21\bin\java.exe" -cp MCraze.jar mc.sayda.mcraze.PrintGameVersion
+`) do set VERSION=%%v
+
+if "%VERSION%"=="" (
+    echo Failed to read version from Java, using fallback
+    set VERSION=1.0.0
+)
+
+echo Detected version: %VERSION%
 
 echo Creating Windows installer with jpackage...
 echo This may take several minutes...

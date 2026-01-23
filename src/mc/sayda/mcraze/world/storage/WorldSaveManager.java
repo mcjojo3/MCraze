@@ -1,6 +1,7 @@
 package mc.sayda.mcraze.world.storage;
 
 import mc.sayda.mcraze.world.*;
+import mc.sayda.mcraze.Constants;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -13,6 +14,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -73,7 +75,7 @@ public class WorldSaveManager {
 		public int worldHeight;
 		public long createdTime;
 		public long lastPlayedTime;
-		public String gameVersion = "0.1.0";
+		public String gameVersion = Constants.GAME_VERSION;
 		// CRITICAL FIX: Persist custom spawn location
 		public int spawnX;
 		public int spawnY;
@@ -83,6 +85,11 @@ public class WorldSaveManager {
 		public boolean keepInventory = false;
 		public boolean daylightCycle = true;
 		public boolean spelunking = false;
+		public boolean darkness = true;
+		public int daylightSpeed = 40000;
+		public boolean mobGriefing = true;
+		public boolean pvp = true;
+		public boolean insomnia = false;
 
 		// NEW: Flag persistence
 		public int flagX = -1;
@@ -119,6 +126,7 @@ public class WorldSaveManager {
 
 		public int hitPoints;
 		public String itemId; // For dropped items (EntityItem)
+		public boolean isMastercrafted; // [NEW] Mastercrafted status
 		public int toolUses; // For dropped tools
 
 		// Inventory data (for Player entities)
@@ -126,6 +134,11 @@ public class WorldSaveManager {
 		public int[] inventoryItemCounts;
 		public int[] inventoryToolUses;
 		public int inventoryHotbarIdx;
+
+		// Tamed Entity Data
+		public String ownerUUID;
+		public boolean isSitting;
+		public int fuseTimer; // [NEW] TNT/Bomber fuse
 
 		public EntityData() {
 		}
@@ -186,7 +199,6 @@ public class WorldSaveManager {
 			// --- ATOMIC SAVE: Write to temp files first ---
 			Path levelTemp = worldPath.resolve("level.dat.tmp");
 			Path worldTemp = worldPath.resolve("world.dat.tmp");
-			Path entitiesTemp = worldPath.resolve("entities.dat.tmp");
 
 			// Save metadata to temp file
 			WorldMetadata metadata = new WorldMetadata(
@@ -205,6 +217,11 @@ public class WorldSaveManager {
 			metadata.keepInventory = server.world.keepInventory;
 			metadata.daylightCycle = server.world.daylightCycle;
 			metadata.spelunking = server.world.spelunking;
+			metadata.darkness = server.world.darkness;
+			metadata.daylightSpeed = server.world.daylightSpeed;
+			metadata.mobGriefing = server.world.mobGriefing;
+			metadata.pvp = server.world.pvp;
+			metadata.insomnia = server.world.insomnia;
 
 			// Save Flag Location
 			if (server.world.flagLocation != null) {
@@ -221,16 +238,27 @@ public class WorldSaveManager {
 				gson.toJson(metadata, writer);
 			}
 
-			// Save world data to temp file (binary format)
-			saveWorldData(worldTemp.toFile(), server.world);
+			// [REFACTOR] Prepare data for World Data Snapshot (Embedded Entities)
+			List<EntityData> entityDataList = new ArrayList<>();
+			if (server.entities != null) {
+				for (Entity entity : server.entities) {
+					if (entity instanceof mc.sayda.mcraze.player.Player)
+						continue;
+					entityDataList.add(extractEntityData(entity));
+				}
+			}
 
-			// Save entities to temp file (JSON format)
-			saveEntities(entitiesTemp.toFile(), server.entities);
+			// Save world data to temp file (binary format Version 4+)
+			saveWorldDataSnapshot(worldTemp.toFile(), server.world.width, server.world.height,
+					server.world.cloneTiles(), server.world.cloneBackdrops(),
+					server.world.getBiomeMap() != null ? server.world.getBiomeMap().clone() : null,
+					server.world.getTicksAlive(), server.world.cloneChests(),
+					server.world.cloneFurnaces(), server.world.cloneAlchemies(),
+					server.world.clonePots(), entityDataList);
 
 			// --- ATOMIC COMMIT: Backup old files, then rename new ones ---
 			Path levelFinal = worldPath.resolve("level.dat");
 			Path worldFinal = worldPath.resolve("world.dat");
-			Path entitiesFinal = worldPath.resolve("entities.dat");
 
 			// Backup existing files (keep one backup)
 			if (Files.exists(levelFinal)) {
@@ -241,15 +269,10 @@ public class WorldSaveManager {
 				Files.move(worldFinal, worldPath.resolve("world.dat.bak"),
 						java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 			}
-			if (Files.exists(entitiesFinal)) {
-				Files.move(entitiesFinal, worldPath.resolve("entities.dat.bak"),
-						java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-			}
 
 			// Atomic rename: temp -> final
 			Files.move(levelTemp, levelFinal, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
 			Files.move(worldTemp, worldFinal, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
-			Files.move(entitiesTemp, entitiesFinal, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
 
 			if (logger != null)
 				logger.info("World '" + worldName + "' saved atomically with backup");
@@ -295,6 +318,11 @@ public class WorldSaveManager {
 		metadata.keepInventory = world.keepInventory;
 		metadata.daylightCycle = world.daylightCycle;
 		metadata.spelunking = world.spelunking;
+		metadata.darkness = world.darkness;
+		metadata.daylightSpeed = world.daylightSpeed;
+		metadata.mobGriefing = world.mobGriefing;
+		metadata.pvp = world.pvp;
+		metadata.insomnia = world.insomnia;
 
 		// Save Flag Location
 		if (world.flagLocation != null) {
@@ -316,11 +344,17 @@ public class WorldSaveManager {
 		long ticksAliveSnapshot = world.getTicksAlive();
 		java.util.Map<String, mc.sayda.mcraze.world.storage.ChestData> chestsSnapshot = world.cloneChests();
 		java.util.Map<String, mc.sayda.mcraze.world.storage.FurnaceData> furnacesSnapshot = world.cloneFurnaces();
+		java.util.Map<String, mc.sayda.mcraze.world.storage.AlchemyData> alchemiesSnapshot = world.cloneAlchemies();
+		java.util.Map<String, mc.sayda.mcraze.world.storage.PotData> potsSnapshot = world.clonePots();
 
 		List<EntityData> entityDataList = new ArrayList<>();
 		// Use thread-safe copy
 		List<Entity> entitiesSafe = new ArrayList<>(entities);
 		for (Entity entity : entitiesSafe) {
+			// [REFACTOR] Skip Players - they are saved separately in playerdata/
+			if (entity instanceof mc.sayda.mcraze.player.Player) {
+				continue;
+			}
 			entityDataList.add(extractEntityData(entity));
 		}
 
@@ -337,22 +371,19 @@ public class WorldSaveManager {
 
 				Path levelTemp = worldPath.resolve("level.dat.tmp");
 				Path worldTemp = worldPath.resolve("world.dat.tmp");
-				Path entitiesTemp = worldPath.resolve("entities.dat.tmp");
 
 				try (FileWriter writer = new FileWriter(levelTemp.toFile())) {
 					gson.toJson(metadata, writer);
 				}
 
 				saveWorldDataSnapshot(worldTemp.toFile(), world.width, world.height, tilesSnapshot,
-						backdropsSnapshot, biomesSnapshot, ticksAliveSnapshot, chestsSnapshot, furnacesSnapshot);
+						backdropsSnapshot, biomesSnapshot, ticksAliveSnapshot, chestsSnapshot, furnacesSnapshot,
+						alchemiesSnapshot, potsSnapshot, entityDataList);
 
-				try (FileWriter writer = new FileWriter(entitiesTemp.toFile())) {
-					gson.toJson(entityDataList, writer);
-				}
+				// [REFACTOR] Removed entities.dat - entities are now embedded in world.dat
 
 				Path levelFinal = worldPath.resolve("level.dat");
 				Path worldFinal = worldPath.resolve("world.dat");
-				Path entitiesFinal = worldPath.resolve("entities.dat");
 
 				if (Files.exists(levelFinal))
 					Files.move(levelFinal, worldPath.resolve("level.dat.bak"),
@@ -360,13 +391,9 @@ public class WorldSaveManager {
 				if (Files.exists(worldFinal))
 					Files.move(worldFinal, worldPath.resolve("world.dat.bak"),
 							java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-				if (Files.exists(entitiesFinal))
-					Files.move(entitiesFinal, worldPath.resolve("entities.dat.bak"),
-							java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 
 				Files.move(levelTemp, levelFinal, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
 				Files.move(worldTemp, worldFinal, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
-				Files.move(entitiesTemp, entitiesFinal, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
 
 				long endIO = System.nanoTime();
 				if (logger != null)
@@ -425,11 +452,23 @@ public class WorldSaveManager {
 			}
 		}
 
+		if (entity instanceof mc.sayda.mcraze.entity.mob.EntityWolf) {
+			mc.sayda.mcraze.entity.mob.EntityWolf wolf = (mc.sayda.mcraze.entity.mob.EntityWolf) entity;
+			data.ownerUUID = wolf.getOwner();
+			data.isSitting = wolf.isSitting();
+		}
+
 		if (entity instanceof mc.sayda.mcraze.item.Item) {
-			data.itemId = ((mc.sayda.mcraze.item.Item) entity).itemId;
+			mc.sayda.mcraze.item.Item itemEnt = (mc.sayda.mcraze.item.Item) entity;
+			data.itemId = itemEnt.itemId;
+			data.isMastercrafted = itemEnt.isMastercrafted;
 		}
 		if (entity instanceof mc.sayda.mcraze.item.Tool) {
 			data.toolUses = ((mc.sayda.mcraze.item.Tool) entity).uses;
+		}
+
+		if (entity instanceof mc.sayda.mcraze.entity.item.EntityPrimedTNT) {
+			data.fuseTimer = ((mc.sayda.mcraze.entity.item.EntityPrimedTNT) entity).getFuseTimer();
 		}
 
 		return data;
@@ -441,9 +480,16 @@ public class WorldSaveManager {
 			mc.sayda.mcraze.world.gen.Biome[] biomes,
 			long ticksAlive,
 			java.util.Map<String, mc.sayda.mcraze.world.storage.ChestData> chests,
-			java.util.Map<String, mc.sayda.mcraze.world.storage.FurnaceData> furnaces) throws IOException {
+			java.util.Map<String, mc.sayda.mcraze.world.storage.FurnaceData> furnaces,
+			java.util.Map<String, mc.sayda.mcraze.world.storage.AlchemyData> alchemies,
+			java.util.Map<String, mc.sayda.mcraze.world.storage.PotData> pots,
+			List<EntityData> entities) throws IOException {
 
 		try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(file)))) {
+			// Important: Versioning header for backwards compatibility
+			out.writeInt(0x4D43525A); // Magic Number "MCRZ"
+			out.writeInt(5); // Save Version 5 (Adds EntityPrimedTNT persistence)
+
 			out.writeInt(width);
 			out.writeInt(height);
 
@@ -492,6 +538,13 @@ public class WorldSaveManager {
 							out.writeBoolean(true);
 							out.writeUTF(invItem.getItem().itemId);
 							out.writeInt(invItem.getCount());
+							// [NEW] Persist persistence data
+							out.writeBoolean(invItem.getItem().isMastercrafted);
+							if (invItem.getItem() instanceof mc.sayda.mcraze.item.Tool) {
+								out.writeInt(((mc.sayda.mcraze.item.Tool) invItem.getItem()).uses);
+							} else {
+								out.writeInt(0);
+							}
 						} else {
 							out.writeBoolean(false);
 						}
@@ -529,6 +582,13 @@ public class WorldSaveManager {
 								out.writeBoolean(true);
 								out.writeUTF(invItem.getItem().itemId);
 								out.writeInt(invItem.getCount());
+								// [NEW] Persist persistence data
+								out.writeBoolean(invItem.getItem().isMastercrafted);
+								if (invItem.getItem() instanceof mc.sayda.mcraze.item.Tool) {
+									out.writeInt(((mc.sayda.mcraze.item.Tool) invItem.getItem()).uses);
+								} else {
+									out.writeInt(0);
+								}
 							} else {
 								out.writeBoolean(false);
 							}
@@ -538,6 +598,112 @@ public class WorldSaveManager {
 				}
 				if (logger != null && logger.isDebugEnabled()) {
 					logger.debug("WorldSaveManager.saveWorldData: Saved " + furnaceCount + " furnaces");
+				}
+			} else {
+				out.writeInt(0);
+			}
+
+			// Write alchemy data
+			if (alchemies != null) {
+				out.writeInt(alchemies.size());
+				int alchemyCount = 0;
+				for (mc.sayda.mcraze.world.storage.AlchemyData alchemy : alchemies.values()) {
+					out.writeInt(alchemy.x);
+					out.writeInt(alchemy.y);
+
+					// Write brewing state
+					out.writeInt(alchemy.brewProgress);
+					out.writeInt(alchemy.brewTimeTotal);
+					if (alchemy.currentRecipe != null) {
+						out.writeBoolean(true);
+						out.writeUTF(alchemy.currentRecipe);
+					} else {
+						out.writeBoolean(false);
+					}
+
+					// Write items (5 slots)
+					for (int i = 0; i < 5; i++) {
+						mc.sayda.mcraze.item.InventoryItem invItem = alchemy.items[i];
+						if (invItem != null && !invItem.isEmpty()) {
+							out.writeBoolean(true);
+							out.writeUTF(invItem.getItem().itemId);
+							out.writeInt(invItem.getCount());
+							// [NEW] Persist persistence data
+							out.writeBoolean(invItem.getItem().isMastercrafted);
+							if (invItem.getItem() instanceof mc.sayda.mcraze.item.Tool) {
+								out.writeInt(((mc.sayda.mcraze.item.Tool) invItem.getItem()).uses);
+							} else {
+								out.writeInt(0);
+							}
+						} else {
+							out.writeBoolean(false);
+						}
+					}
+					alchemyCount++;
+				}
+				if (logger != null && logger.isDebugEnabled()) {
+					logger.debug("WorldSaveManager.saveWorldDataSnapshot: Saved " + alchemyCount + " alchemy tables");
+				}
+			} else {
+				out.writeInt(0);
+			}
+
+			// Write pot data
+			if (pots != null) {
+				out.writeInt(pots.size());
+				int potCount = 0;
+				for (mc.sayda.mcraze.world.storage.PotData pot : pots.values()) {
+					out.writeInt(pot.x);
+					out.writeInt(pot.y);
+					if (pot.plantId != null) {
+						out.writeBoolean(true);
+						out.writeUTF(pot.plantId);
+					} else {
+						out.writeBoolean(false);
+					}
+					out.writeInt(pot.growthProgress);
+					out.writeInt(pot.growthTimeTotal);
+					potCount++;
+				}
+				if (logger != null && logger.isDebugEnabled()) {
+					logger.debug("WorldSaveManager.saveWorldDataSnapshot: Saved " + potCount + " pots");
+				}
+			} else {
+				out.writeInt(0);
+			}
+
+			// Write entities (Version 4+)
+			if (entities != null) {
+				out.writeInt(entities.size());
+				int entityCount = 0;
+				for (EntityData entity : entities) {
+					// Write entity type
+					out.writeUTF(entity.type != null ? entity.type : "Unknown");
+					// Position
+					out.writeFloat(entity.x);
+					out.writeFloat(entity.y);
+					out.writeFloat(entity.dx);
+					out.writeFloat(entity.dy);
+					// Hit points
+					out.writeInt(entity.hitPoints);
+					// Item data (for Item/Tool entities)
+					out.writeBoolean(entity.itemId != null);
+					if (entity.itemId != null) {
+						out.writeUTF(entity.itemId);
+						out.writeBoolean(entity.isMastercrafted);
+						out.writeInt(entity.toolUses);
+					}
+					// Wolf data
+					out.writeBoolean(entity.ownerUUID != null);
+					if (entity.ownerUUID != null) {
+						out.writeUTF(entity.ownerUUID);
+					}
+					out.writeBoolean(entity.isSitting);
+					out.writeInt(entity.fuseTimer);
+					entityCount++;
+				}
+				if (logger != null && logger.isDebugEnabled()) {
+					logger.debug("WorldSaveManager.saveWorldDataSnapshot: Saved " + entityCount + " entities");
 				}
 			} else {
 				out.writeInt(0);
@@ -616,11 +782,16 @@ public class WorldSaveManager {
 					world.gameMode = mc.sayda.mcraze.world.GameMode.valueOf(metadata.gameMode);
 				}
 			} catch (Exception e) {
-				world.gameMode = mc.sayda.mcraze.world.GameMode.SURVIVAL; // Default fallback
+				world.gameMode = mc.sayda.mcraze.world.GameMode.CLASSIC; // Default fallback
 			}
 			world.keepInventory = metadata.keepInventory;
 			world.daylightCycle = metadata.daylightCycle;
 			world.spelunking = metadata.spelunking;
+			world.darkness = metadata.darkness;
+			world.daylightSpeed = metadata.daylightSpeed;
+			world.mobGriefing = metadata.mobGriefing;
+			world.pvp = metadata.pvp;
+			world.insomnia = metadata.insomnia;
 
 			// Restore Flag Location
 			if (metadata.flagX != -1 && metadata.flagY != -1) {
@@ -698,9 +869,33 @@ public class WorldSaveManager {
 		}
 
 		// Load entities
-		server.entities = loadEntities(worldPath.resolve(entitiesName).toFile());
+		if (server.world != null && !server.world.pendingEntities.isEmpty()) {
+			// [REFACTOR] Load entities from world.dat (embedded)
+			server.entities = new ArrayList<>();
+			for (EntityData dat : server.world.pendingEntities) {
+				Entity e = reconstructEntity(dat);
+				if (e != null) {
+					server.entities.add(e);
+				}
+			}
+			server.world.pendingEntities.clear(); // Clear after loading
+			if (logger != null)
+				logger.info("Loaded " + server.entities.size() + " entities from world.dat");
+		} else {
+			// Fallback to legacy entities.dat for version < 4
+			File entitiesFile = worldPath.resolve(entitiesName).toFile();
+			if (entitiesFile.exists()) {
+				server.entities = loadEntities(entitiesFile);
+				if (logger != null)
+					logger.info("Loaded " + server.entities.size() + " entities from legacy entities.dat");
+			} else {
+				server.entities = new ArrayList<>();
+			}
+		}
 
-		// Find player
+		// Find player (from playerdata, should be handled by Server calling
+		// PlayerDataManager separately,
+		// but we ensure server.player is set if found in entities for compatibility)
 		server.player = null;
 		for (Entity entity : server.entities) {
 			if (entity instanceof Player) {
@@ -713,6 +908,64 @@ public class WorldSaveManager {
 		if (logger != null)
 			logger.info("World '" + worldName + "' loaded successfully" + source);
 		return true;
+	}
+
+	/**
+	 * Rename a world
+	 */
+	public static boolean renameWorld(String oldName, String newName) {
+		try {
+			String sanitizedOld = sanitizeWorldName(oldName);
+			String sanitizedNew = sanitizeWorldName(newName);
+
+			Path oldPath = Paths.get(getSavesDirectory(), sanitizedOld);
+			Path newPath = Paths.get(getSavesDirectory(), sanitizedNew);
+
+			if (!Files.exists(oldPath)) {
+				if (logger != null)
+					logger.error("World '" + oldName + "' does not exist, cannot rename");
+				return false;
+			}
+
+			if (Files.exists(newPath)) {
+				if (logger != null)
+					logger.error("World '" + newName + "' already exists, cannot rename to it");
+				return false;
+			}
+
+			// Rename directory
+			Files.move(oldPath, newPath, StandardCopyOption.REPLACE_EXISTING);
+
+			// Update metadata inside the renamed directory
+			Path levelPath = newPath.resolve("level.dat");
+			if (Files.exists(levelPath)) {
+				updateMetadataName(levelPath, newName);
+			}
+
+			// Update backup metadata if exists
+			Path levelBakPath = newPath.resolve("level.dat.bak");
+			if (Files.exists(levelBakPath)) {
+				updateMetadataName(levelBakPath, newName);
+			}
+
+			if (logger != null)
+				logger.info("World '" + oldName + "' renamed to '" + newName + "'");
+			return true;
+		} catch (IOException e) {
+			if (logger != null)
+				logger.error("Failed to rename world: " + e.getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * Helper to update the name field inside a metadata file
+	 */
+	private static void updateMetadataName(Path levelPath, String newName) throws IOException {
+		String json = new String(Files.readAllBytes(levelPath));
+		WorldMetadata metadata = gson.fromJson(json, WorldMetadata.class);
+		metadata.worldName = newName;
+		Files.write(levelPath, gson.toJson(metadata).getBytes());
 	}
 
 	/**
@@ -733,156 +986,21 @@ public class WorldSaveManager {
 	}
 
 	/**
-	 * Save world tile data in binary format
-	 */
-	private static void saveWorldData(File file, World world) throws IOException {
-		try (DataOutputStream out = new DataOutputStream(
-				new BufferedOutputStream(new FileOutputStream(file)))) {
-
-			// Write dimensions
-			out.writeInt(world.width);
-			out.writeInt(world.height);
-
-			// Write biome map
-			mc.sayda.mcraze.world.gen.Biome[] biomes = world.getBiomeMap();
-			if (biomes != null) {
-				out.writeInt(biomes.length);
-				for (mc.sayda.mcraze.world.gen.Biome biome : biomes) {
-					out.writeInt(biome.ordinal());
-				}
-			} else {
-				out.writeInt(0);
-			}
-
-			// Write tile data with counting for debugging
-			int dirtCount = 0, airCount = 0, noneCount = 0, otherCount = 0, nullCount = 0;
-			for (int x = 0; x < world.width; x++) {
-				for (int y = 0; y < world.height; y++) {
-					if (world.tiles[x][y] != null && world.tiles[x][y].type != null) {
-						int ordinal = world.tiles[x][y].type.name.ordinal();
-						out.writeShort(ordinal); // Use writeShort instead of writeChar for clarity
-
-						// Count tiles for debugging
-						if (ordinal == 0)
-							noneCount++;
-						else if (ordinal == 1)
-							airCount++;
-						else if (world.tiles[x][y].type.name == mc.sayda.mcraze.Constants.TileID.DIRT)
-							dirtCount++;
-						else
-							otherCount++;
-					} else {
-						out.writeShort(0); // NONE
-						nullCount++;
-					}
-				}
-			}
-
-			if (logger != null && logger.isDebugEnabled()) {
-				logger.debug("WorldSaveManager.saveWorldData: Saved " + noneCount + " NONE, " + airCount + " AIR, " +
-						dirtCount + " DIRT, " + otherCount + " other, " + nullCount + " null tiles");
-			}
-
-			// Write backdrop data (version 2 feature)
-			// First write a flag to indicate backdrop data presence (for backwards
-			// compatibility)
-			out.writeBoolean(true); // Backdrop data follows
-			int backdropCount = 0;
-			for (int x = 0; x < world.width; x++) {
-				for (int y = 0; y < world.height; y++) {
-					if (world.tiles[x][y] != null && world.tiles[x][y].backdropType != null) {
-						out.writeShort(world.tiles[x][y].backdropType.name.ordinal());
-						backdropCount++;
-					} else {
-						out.writeShort(0); // No backdrop (NONE)
-					}
-				}
-			}
-			if (logger != null && logger.isDebugEnabled()) {
-				logger.debug("WorldSaveManager.saveWorldData: Saved " + backdropCount + " backdrop tiles");
-			}
-
-			// Write world time
-			out.writeLong(world.getTicksAlive());
-
-			// Write chest data
-			java.util.Map<String, mc.sayda.mcraze.world.storage.ChestData> chests = world.getAllChests();
-			out.writeInt(chests.size()); // Number of chests
-			int chestCount = 0;
-			for (mc.sayda.mcraze.world.storage.ChestData chest : chests.values()) {
-				// Write chest position
-				out.writeInt(chest.x);
-				out.writeInt(chest.y);
-
-				// Write chest items (10x3 grid)
-				for (int x = 0; x < 10; x++) {
-					for (int y = 0; y < 3; y++) {
-						mc.sayda.mcraze.item.InventoryItem invItem = chest.items[x][y];
-						if (invItem != null && !invItem.isEmpty()) {
-							out.writeBoolean(true); // Item exists
-							out.writeUTF(invItem.getItem().itemId); // Item ID
-							out.writeInt(invItem.getCount()); // Item count
-						} else {
-							out.writeBoolean(false); // Empty slot
-						}
-					}
-				}
-				chestCount++;
-			}
-			if (logger != null && logger.isDebugEnabled()) {
-				logger.debug("WorldSaveManager.saveWorldData: Saved " + chestCount + " chests");
-			}
-
-			// Write furnace data
-			java.util.Map<String, mc.sayda.mcraze.world.storage.FurnaceData> furnaces = world.getAllFurnaces();
-			if (furnaces != null) {
-				out.writeInt(furnaces.size());
-				int furnaceCount = 0;
-				for (mc.sayda.mcraze.world.storage.FurnaceData furnace : furnaces.values()) {
-					out.writeInt(furnace.x);
-					out.writeInt(furnace.y);
-
-					// Write smelting state
-					out.writeInt(furnace.fuelTimeRemaining);
-					out.writeInt(furnace.smeltProgress);
-					out.writeInt(furnace.smeltTimeTotal);
-					if (furnace.currentRecipe != null) {
-						out.writeBoolean(true);
-						out.writeUTF(furnace.currentRecipe);
-					} else {
-						out.writeBoolean(false);
-					}
-
-					// Write items (3x2 grid)
-					for (int x = 0; x < 3; x++) {
-						for (int y = 0; y < 2; y++) {
-							mc.sayda.mcraze.item.InventoryItem invItem = furnace.items[x][y];
-							if (invItem != null && !invItem.isEmpty()) {
-								out.writeBoolean(true);
-								out.writeUTF(invItem.getItem().itemId);
-								out.writeInt(invItem.getCount());
-							} else {
-								out.writeBoolean(false);
-							}
-						}
-					}
-					furnaceCount++;
-				}
-				if (logger != null && logger.isDebugEnabled()) {
-					logger.debug("WorldSaveManager.saveWorldData: Saved " + furnaceCount + " furnaces");
-				}
-			} else {
-				out.writeInt(0);
-			}
-		}
-	}
-
-	/**
 	 * Load world tile data from binary format
 	 */
 	private static World loadWorldData(File file, int width, int height) throws IOException {
 		try (DataInputStream in = new DataInputStream(
 				new BufferedInputStream(new FileInputStream(file)))) {
+
+			// [NEW] Version detection logic
+			int saveVersion = 1;
+			in.mark(8);
+			int magic = in.readInt();
+			if (magic == 0x4D43525A) {
+				saveVersion = in.readInt();
+			} else {
+				in.reset();
+			}
 
 			// Read dimensions
 			int savedWidth = in.readInt();
@@ -981,8 +1099,11 @@ public class WorldSaveManager {
 					mc.sayda.mcraze.world.storage.ChestData chest = new mc.sayda.mcraze.world.storage.ChestData(chestX,
 							chestY);
 
-					// Read chest items (10x3 grid)
-					for (int x = 0; x < 10; x++) {
+					// Read chest items (grid size depends on version)
+					// Legacy worlds (Versions 1-2) had 9 slots, Version 3+ has 10 slots
+					int chestWidth = saveVersion < 3 ? 9 : 10;
+
+					for (int x = 0; x < chestWidth; x++) {
 						for (int y = 0; y < 3; y++) {
 							boolean hasItem = in.readBoolean();
 							if (hasItem) {
@@ -990,8 +1111,19 @@ public class WorldSaveManager {
 								int itemCount = in.readInt();
 								mc.sayda.mcraze.item.Item item = mc.sayda.mcraze.Constants.itemTypes.get(itemId);
 								if (item != null) {
-									chest.items[x][y].setItem(item.clone());
-									chest.items[x][y].setCount(itemCount);
+									mc.sayda.mcraze.item.Item clonedItem = item.clone();
+									if (saveVersion >= 3) {
+										clonedItem.isMastercrafted = in.readBoolean();
+										int uses = in.readInt();
+										if (clonedItem instanceof mc.sayda.mcraze.item.Tool) {
+											((mc.sayda.mcraze.item.Tool) clonedItem).uses = uses;
+										}
+									}
+									// Only populate if within current ChestData capacity (always 10)
+									if (x < 10) {
+										chest.items[x][y].setItem(clonedItem);
+										chest.items[x][y].setCount(itemCount);
+									}
 								}
 							}
 						}
@@ -1038,7 +1170,15 @@ public class WorldSaveManager {
 								int itemCount = in.readInt();
 								mc.sayda.mcraze.item.Item item = mc.sayda.mcraze.Constants.itemTypes.get(itemId);
 								if (item != null) {
-									furnace.items[x][y].setItem(item.clone());
+									mc.sayda.mcraze.item.Item clonedItem = item.clone();
+									if (saveVersion >= 3) {
+										clonedItem.isMastercrafted = in.readBoolean();
+										int uses = in.readInt();
+										if (clonedItem instanceof mc.sayda.mcraze.item.Tool) {
+											((mc.sayda.mcraze.item.Tool) clonedItem).uses = uses;
+										}
+									}
+									furnace.items[x][y].setItem(clonedItem);
 									furnace.items[x][y].setCount(itemCount);
 								}
 							}
@@ -1054,6 +1194,91 @@ public class WorldSaveManager {
 				// Old save file without furnace data - expected
 				if (logger != null && logger.isDebugEnabled())
 					logger.debug("WorldSaveManager.loadWorldData: No furnace data (old save format)");
+			}
+
+			// Read alchemy data (may not exist in old saves)
+			java.util.Map<String, mc.sayda.mcraze.world.storage.AlchemyData> alchemyDataMap = new java.util.HashMap<>();
+			try {
+				int alchemyCount = in.readInt();
+				for (int i = 0; i < alchemyCount; i++) {
+					int alchemyX = in.readInt();
+					int alchemyY = in.readInt();
+
+					mc.sayda.mcraze.world.storage.AlchemyData alchemy = new mc.sayda.mcraze.world.storage.AlchemyData(
+							alchemyX,
+							alchemyY);
+
+					// Read brewing state
+					alchemy.brewProgress = in.readInt();
+					alchemy.brewTimeTotal = in.readInt();
+					boolean hasRecipe = in.readBoolean();
+					if (hasRecipe) {
+						alchemy.currentRecipe = in.readUTF();
+					}
+
+					// Read items (5 slots)
+					for (int j = 0; j < 5; j++) {
+						boolean hasItem = in.readBoolean();
+						if (hasItem) {
+							String itemId = in.readUTF();
+							int itemCount = in.readInt();
+							mc.sayda.mcraze.item.Item item = mc.sayda.mcraze.Constants.itemTypes.get(itemId);
+							if (item != null) {
+								mc.sayda.mcraze.item.Item clonedItem = item.clone();
+								if (saveVersion >= 3) {
+									clonedItem.isMastercrafted = in.readBoolean();
+									int uses = in.readInt();
+									if (clonedItem instanceof mc.sayda.mcraze.item.Tool) {
+										((mc.sayda.mcraze.item.Tool) clonedItem).uses = uses;
+									}
+								}
+								alchemy.items[j].setItem(clonedItem);
+								alchemy.items[j].setCount(itemCount);
+							}
+						}
+					}
+
+					alchemyDataMap.put(alchemy.getKey(), alchemy);
+				}
+				if (logger != null && logger.isDebugEnabled()) {
+					logger.debug("WorldSaveManager.loadWorldData: Loaded " + alchemyCount + " alchemy tables");
+				}
+			} catch (java.io.EOFException e) {
+				// Old save file without alchemy data - expected
+				if (logger != null && logger.isDebugEnabled())
+					logger.debug("WorldSaveManager.loadWorldData: No alchemy data (old save format)");
+			}
+
+			// Read pot data (may not exist in old saves)
+			java.util.Map<String, mc.sayda.mcraze.world.storage.PotData> potDataMap = new java.util.HashMap<>();
+			try {
+				// Check if there is more data
+				// Note: DataInputStream doesn't support mark/reset or peeking reliably
+				// universally,
+				// but since we are at what might be the end of the file, we can try to read.
+				// If the file ends here, readInt() will throw EOFException, which we catch.
+				int potCount = in.readInt();
+				for (int i = 0; i < potCount; i++) {
+					int potX = in.readInt();
+					int potY = in.readInt();
+
+					mc.sayda.mcraze.world.storage.PotData pot = new mc.sayda.mcraze.world.storage.PotData(potX, potY);
+
+					if (in.readBoolean()) {
+						pot.plantId = in.readUTF();
+					}
+					pot.growthProgress = in.readInt();
+					pot.growthTimeTotal = in.readInt();
+
+					potDataMap.put(pot.getKey(), pot);
+				}
+				if (logger != null && logger.isDebugEnabled()) {
+					logger.debug("WorldSaveManager.loadWorldData: Loaded " + potCount + " pots");
+				}
+			} catch (java.io.EOFException e) {
+				// Old save file without pot data - expected
+				if (logger != null && logger.isDebugEnabled())
+					logger.debug("WorldSaveManager.loadWorldData: No pot data (old save format)");
 			}
 
 			// Create world from loaded data
@@ -1087,9 +1312,94 @@ public class WorldSaveManager {
 				world.getAllFurnaces().put(furnace.getKey(), furnace);
 			}
 
+			// Apply alchemy data
+			for (mc.sayda.mcraze.world.storage.AlchemyData alchemy : alchemyDataMap.values()) {
+				world.getOrCreateAlchemy(alchemy.x, alchemy.y); // Ensure registered in map
+				// Overwrite with loaded data
+				world.getAllAlchemies().put(alchemy.getKey(), alchemy);
+			}
+
+			// Apply pot data
+			for (mc.sayda.mcraze.world.storage.PotData pot : potDataMap.values()) {
+				// We need to access the map directly to put loaded data
+				// World doesn't expose the map setter effectively but it exposes getters or we
+				// can use getOrCreatePot to ensure it's there then update it
+				// Wait, getOrCreatePot puts it in the map if missing.
+				// But we want to REPLACE it with our loaded object (or update fields).
+				// Since PotData is simple data object, we can just put it.
+				// But World.java doesn't have getAllPots().put() ... actually it returns
+				// Collection values().
+				// We need access to the map or a put method.
+				// I added getPot() but not setPot or direct map access.
+				// Let's use getOrCreatePot which returns the object, then copy values? Or just
+				// add putPot to World?
+
+				// Using getOrCreatePot gets reference, then we can copy fields.
+				mc.sayda.mcraze.world.storage.PotData worldPot = world.getOrCreatePot(pot.x, pot.y);
+				worldPot.plantId = pot.plantId;
+				worldPot.growthProgress = pot.growthProgress;
+				worldPot.growthTimeTotal = pot.growthTimeTotal;
+			}
+
 			// Set biome map
 			if (biomeMap != null) {
 				world.setBiomeMap(biomeMap);
+			}
+
+			// Read entities (Version 4+)
+			if (saveVersion >= 4) {
+				int entityCount = in.readInt();
+				if (logger != null && logger.isDebugEnabled()) {
+					logger.debug("WorldSaveManager.loadWorldData: Loading " + entityCount + " entities from world.dat");
+				}
+				for (int i = 0; i < entityCount; i++) {
+					String type = in.readUTF();
+					float entityX = in.readFloat();
+					float entityY = in.readFloat();
+					float entityDX = in.readFloat();
+					float entityDY = in.readFloat();
+					int hitPoints = in.readInt();
+
+					// Item data
+					boolean hasItemId = in.readBoolean();
+					String itemId = null;
+					boolean isMastercrafted = false;
+					int toolUses = 0;
+					if (hasItemId) {
+						itemId = in.readUTF();
+						isMastercrafted = in.readBoolean();
+						toolUses = in.readInt();
+					}
+
+					// Wolf data
+					boolean hasOwner = in.readBoolean();
+					String ownerUUID = null;
+					if (hasOwner) {
+						ownerUUID = in.readUTF();
+					}
+					boolean isSitting = in.readBoolean();
+					int fuseTimer = 0;
+					if (saveVersion >= 5) {
+						fuseTimer = in.readInt();
+					}
+
+					// Store in world's pending entities list (world.pendingEntities)
+					// These will be added to SharedWorld after load
+					EntityData entData = new EntityData();
+					entData.type = type;
+					entData.x = entityX;
+					entData.y = entityY;
+					entData.dx = entityDX;
+					entData.dy = entityDY;
+					entData.hitPoints = hitPoints;
+					entData.itemId = itemId;
+					entData.isMastercrafted = isMastercrafted;
+					entData.toolUses = toolUses;
+					entData.ownerUUID = ownerUUID;
+					entData.isSitting = isSitting;
+					entData.fuseTimer = fuseTimer;
+					world.pendingEntities.add(entData);
+				}
 			}
 
 			world.refreshLighting(); // Force lighting recalculation for torches
@@ -1099,92 +1409,74 @@ public class WorldSaveManager {
 	}
 
 	/**
-	 * Save entities to JSON
+	 * Reconstruct an Entity from EntityData
 	 */
-	private static void saveEntities(File file, ArrayList<Entity> entities) throws IOException {
-		List<EntityData> entityDataList = new ArrayList<>();
+	private static Entity reconstructEntity(EntityData data) {
+		// Reconstruct entities based on type
+		if ("Player".equals(data.type)) {
+			// [REFACTOR] Skip Players - they are loaded separately from playerdata/
+			return null;
+		} else if ("Item".equals(data.type) || "Tool".equals(data.type)) {
+			// Reconstruct dropped item/tool
+			if (data.itemId != null) {
+				mc.sayda.mcraze.item.Item template = mc.sayda.mcraze.Constants.itemTypes.get(data.itemId);
+				if (template != null) {
+					mc.sayda.mcraze.item.Item item = template.clone();
+					item.isMastercrafted = data.isMastercrafted;
+					item.x = data.x;
+					item.y = data.y;
+					item.dx = data.dx;
+					item.dy = data.dy;
 
-		for (Entity entity : entities) {
-			EntityData data = new EntityData();
-			data.type = entity.getClass().getSimpleName();
-			data.x = entity.x;
-			data.y = entity.y;
-			data.dx = entity.dx;
-			data.dy = entity.dy;
-
-			if (entity instanceof mc.sayda.mcraze.entity.LivingEntity) {
-				data.hitPoints = ((mc.sayda.mcraze.entity.LivingEntity) entity).hitPoints;
-			}
-
-			// Save player inventory
-			if (entity instanceof mc.sayda.mcraze.player.Player) {
-				mc.sayda.mcraze.player.Player player = (mc.sayda.mcraze.player.Player) entity;
-				mc.sayda.mcraze.player.Inventory inv = player.inventory;
-
-				// CRITICAL SAFETY CHECK: Verify inventory is properly initialized
-				if (inv == null || inv.inventoryItems == null) {
-					if (logger != null) {
-						logger.error("CRITICAL: Player " + player.username
-								+ " has null inventory during save! Skipping inventory save to prevent data loss.");
+					// Restore tool durability
+					if (item instanceof mc.sayda.mcraze.item.Tool && data.toolUses > 0) {
+						((mc.sayda.mcraze.item.Tool) item).uses = data.toolUses;
 					}
-					// Skip saving inventory - better to keep old data than wipe it
+
+					return item;
 				} else {
-					int width = inv.inventoryItems.length;
-					int height = inv.inventoryItems[0].length;
-					int totalSlots = width * height;
-
-					// Count non-empty inventory slots for safety check
-					int nonEmptySlots = 0;
-					for (int y = 0; y < height; y++) {
-						for (int x = 0; x < width; x++) {
-							mc.sayda.mcraze.item.InventoryItem slot = inv.inventoryItems[x][y];
-							if (slot != null && slot.item != null && slot.count > 0) {
-								nonEmptySlots++;
-							}
-						}
-					}
-
-					data.inventoryItemIds = new String[totalSlots];
-					data.inventoryItemCounts = new int[totalSlots];
-					data.inventoryToolUses = new int[totalSlots];
-					data.inventoryHotbarIdx = inv.hotbarIdx;
-
-					// Flatten 2D inventory array
-					int index = 0;
-					for (int y = 0; y < height; y++) {
-						for (int x = 0; x < width; x++) {
-							mc.sayda.mcraze.item.InventoryItem slot = inv.inventoryItems[x][y];
-							if (slot != null && slot.item != null && slot.count > 0) {
-								data.inventoryItemIds[index] = slot.item.itemId;
-								data.inventoryItemCounts[index] = slot.count;
-
-								if (slot.item instanceof mc.sayda.mcraze.item.Tool) {
-									mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) slot.item;
-									data.inventoryToolUses[index] = tool.uses;
-								} else {
-									data.inventoryToolUses[index] = 0;
-								}
-							} else {
-								data.inventoryItemIds[index] = null;
-								data.inventoryItemCounts[index] = 0;
-								data.inventoryToolUses[index] = 0;
-							}
-							index++;
-						}
-					}
-
-					if (logger != null && nonEmptySlots > 0) {
-						logger.info("Saved inventory for " + player.username + " with " + nonEmptySlots + " items");
-					}
+					if (logger != null)
+						logger.error("WorldSaveManager.reconstructEntity: Unknown dropped item ID: " + data.itemId);
 				}
 			}
-
-			entityDataList.add(data);
+		} else if ("EntitySheep".equals(data.type)) {
+			// Reconstruct Sheep (32x32)
+			mc.sayda.mcraze.entity.mob.EntitySheep sheep = new mc.sayda.mcraze.entity.mob.EntitySheep(data.x, data.y);
+			sheep.hitPoints = data.hitPoints;
+			return sheep;
+		} else if ("EntityZombie".equals(data.type)) {
+			// Reconstruct Zombie (28x56)
+			mc.sayda.mcraze.entity.mob.EntityZombie zombie = new mc.sayda.mcraze.entity.mob.EntityZombie(true, data.x,
+					data.y, 28, 56);
+			zombie.hitPoints = data.hitPoints;
+			return zombie;
+		} else if ("EntityPig".equals(data.type)) {
+			// Reconstruct Pig (32x32)
+			mc.sayda.mcraze.entity.mob.EntityPig pig = new mc.sayda.mcraze.entity.mob.EntityPig(data.x, data.y);
+			pig.hitPoints = data.hitPoints;
+			return pig;
+		} else if ("EntityWolf".equals(data.type)) {
+			// Reconstruct Wolf (32x32)
+			mc.sayda.mcraze.entity.mob.EntityWolf wolf = new mc.sayda.mcraze.entity.mob.EntityWolf(true, data.x, data.y,
+					32, 32);
+			wolf.hitPoints = data.hitPoints;
+			if (data.ownerUUID != null) {
+				wolf.setOwner(data.ownerUUID);
+			}
+			wolf.setSitting(data.isSitting);
+			return wolf;
+		} else if ("EntityPrimedTNT".equals(data.type)) {
+			mc.sayda.mcraze.entity.item.EntityPrimedTNT tnt = new mc.sayda.mcraze.entity.item.EntityPrimedTNT(data.x,
+					data.y);
+			tnt.setFuseTimer(data.fuseTimer);
+			return tnt;
+		} else if ("EntityCow".equals(data.type)) {
+			// Reconstruct Cow (32x32)
+			mc.sayda.mcraze.entity.mob.EntityCow cow = new mc.sayda.mcraze.entity.mob.EntityCow(data.x, data.y);
+			cow.hitPoints = data.hitPoints;
+			return cow;
 		}
-
-		try (FileWriter writer = new FileWriter(file)) {
-			gson.toJson(entityDataList, writer);
-		}
+		return null;
 	}
 
 	/**
@@ -1197,128 +1489,13 @@ public class WorldSaveManager {
 		EntityData[] entityDataArray = gson.fromJson(json, EntityData[].class);
 
 		for (EntityData data : entityDataArray) {
-			// Reconstruct entities based on type
-			if ("Player".equals(data.type)) {
-				Player player = new Player(true, data.x, data.y, 7 * 4, 14 * 4);
-				player.hitPoints = data.hitPoints;
-
-				// Restore player inventory
-				if (data.inventoryItemIds != null && player.inventory != null) {
-					mc.sayda.mcraze.player.Inventory inv = player.inventory;
-					int width = inv.inventoryItems.length;
-					int height = inv.inventoryItems[0].length;
-					int totalSlots = width * height;
-
-					if (data.inventoryItemIds.length == totalSlots) {
-						inv.hotbarIdx = data.inventoryHotbarIdx;
-
-						// Unflatten inventory array
-						int index = 0;
-						for (int y = 0; y < height; y++) {
-							for (int x = 0; x < width; x++) {
-								String itemId = data.inventoryItemIds[index];
-								int count = data.inventoryItemCounts[index];
-								int uses = data.inventoryToolUses[index];
-
-								mc.sayda.mcraze.item.InventoryItem slot = inv.inventoryItems[x][y];
-
-								if (itemId == null || count == 0) {
-									// Empty slot
-									slot.setEmpty();
-								} else {
-									// Get item from registry
-									mc.sayda.mcraze.item.Item item = mc.sayda.mcraze.Constants.itemTypes.get(itemId);
-									if (item != null) {
-										// Clone item and set count
-										mc.sayda.mcraze.item.Item clonedItem = item.clone();
-										slot.setItem(clonedItem);
-										slot.setCount(count);
-
-										// Restore tool durability
-										if (clonedItem instanceof mc.sayda.mcraze.item.Tool) {
-											mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) clonedItem;
-											tool.uses = uses;
-										}
-									} else {
-										// Item not found in registry
-										slot.setEmpty();
-										if (logger != null)
-											logger
-													.error("WorldSaveManager.loadEntities: Unknown item ID: " + itemId);
-									}
-								}
-
-								index++;
-							}
-						}
-					}
-				}
-
-				entities.add(player);
-			} else if ("Item".equals(data.type) || "Tool".equals(data.type)) {
-				// Reconstruct dropped item/tool
-				if (data.itemId != null) {
-					mc.sayda.mcraze.item.Item template = mc.sayda.mcraze.Constants.itemTypes.get(data.itemId);
-					if (template != null) {
-						mc.sayda.mcraze.item.Item item = template.clone();
-						item.x = data.x;
-						item.y = data.y;
-						item.dx = data.dx;
-						item.dy = data.dy;
-
-						// Restore tool durability
-						if (item instanceof mc.sayda.mcraze.item.Tool && data.toolUses > 0) {
-							((mc.sayda.mcraze.item.Tool) item).uses = data.toolUses;
-						}
-
-						entities.add(item);
-					} else {
-						if (logger != null)
-							logger
-									.error("WorldSaveManager.loadEntities: Unknown dropped item ID: " + data.itemId);
-					}
-				}
-			} else if ("EntitySheep".equals(data.type)) {
-				// Reconstruct Sheep (32x32)
-				mc.sayda.mcraze.entity.mob.EntitySheep sheep = new mc.sayda.mcraze.entity.mob.EntitySheep(data.x,
-						data.y);
-				sheep.hitPoints = data.hitPoints;
-				entities.add(sheep);
-			} else if ("EntityZombie".equals(data.type)) {
-				// Reconstruct Zombie (28x56)
-				mc.sayda.mcraze.entity.mob.EntityZombie zombie = new mc.sayda.mcraze.entity.mob.EntityZombie(true,
-						data.x,
-						data.y,
-						28,
-						56);
-				zombie.hitPoints = data.hitPoints;
-				entities.add(zombie);
-			} else if ("EntityPig".equals(data.type)) {
-				// Reconstruct Pig (32x32)
-				mc.sayda.mcraze.entity.mob.EntityPig pig = new mc.sayda.mcraze.entity.mob.EntityPig(data.x,
-						data.y);
-				pig.hitPoints = data.hitPoints;
-				entities.add(pig);
-			} else if ("EntityWolf".equals(data.type)) {
-				// Reconstruct Wolf (32x32)
-				mc.sayda.mcraze.entity.mob.EntityWolf wolf = new mc.sayda.mcraze.entity.mob.EntityWolf(true,
-						data.x,
-						data.y,
-						32,
-						32);
-				wolf.hitPoints = data.hitPoints;
-				entities.add(wolf);
-			} else if ("EntityCow".equals(data.type)) {
-				// Reconstruct Cow (32x32)
-				mc.sayda.mcraze.entity.mob.EntityCow cow = new mc.sayda.mcraze.entity.mob.EntityCow(data.x,
-						data.y);
-				cow.hitPoints = data.hitPoints;
-				entities.add(cow);
+			Entity e = reconstructEntity(data);
+			if (e != null) {
+				entities.add(e);
 			}
 		}
 
 		return entities;
-
 	}
 
 	/**
@@ -1350,23 +1527,33 @@ public class WorldSaveManager {
 			// Write to temp files first (atomic save)
 			Path levelTemp = directory.resolve("level.dat.tmp");
 			Path worldTemp = directory.resolve("world.dat.tmp");
-			Path entitiesTemp = directory.resolve("entities.dat.tmp");
 
 			// Save metadata
 			try (FileWriter writer = new FileWriter(levelTemp.toFile())) {
 				gson.toJson(metadata, writer);
 			}
 
-			// Save world data
-			saveWorldData(worldTemp.toFile(), server.world);
+			// [REFACTOR] Prepare data for World Data Snapshot (Embedded Entities)
+			List<EntityData> entityDataList = new ArrayList<>();
+			if (server.entities != null) {
+				for (Entity entity : server.entities) {
+					if (entity instanceof mc.sayda.mcraze.player.Player)
+						continue;
+					entityDataList.add(extractEntityData(entity));
+				}
+			}
 
-			// Save entities
-			saveEntities(entitiesTemp.toFile(), server.entities);
+			// Save world data to temp file (binary format Version 4+)
+			saveWorldDataSnapshot(worldTemp.toFile(), server.world.width, server.world.height,
+					server.world.cloneTiles(), server.world.cloneBackdrops(),
+					server.world.getBiomeMap() != null ? server.world.getBiomeMap().clone() : null,
+					server.world.getTicksAlive(), server.world.cloneChests(),
+					server.world.cloneFurnaces(), server.world.cloneAlchemies(),
+					server.world.clonePots(), entityDataList);
 
 			// Atomic commit: backup old files, then rename new ones
 			Path levelFinal = directory.resolve("level.dat");
 			Path worldFinal = directory.resolve("world.dat");
-			Path entitiesFinal = directory.resolve("entities.dat");
 
 			if (Files.exists(levelFinal)) {
 				Files.move(levelFinal, directory.resolve("level.dat.bak"),
@@ -1376,15 +1563,10 @@ public class WorldSaveManager {
 				Files.move(worldFinal, directory.resolve("world.dat.bak"),
 						java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 			}
-			if (Files.exists(entitiesFinal)) {
-				Files.move(entitiesFinal, directory.resolve("entities.dat.bak"),
-						java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-			}
 
 			// Atomic rename: temp -> final
 			Files.move(levelTemp, levelFinal, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
 			Files.move(worldTemp, worldFinal, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
-			Files.move(entitiesTemp, entitiesFinal, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
 
 			if (logger != null)
 				logger.info("World saved to " + directory.toAbsolutePath());

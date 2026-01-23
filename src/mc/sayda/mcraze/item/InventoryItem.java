@@ -89,7 +89,7 @@ public class InventoryItem implements java.io.Serializable, Cloneable {
 		}
 		// Fix for invisible items: Reset color to white (opacity 1.0) before drawing
 		g.setColor(Color.white);
-		this.getItem().sprite.draw(g, x, y, tileSize, tileSize);
+		this.getItem().drawLayers(g, x, y, tileSize, tileSize);
 		if (this.getCount() > 1) {
 			g.setColor(Color.white);
 			g.drawString("" + this.getCount(), x, y + tileSize / 2);
@@ -144,9 +144,6 @@ public class InventoryItem implements java.io.Serializable, Cloneable {
 		try {
 			InventoryItem cloned = (InventoryItem) super.clone();
 			if (this.item != null) {
-				// We rely on Item implementation but since Item is Entity and Entity is
-				// Serializable mostly,
-				// and we need deep copy:
 				// Note: Item.clone() is shallow if not overridden.
 				// However, most Items are immutable flyweights except Tools.
 				if (this.item instanceof Tool) {

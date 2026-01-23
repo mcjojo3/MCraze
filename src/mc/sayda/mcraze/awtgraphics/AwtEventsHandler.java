@@ -12,21 +12,22 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 
 import mc.sayda.mcraze.Game;
+import mc.sayda.mcraze.client.Client;
+import mc.sayda.mcraze.logging.GameLogger;
 
 public class AwtEventsHandler {
 	Game game;
 
 	// Track input state for multiplayer
-	private boolean moveLeft = false;
-	private boolean moveRight = false;
-	private boolean climb = false;
-	private boolean sneak = false;
 	private boolean shiftPressed = false; // Track shift key for inventory QoL features
 	private int desiredHotbarSlot = 0; // Client's desired hotbar slot (sent to server)
 	private boolean escUsedToCloseMenu = false; // Track if ESC just closed a menu (prevent double-trigger)
+	private final Client client;
+	private final GameLogger logger = GameLogger.get();
 
 	public AwtEventsHandler(Game game, Canvas canvas) {
 		this.game = game;
+		this.client = game.getClient(); // Initialize client from game
 
 		// Disable TAB focus traversal so we can use TAB for chat completion
 		canvas.setFocusTraversalKeysEnabled(false);
@@ -52,7 +53,8 @@ public class AwtEventsHandler {
 	 */
 	private mc.sayda.mcraze.player.Player getLocalPlayer() {
 		mc.sayda.mcraze.server.Server server = game.getServer();
-		mc.sayda.mcraze.client.Client client = game.getClient();
+		// mc.sayda.mcraze.client.Client client = game.getClient(); // Use the field
+		// instead
 
 		if (server != null && server.player != null) {
 			return server.player; // Singleplayer or LAN host
@@ -73,49 +75,24 @@ public class AwtEventsHandler {
 	 * Send input packet to server (multiplayer mode)
 	 */
 	public void sendInputPacket() {
-		if (game.getClient() == null)
+		// mc.sayda.mcraze.client.Client client = game.getClient(); // Use the field
+		// instead
+		if (client == null)
 			return;
 
-		// CRITICAL FIX: Calculate WORLD coordinates from screen coordinates
-		// This fixes the bug where remote players could only interact at (0,0)
-		mc.sayda.mcraze.client.Client client = game.getClient();
-		mc.sayda.mcraze.player.Player localPlayer = client.getLocalPlayer();
+		// Ensure worldMouseX/Y are fresh for the current screenMousePos
+		client.computeWorldMouse();
 
-		if (localPlayer == null)
-			return; // No player yet
-
-		// CRITICAL FIX: Check if connection is null before sending packet
-		// This fixes scroll being disabled after rejoining a world
-		if (client.connection == null) {
-			System.err.println("AwtEventsHandler.sendInputPacket: connection is null, cannot send input packet");
-			return;
-		}
-
-		// Get screen dimensions and effective tile size
-		int effectiveTileSize = client.getEffectiveTileSize();
-		mc.sayda.mcraze.graphics.GraphicsHandler g = mc.sayda.mcraze.graphics.GraphicsHandler.get();
-		int screenWidth = g.getScreenWidth();
-		int screenHeight = g.getScreenHeight();
-
-		// Calculate camera position (same as Client.java:222-223)
-		float cameraX = localPlayer.x - screenWidth / effectiveTileSize / 2f;
-		float cameraY = localPlayer.y - screenHeight / effectiveTileSize / 2f;
-
-		// Convert screen coordinates to world coordinates (same as Client.java:224-225)
-		float worldMouseX = (cameraX * effectiveTileSize + client.screenMousePos.x) / effectiveTileSize;
-		float worldMouseY = (cameraY * effectiveTileSize + client.screenMousePos.y) / effectiveTileSize;
-
-		// Use desired hotbar slot instead of reading from player
-		// Server will apply and broadcast the change
+		// Use coordinated camera and hotbar slot
 		mc.sayda.mcraze.network.packet.PacketPlayerInput packet = new mc.sayda.mcraze.network.packet.PacketPlayerInput(
-				moveLeft,
-				moveRight,
-				climb,
-				sneak,
-				game.getClient().leftClick,
-				game.getClient().rightClick,
-				worldMouseX, // WORLD coordinates, not screen coordinates!
-				worldMouseY, // WORLD coordinates, not screen coordinates!
+				client.moveLeft,
+				client.moveRight,
+				client.climb,
+				client.sneak,
+				client.leftClick,
+				client.rightClick,
+				client.cameraX + (client.screenMousePos.x / (float) client.getEffectiveTileSize()),
+				client.cameraY + (client.screenMousePos.y / (float) client.getEffectiveTileSize()),
 				desiredHotbarSlot);
 
 		client.connection.sendPacket(packet);
@@ -127,17 +104,17 @@ public class AwtEventsHandler {
 			int scroll = e.getWheelRotation();
 
 			// If main menu is open, pass wheel event to it
-			if (game.getClient() != null && game.getClient().isInMenu() && game.getClient().getMenu() != null) {
-				game.getClient().getMenu().handleMouseWheel(
-						game.getClient().screenMousePos.x,
-						game.getClient().screenMousePos.y,
+			if (client != null && client.isInMenu() && client.getMainMenu() != null) {
+				client.getMainMenu().handleMouseWheel(
+						client.screenMousePos.x,
+						client.screenMousePos.y,
 						scroll);
-			} else if (game.getClient() != null && game.getClient().chat != null && game.getClient().chat.isOpen()) {
+			} else if (client != null && client.chat != null && client.chat.isOpen()) {
 				// If chat is open, scroll chat history (inverted for natural feel)
 				if (scroll > 0) {
-					game.getClient().chat.scrollDown(); // Scroll wheel down = newer messages
+					client.chat.scrollDown(); // Scroll wheel down = newer messages
 				} else if (scroll < 0) {
-					game.getClient().chat.scrollUp(); // Scroll wheel up = older messages
+					client.chat.scrollUp(); // Scroll wheel up = older messages
 				}
 			} else {
 				// Update desired hotbar slot and send immediately
@@ -152,15 +129,15 @@ public class AwtEventsHandler {
 	private class MouseMoveInputHander implements MouseMotionListener {
 		@Override
 		public void mouseDragged(MouseEvent arg0) {
-			if (game.getClient() != null) {
-				game.getClient().setMousePosition(arg0.getX(), arg0.getY());
+			if (client != null) {
+				client.setMousePosition(arg0.getX(), arg0.getY());
 			}
 		}
 
 		@Override
 		public void mouseMoved(MouseEvent arg0) {
-			if (game.getClient() != null) {
-				game.getClient().setMousePosition(arg0.getX(), arg0.getY());
+			if (client != null) {
+				client.setMousePosition(arg0.getX(), arg0.getY());
 			}
 		}
 	}
@@ -174,23 +151,24 @@ public class AwtEventsHandler {
 		@Override
 		public void focusLost(FocusEvent e) {
 			// Reset all input states when focus is lost to prevent phantom inputs
-			if (moveLeft || moveRight || climb || sneak || game.getClient().leftClick || game.getClient().rightClick) {
-				moveLeft = false;
-				moveRight = false;
-				climb = false;
-				sneak = false;
-				if (game.getClient() != null) {
-					game.getClient().setLeftClick(false);
-					game.getClient().setRightClick(false);
-				}
-				sendInputPacket(); // Notify server of reset
+			if (client != null) {
+				if (client.moveLeft || client.moveRight || client.climb
+						|| client.sneak || client.leftClick || client.rightClick) {
+					client.moveLeft = false;
+					client.moveRight = false;
+					client.climb = false;
+					client.sneak = false;
+					client.setLeftClick(false);
+					client.setRightClick(false);
 
-				// Also reset shift pressed state
-				shiftPressed = false;
+					client.sendInput(); // Notify server of reset
 
-				if (mc.sayda.mcraze.logging.GameLogger.get() != null
-						&& mc.sayda.mcraze.logging.GameLogger.get().isDebugEnabled()) {
-					System.out.println("Focus lost - inputs reset");
+					// Also reset shift pressed state
+					shiftPressed = false;
+
+					if (logger != null && logger.isDebugEnabled()) {
+						logger.debug("Focus lost - inputs reset");
+					}
 				}
 			}
 		}
@@ -256,7 +234,7 @@ public class AwtEventsHandler {
 
 			// Handle main menu key presses
 			if (game.getClient().isInMenu()) {
-				game.getClient().getMenu().handleKeyPressed(
+				game.getClient().getMainMenu().handleKeyPressed(
 						e.getKeyCode(),
 						e.isShiftDown(),
 						e.isControlDown());
@@ -338,7 +316,20 @@ public class AwtEventsHandler {
 					return;
 				}
 
-				// Priority 5: Close inventory if open
+				// Priority 5.1: Close alchemy UI if open
+				if (game.getClient().isAlchemyUIOpen()) {
+					game.getClient().closeAlchemyUI();
+					// CRITICAL FIX: Send packet to server to ensure state is synchronized
+					mc.sayda.mcraze.network.packet.PacketInteract packet = new mc.sayda.mcraze.network.packet.PacketInteract(
+							0, 0,
+							mc.sayda.mcraze.network.packet.PacketInteract.InteractionType.TOGGLE_INVENTORY);
+					game.getClient().connection.sendPacket(packet);
+					escUsedToCloseMenu = true; // Mark that ESC closed a menu
+					e.consume();
+					return;
+				}
+
+				// Priority 5.2: Close inventory if open
 				mc.sayda.mcraze.player.Player player = getLocalPlayer();
 				if (player != null && player.inventory.isVisible()) {
 					// CRITICAL FIX: Use server-authoritative packet instead of direct modification
@@ -416,62 +407,98 @@ public class AwtEventsHandler {
 			}
 
 			// ALWAYS use packets for input (integrated or dedicated server)
-			switch (e.getKeyCode()) {
-				case KeyEvent.VK_W:
-				case KeyEvent.VK_SPACE:
-					climb = true;
-					sendInputPacket();
-					break;
-				case KeyEvent.VK_A:
-					moveLeft = true;
-					sendInputPacket();
-					break;
-				case KeyEvent.VK_D:
-					moveRight = true;
-					sendInputPacket();
-					break;
-				case KeyEvent.VK_SHIFT:
-					sneak = true;
-					shiftPressed = true; // Track for inventory QoL
-					sendInputPacket();
-					break;
-				case KeyEvent.VK_F3:
-					// Toggle debug overlay (F3)
-					if (game.getClient() != null && game.getClient().getDebugOverlay() != null) {
-						game.getClient().getDebugOverlay().toggle();
-					}
-					break;
-				case KeyEvent.VK_I:
-					// Unified Class/Skill UI Toggle (I key)
-					if (game.getClient() != null && !game.getClient().chat.isOpen()) {
-						mc.sayda.mcraze.client.Client c = game.getClient();
-						// Check authoritative player state (Server for integrated, Client for MP)
-						mc.sayda.mcraze.player.Player p = (game.getServer() != null) ? game.getServer().player
-								: c.getLocalPlayer();
+			if (game.getClient() != null) {
+				switch (e.getKeyCode()) {
+					case KeyEvent.VK_W:
+					case KeyEvent.VK_SPACE:
+						if (!game.getClient().climb) {
+							game.getClient().climb = true;
+							game.getClient().sendInput();
+						}
+						break;
+					case KeyEvent.VK_A:
+						if (!game.getClient().moveLeft) {
+							game.getClient().moveLeft = true;
+							game.getClient().sendInput();
+						}
+						break;
+					case KeyEvent.VK_D:
+						if (!game.getClient().moveRight) {
+							game.getClient().moveRight = true;
+							game.getClient().sendInput();
+						}
+						break;
+					case KeyEvent.VK_SHIFT:
+						if (!game.getClient().sneak) {
+							game.getClient().sneak = true;
+							shiftPressed = true; // Track for inventory QoL
+							game.getClient().sendInput();
+						}
+						break;
+					case KeyEvent.VK_F3:
+						// Toggle debug overlay (F3)
+						if (game.getClient().getDebugOverlay() != null) {
+							game.getClient().getDebugOverlay().toggle();
+						}
+						break;
+					case KeyEvent.VK_I:
+						// Unified Class/Skill UI Toggle (I key)
+						if (game.getClient() != null && !game.getClient().chat.isOpen()) {
+							mc.sayda.mcraze.client.Client c = game.getClient();
+							// Check authoritative player state (Server for integrated, Client for MP)
+							mc.sayda.mcraze.player.Player p = (game.getServer() != null) ? game.getServer().player
+									: c.getLocalPlayer();
 
-						if (p != null) {
-							// DEBUG LOGGING
-							System.out.println("[DEBUG] I key: Class=" + p.selectedClass + ", Points=" + p.skillPoints
-									+ ", PlayerHash=" + System.identityHashCode(p));
-
-							if (p.selectedClass == mc.sayda.mcraze.player.specialization.PlayerClass.NONE) {
-								// No class -> Toggle Class Selection
-								if (c.isClassSelectionUIOpen()) {
-									c.closeClassSelectionUI();
+							if (p != null) {
+								if (p.selectedClass == mc.sayda.mcraze.player.specialization.PlayerClass.NONE) {
+									// No class -> Toggle Class Selection
+									if (c.isClassSelectionUIOpen()) {
+										c.closeClassSelectionUI();
+									} else {
+										c.getClassSelectionUI().setVisible(true);
+										c.closeSkillUI();
+									}
 								} else {
-									c.getClassSelectionUI().setVisible(true);
-									c.closeSkillUI();
-								}
-							} else {
-								// Has class -> Toggle Skill Assignment UI
-								c.toggleSkillUI();
-								if (c.isSkillUIOpen()) {
-									c.closeClassSelectionUI();
+									// Has class -> Toggle Skill Assignment UI
+									c.toggleSkillUI();
+									if (c.isSkillUIOpen()) {
+										c.closeClassSelectionUI();
+									}
 								}
 							}
 						}
-					}
-					break;
+						break;
+					case KeyEvent.VK_1:
+					case KeyEvent.VK_2:
+					case KeyEvent.VK_3:
+					case KeyEvent.VK_4:
+					case KeyEvent.VK_5:
+					case KeyEvent.VK_6:
+					case KeyEvent.VK_7:
+					case KeyEvent.VK_8:
+					case KeyEvent.VK_9:
+						// Update desired hotbar slot and send immediately
+						desiredHotbarSlot = e.getKeyCode() - KeyEvent.VK_1;
+						// PREDICTIVE FIX: Update local player's inventory index immediately for
+						// responsiveness
+						if (game.getClient() != null && game.getClient().getLocalPlayer() != null
+								&& game.getClient().getLocalPlayer().inventory != null) {
+							game.getClient().getLocalPlayer().inventory.hotbarIdx = desiredHotbarSlot;
+						}
+						sendInputPacket();
+						break;
+					case KeyEvent.VK_0:
+						// Update desired hotbar slot and send immediately
+						desiredHotbarSlot = 9;
+						// PREDICTIVE FIX: Update local player's inventory index immediately for
+						// responsiveness
+						if (game.getClient() != null && game.getClient().getLocalPlayer() != null
+								&& game.getClient().getLocalPlayer().inventory != null) {
+							game.getClient().getLocalPlayer().inventory.hotbarIdx = desiredHotbarSlot;
+						}
+						sendInputPacket();
+						break;
+				}
 			}
 		}
 
@@ -520,53 +547,53 @@ public class AwtEventsHandler {
 			}
 
 			// ALWAYS use packets for input (integrated or dedicated server)
-			switch (e.getKeyCode()) {
-				case KeyEvent.VK_W:
-				case KeyEvent.VK_SPACE:
-					climb = false;
-					sendInputPacket();
-					break;
-				case KeyEvent.VK_A:
-					moveLeft = false;
-					sendInputPacket();
-					break;
-				case KeyEvent.VK_D:
-					moveRight = false;
-					sendInputPacket();
-					break;
-				case KeyEvent.VK_SHIFT:
-					sneak = false;
-					shiftPressed = false; // Track for inventory QoL
-					sendInputPacket();
-					break;
-				case KeyEvent.VK_ESCAPE:
-					// Skip if ESC just closed a menu (prevent double-trigger)
-					if (escUsedToCloseMenu) {
-						escUsedToCloseMenu = false; // Reset flag
+			if (game.getClient() != null) {
+				switch (e.getKeyCode()) {
+					case KeyEvent.VK_W:
+					case KeyEvent.VK_SPACE:
+						game.getClient().climb = false;
+						game.getClient().sendInput();
 						break;
-					}
-
-					// Open pause menu if nothing else is open
-					// (Closing inventory/settings/pause/chat/chest is handled in keyPressed and
-					// above)
-					if (!game.getClient().isInPauseMenu() &&
-							!game.getClient().isInSettingsMenu() &&
-							!game.getClient().chat.isOpen() &&
-							!game.getClient().chat.isOpen() &&
-							!game.getClient().isChestUIOpen() &&
-							!game.getClient().isFurnaceUIOpen()) {
-						mc.sayda.mcraze.player.Player player = getLocalPlayer();
-						// Only if inventory is also not visible
-						if (player == null || !player.inventory.isVisible()) {
-							// Autosave before opening pause menu (only for integrated servers)
-							if (game.getServer() != null) {
-								game.saveGame();
-							}
-							// Open pause menu
-							game.getClient().openPauseMenu();
+					case KeyEvent.VK_A:
+						game.getClient().moveLeft = false;
+						game.getClient().sendInput();
+						break;
+					case KeyEvent.VK_D:
+						game.getClient().moveRight = false;
+						game.getClient().sendInput();
+						break;
+					case KeyEvent.VK_SHIFT:
+						game.getClient().sneak = false;
+						shiftPressed = false; // Track for inventory QoL
+						game.getClient().sendInput();
+						break;
+					case KeyEvent.VK_ESCAPE:
+						// Skip if ESC just closed a menu (prevent double-trigger)
+						if (escUsedToCloseMenu) {
+							escUsedToCloseMenu = false; // Reset flag
+							break;
 						}
-					}
-					break;
+						// Open pause menu if nothing else is open
+						if (!game.getClient().isInPauseMenu() &&
+								!game.getClient().isInSettingsMenu() &&
+								!game.getClient().chat.isOpen() &&
+								!game.getClient().chat.isOpen() &&
+								!game.getClient().isChestUIOpen() &&
+								!game.getClient().isFurnaceUIOpen() &&
+								!game.getClient().isAlchemyUIOpen()) {
+							mc.sayda.mcraze.player.Player player = getLocalPlayer();
+							// Only if inventory is also not visible
+							if (player == null || !player.inventory.isVisible()) {
+								// Autosave before opening pause menu (only for integrated servers)
+								if (game.getServer() != null) {
+									game.saveGame();
+								}
+								// Open pause menu
+								game.getClient().openPauseMenu();
+							}
+						}
+						break;
+				}
 			}
 		}
 
@@ -588,7 +615,7 @@ public class AwtEventsHandler {
 
 			// Handle menu typing (when in main menu)
 			if (game.getClient().isInMenu()) {
-				game.getClient().getMenu().handleKeyTyped(c);
+				game.getClient().getMainMenu().handleKeyTyped(c);
 				return;
 			}
 
@@ -618,24 +645,6 @@ public class AwtEventsHandler {
 
 			// Game commands
 			switch (c) {
-				case '1':
-				case '2': // these all fall through to 9
-				case '3':
-				case '4':
-				case '5':
-				case '6':
-				case '7':
-				case '8':
-				case '9':
-					// Update desired hotbar slot and send immediately
-					desiredHotbarSlot = c - '1';
-					sendInputPacket();
-					break;
-				case '0':
-					// Update desired hotbar slot and send immediately
-					desiredHotbarSlot = 9;
-					sendInputPacket();
-					break;
 				case 'e':
 					// E key: Toggle inventory or close container UI if open
 					// Closing priority: Chest > Furnace > Skill UI > Class UI > Main Inventory
@@ -649,6 +658,8 @@ public class AwtEventsHandler {
 					} else if (game.getClient().isClassSelectionUIOpen()) {
 						game.getClient().closeClassSelectionUI();
 						break; // Don't toggle inventory if closing class UI
+					} else if (game.getClient().isAlchemyUIOpen()) {
+						game.getClient().closeAlchemyUI();
 					}
 
 					// ALWAYS send packet to server to ensure state is synchronized

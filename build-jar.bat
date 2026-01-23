@@ -10,7 +10,7 @@ if exist build rmdir /s /q build
 mkdir build
 
 echo Compiling Java sources...
-"C:\Program Files\Java\jdk-21\bin\javac.exe" -d build -cp "lib/*" -sourcepath src src/mc/sayda/mcraze/Game.java
+"C:\Program Files\Java\jdk-21\bin\javac.exe" -d build -cp "lib/*" -sourcepath src src/mc/sayda/mcraze/*.java
 if errorlevel 1 (
     echo Compilation failed!
     exit /b 1

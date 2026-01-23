@@ -18,7 +18,9 @@ import mc.sayda.mcraze.graphics.SpriteStore;
 import mc.sayda.mcraze.util.Int2;
 import mc.sayda.mcraze.util.StockMethods;
 import mc.sayda.mcraze.world.World;
+import mc.sayda.mcraze.server.SharedWorld;
 import mc.sayda.mcraze.Constants;
+import mc.sayda.mcraze.item.Item;
 import java.util.UUID;
 
 public abstract class Entity implements java.io.Serializable {
@@ -207,9 +209,9 @@ public abstract class Entity implements java.io.Serializable {
 				int dmg = ((int) (114 * dy)) - 60;
 
 				// Check for Spike Trap
-				// Get tile at center bottom
-				int tx = (int) getCenterX(tileSize);
-				int ty = (int) getBottom(tileSize);
+				// Get tile at center bottom (using NEW position)
+				int tx = (int) ((left + right) / 2.0f);
+				int ty = (int) (bottom + 0.01f); // Look slightly into the block below
 
 				// Fallback safe check for world bounds
 				if (tx >= 0 && tx < world.width && ty >= 0 && ty < world.height) {
@@ -220,7 +222,12 @@ public abstract class Entity implements java.io.Serializable {
 				}
 
 				if (dmg > 0) {
-					this.takeDamage(dmg);
+					if (this instanceof mc.sayda.mcraze.entity.LivingEntity) {
+						// Apply damage
+						// Use FALL damage type
+						((mc.sayda.mcraze.entity.LivingEntity) this).takeDamage(dmg,
+								mc.sayda.mcraze.entity.DamageType.FALL);
+					}
 				}
 				dx *= 0.9; // loss of energy due to friction
 			}
@@ -314,27 +321,35 @@ public abstract class Entity implements java.io.Serializable {
 
 	public int damageFlashTicks = 0; // Ticks remaining for red damage flash
 
+	public void tick(SharedWorld world) {
+		// Base entity logic (if any)
+		ticksAlive++;
+	}
+
 	public void draw(GraphicsHandler g, float cameraX, float cameraY, int screenWidth,
 			int screenHeight, int tileSize) {
 		Int2 pos = StockMethods.computeDrawLocationInPlace(cameraX, cameraY, screenWidth,
 				screenHeight, tileSize, x, y);
 		if (StockMethods.onScreen) {
+			// Scale width/height based on zoom level (tileSize)
+			float scale = (float) tileSize / mc.sayda.mcraze.Constants.TILE_SIZE;
+			int drawW = (int) (widthPX * scale);
+			int drawH = (int) (heightPX * scale);
+
+			mc.sayda.mcraze.graphics.Color tint = null;
 			if (damageFlashTicks > 0) {
 				// Apply red tint for damage indication (50% opacity red)
-				// Scale width/height based on zoom level (tileSize)
-				float scale = (float) tileSize / mc.sayda.mcraze.Constants.TILE_SIZE;
-				int drawW = (int) (widthPX * scale);
-				int drawH = (int) (heightPX * scale);
+				tint = new mc.sayda.mcraze.graphics.Color(255, 0, 0, 128);
+			}
 
-				g.drawImage(sprite, pos.x, pos.y, drawW, drawH,
-						new mc.sayda.mcraze.graphics.Color(255, 0, 0, 128));
+			if (this instanceof Item) {
+				((Item) this).drawLayers(g, pos.x, pos.y, drawW, drawH, tint);
 			} else {
-				// Scale width/height based on zoom level (tileSize)
-				float scale = (float) tileSize / mc.sayda.mcraze.Constants.TILE_SIZE;
-				int drawW = (int) (widthPX * scale);
-				int drawH = (int) (heightPX * scale);
-
-				sprite.draw(g, pos.x, pos.y, drawW, drawH);
+				if (tint != null) {
+					g.drawImage(sprite, pos.x, pos.y, drawW, drawH, tint);
+				} else {
+					sprite.draw(g, pos.x, pos.y, drawW, drawH);
+				}
 			}
 		}
 	}
@@ -354,7 +369,8 @@ public abstract class Entity implements java.io.Serializable {
 	}
 
 	// Only living entities have hitpoints; they should override these methods.
-	public void takeDamage(int amount) {
+
+	public void takeDamage(int amount, mc.sayda.mcraze.entity.DamageType type) {
 	}
 
 	public void heal(int amount) {

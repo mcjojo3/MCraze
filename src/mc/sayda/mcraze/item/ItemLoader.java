@@ -30,12 +30,17 @@ public class ItemLoader {
 		return itemDefMap.get(itemId);
 	}
 
+	public static java.util.Collection<ItemDefinition> getAllItemDefinitions() {
+		return itemDefMap.values();
+	}
+
 	private static final Gson gson = new Gson();
 
 	public static HashMap<String, Item> loadItems(int size) {
 		ToolDefinition[] tools = null;
 		ItemDefinition[] items = null;
 		ItemDefinition[] classItems = null; // [NEW] Class items
+		ItemDefinition[] potions = null; // [NEW] Potions
 
 		// TODO: use the streaming API: https://sites.google.com/site/gson/streaming
 		try {
@@ -43,9 +48,15 @@ public class ItemLoader {
 			items = gson.fromJson(StockMethods.readFile("items/items.json"), ItemDefinition[].class);
 
 			// [NEW] Load class items
-			String classItemsJson = StockMethods.readFile("items/class_items.json");
+			String classItemsJson = StockMethods.readFile("items/class.json");
 			if (classItemsJson != null) {
 				classItems = gson.fromJson(classItemsJson, ItemDefinition[].class);
+			}
+
+			// [NEW] Load potions
+			String potionsJson = StockMethods.readFile("items/potions.json");
+			if (potionsJson != null) {
+				potions = gson.fromJson(potionsJson, ItemDefinition[].class);
 			}
 		} catch (IOException e) {
 			logger.warn("Failed to load some item definition files: " + e.getMessage());
@@ -53,7 +64,8 @@ public class ItemLoader {
 
 		// Store definitions for furnace recipe lookup (merge regular and class items)
 		// We need to merge arrays or just iterate both
-		int totalItems = (items != null ? items.length : 0) + (classItems != null ? classItems.length : 0);
+		int totalItems = (items != null ? items.length : 0) + (classItems != null ? classItems.length : 0)
+				+ (potions != null ? potions.length : 0);
 		itemDefs = new ItemDefinition[totalItems];
 
 		int idx = 0;
@@ -66,6 +78,13 @@ public class ItemLoader {
 		}
 		if (classItems != null) {
 			for (ItemDefinition def : classItems) {
+				itemDefs[idx++] = def;
+				if (def.itemId != null)
+					itemDefMap.put(def.itemId, def);
+			}
+		}
+		if (potions != null) {
+			for (ItemDefinition def : potions) {
 				itemDefs[idx++] = def;
 				if (def.itemId != null)
 					itemDefMap.put(def.itemId, def);
@@ -90,6 +109,12 @@ public class ItemLoader {
 				itemTypes.put(id.itemId, id.makeItem(size));
 			}
 		}
+		// [NEW] Register potions
+		if (potions != null) {
+			for (ItemDefinition id : potions) {
+				itemTypes.put(id.itemId, id.makeItem(size));
+			}
+		}
 		return itemTypes;
 	}
 
@@ -105,27 +130,65 @@ public class ItemLoader {
 		public String requiredClass; // [NEW] Class restriction
 		public String requiredPath; // [NEW] Subclass/Path restriction
 
+		public UsageDefinition usage; // [NEW] Nested usage/consumable properties
+
+		public String hexColor; // [NEW] Optional hex color
+		public LayerDefinition[] layers; // [NEW] Multi-layer sprite support
+		public AlchemyDefinition alchemy; // [NEW] Alchemy recipe
+
 		// No-arg constructor for Gson
 		public ItemDefinition() {
 		}
 
 		public Item makeItem(int size) {
-			String[][] pattern = recipe != null ? recipe.pattern : null;
 			int yield = recipe != null ? recipe.yield : 0;
 			boolean shapeless = recipe != null ? recipe.shapeless : false;
-			Item item = new Item(spriteRef, size, itemId, name, pattern, yield, shapeless);
+			String[][] pattern = recipe != null ? recipe.pattern : null;
+
+			Item item;
+			if (usage != null && (usage.buffType != null || usage.healingAmount != null)) {
+				Consumable cons = new Consumable(spriteRef, size, itemId, name, pattern, yield, shapeless);
+				if (usage.buffType != null) {
+					try {
+						cons.buffType = mc.sayda.mcraze.entity.buff.BuffType.valueOf(usage.buffType.toUpperCase());
+					} catch (IllegalArgumentException e) {
+						if (logger != null)
+							logger.error("Invalid buffType: " + usage.buffType + " for " + itemId);
+					}
+				}
+				cons.buffDuration = (usage.buffDuration != null) ? usage.buffDuration : 0;
+				cons.buffAmplifier = (usage.buffAmplifier != null) ? usage.buffAmplifier : 0;
+				cons.healingAmount = (usage.healingAmount != null) ? usage.healingAmount : 0;
+				item = cons;
+			} else {
+				item = new Item(spriteRef, size, itemId, name, pattern, yield, shapeless);
+			}
+
+			// Set remainsItemId if present in usage block
+			if (usage != null) {
+				if (usage.remains != null) {
+					item.remainsItemId = usage.remains;
+				}
+				if (usage.growthTime != null) {
+					item.isGrowable = true;
+					item.growthTime = usage.growthTime;
+				}
+			}
+
 			if (requiredTool != null) {
 				try {
 					item.requiredToolType = Tool.ToolType.valueOf(requiredTool);
 				} catch (IllegalArgumentException e) {
-					logger.error("Invalid requiredTool: " + requiredTool + " for " + itemId);
+					if (logger != null)
+						logger.error("Invalid requiredTool: " + requiredTool + " for " + itemId);
 				}
 			}
 			if (requiredPower != null) {
 				try {
 					item.requiredToolPower = Tool.ToolPower.valueOf(requiredPower);
 				} catch (IllegalArgumentException e) {
-					logger.error("Invalid requiredPower: " + requiredPower + " for " + itemId);
+					if (logger != null)
+						logger.error("Invalid requiredPower: " + requiredPower + " for " + itemId);
 				}
 			}
 			// Set fuel burn time (0 if not fuel)
@@ -137,7 +200,8 @@ public class ItemLoader {
 					item.requiredClass = mc.sayda.mcraze.player.specialization.PlayerClass
 							.valueOf(requiredClass.toUpperCase());
 				} catch (IllegalArgumentException e) {
-					logger.error("Invalid requiredClass: " + requiredClass + " for " + itemId);
+					if (logger != null)
+						logger.error("Invalid requiredClass: " + requiredClass + " for " + itemId);
 				}
 			}
 
@@ -147,12 +211,30 @@ public class ItemLoader {
 					item.requiredPath = mc.sayda.mcraze.player.specialization.SpecializationPath
 							.valueOf(requiredPath.toUpperCase());
 				} catch (IllegalArgumentException e) {
-					logger.error("Invalid requiredPath: " + requiredPath + " for " + itemId);
+					if (logger != null)
+						logger.error("Invalid requiredPath: " + requiredPath + " for " + itemId);
 				}
+			}
+
+			// [NEW] Set layered sprites
+			if (layers != null && layers.length > 0) {
+				for (LayerDefinition layerDef : layers) {
+					item.layers.add(new Item.SpriteLayer(layerDef.spriteRef,
+							mc.sayda.mcraze.graphics.Color.fromHex(layerDef.hexColor)));
+				}
+			} else {
+				// Fallback to single spriteRef/hexColor if no layers defined
+				item.layers.add(new Item.SpriteLayer(spriteRef,
+						mc.sayda.mcraze.graphics.Color.fromHex(hexColor)));
 			}
 
 			return item;
 		}
+	}
+
+	public static class LayerDefinition {
+		public String spriteRef;
+		public String hexColor;
 	}
 
 	public static class ToolDefinition extends ItemDefinition {
@@ -205,8 +287,25 @@ public class ItemLoader {
 		public boolean shapeless;
 	}
 
+	public static class UsageDefinition {
+		public Integer healingAmount;
+		public String buffType;
+		public Integer buffDuration;
+		public Integer buffAmplifier;
+		public String remains;
+		public Integer growthTime; // [NEW] Total growth ticks in pot (null = not growable)
+	}
+
 	public static class SmeltingDefinition {
 		public String result;
+		public int time;
+		public int yield;
+	}
+
+	public static class AlchemyDefinition {
+		public String[] ingredients;
+		public String bottle;
+		public int essence;
 		public int time;
 		public int yield;
 	}

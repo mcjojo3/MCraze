@@ -27,26 +27,37 @@ public abstract class SpriteStore {
 	/** The cached sprite map, from reference to sprite instance */
 	private HashMap<String, Sprite> sprites = new HashMap<String, Sprite>();
 
-	/**
-	 * Retrieve a sprite from the store
-	 *
-	 * @param ref
-	 *            The reference to the image to use for the sprite
-	 * @return A sprite instance containing an accelerate image of the request reference
-	 */
 	public Sprite getSprite(String ref) {
+		return getSprite(ref, null);
+	}
+
+	/**
+	 * Retrieve a tinted sprite from the store. The tinted version is cached.
+	 *
+	 * @param ref  The reference to the image to use for the sprite
+	 * @param tint Optional tint color (null for no tint)
+	 * @return A sprite instance with the requested tint applied
+	 */
+	public Sprite getSprite(String ref, Color tint) {
+		String key = ref;
+		if (tint != null) {
+			key = ref + "_tint_" + String.format("%02X%02X%02X%02X", tint.R, tint.G, tint.B, tint.A);
+		}
+
 		// if we've already got the sprite in the cache
 		// then just return the existing version
-		if (sprites.get(ref) != null) {
-			return sprites.get(ref);
+		if (sprites.get(key) != null) {
+			return sprites.get(key);
 		}
 
 		// create a sprite, add it the cache then return it
-		Sprite sprite = loadSprite(ref);
-		sprites.put(ref, sprite);
+		Sprite sprite = (tint == null) ? loadSprite(ref) : loadSprite(ref, tint);
+		sprites.put(key, sprite);
 
 		return sprite;
 	}
 
 	public abstract Sprite loadSprite(String ref);
+
+	public abstract Sprite loadSprite(String ref, Color tint);
 }

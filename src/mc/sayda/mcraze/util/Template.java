@@ -43,7 +43,7 @@ public class Template implements java.io.Serializable {
 			// Collect all non-empty ingredients from the recipe
 			for (String[] row : matrix) {
 				for (String item : row) {
-					if (item != null && !item.equals("0") && !item.isEmpty()) {
+					if (item != null && !item.isEmpty()) {
 						requiredIngredients.add(item);
 					}
 				}
@@ -53,7 +53,7 @@ public class Template implements java.io.Serializable {
 			java.util.List<String> inputItems = new java.util.ArrayList<>();
 			for (String[] row : input) {
 				for (String item : row) {
-					if (item != null && !item.equals("0") && !item.isEmpty()) {
+					if (item != null && !item.isEmpty()) {
 						inputItems.add(item);
 					}
 				}
@@ -99,8 +99,8 @@ public class Template implements java.io.Serializable {
 				boolean isGood = false;
 				boolean isBad = false;
 				// Try the template at this position
-				for (int i = 0; i < matrix.length; i++) {
-					for (int j = 0; j < matrix[0].length; j++) {
+				for (int i = 0; i < matrix.length && !isBad; i++) {
+					for (int j = 0; j < matrix[0].length && !isBad; j++) {
 						// Double check bounds to prevent crashes (fixes ArrayIndexOutOfBoundsException)
 						if (i >= matrix.length || j >= matrix[i].length ||
 								x + i >= input.length || y + j >= input[0].length) {
@@ -111,21 +111,24 @@ public class Template implements java.io.Serializable {
 						String templateItem = matrix[i][j];
 						String inputItem = input[x + i][y + j];
 
-						// Template item is empty (0 or null) - can be anything
-						if (templateItem == null || templateItem.equals("0") || templateItem.isEmpty()) {
-							if (inputItem != null && !inputItem.equals("0") && !inputItem.isEmpty()) {
+						// Template item is empty (null or empty string) - can be anything
+						if (templateItem == null || templateItem.isEmpty()) {
+							if (inputItem != null && !inputItem.isEmpty()) {
 								// Input has something where template expects empty
-								return false;
+								isBad = true;
+								break;
 							}
 						}
 						// Template requires specific item
 						else {
-							if (inputItem == null || inputItem.equals("0") || inputItem.isEmpty()) {
+							if (inputItem == null || inputItem.isEmpty()) {
 								// Input is empty where template requires item
 								isBad = true;
+								break;
 							} else if (!templateItem.equals(inputItem)) {
 								// Input has wrong item
-								return false;
+								isBad = true;
+								break;
 							} else {
 								// Match found
 								isGood = true;
@@ -144,7 +147,7 @@ public class Template implements java.io.Serializable {
 							}
 							// Check if this cell is empty
 							String cellItem = input[i][j];
-							if (cellItem != null && !cellItem.equals("0") && !cellItem.isEmpty()) {
+							if (cellItem != null && !cellItem.isEmpty()) {
 								// Found non-empty cell outside recipe pattern
 								isBad = true;
 								break;

@@ -18,6 +18,7 @@ import mc.sayda.mcraze.player.*;
 import mc.sayda.mcraze.player.data.*;
 
 import mc.sayda.mcraze.graphics.Color;
+import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.Game;
 import mc.sayda.mcraze.graphics.GraphicsHandler;
 import mc.sayda.mcraze.client.Client;
@@ -159,9 +160,9 @@ public class DebugOverlay {
 
 			// Time of day
 			long ticks = world.getTicksAlive();
-			long day = ticks / 20000 + 1;
-			long timeOfDay = ticks % 20000;
-			String timeStr = formatTime(timeOfDay);
+			long day = ticks / world.daylightSpeed + 1;
+			long timeOfDay = ticks % world.daylightSpeed;
+			String timeStr = formatTime(timeOfDay, world.daylightSpeed);
 			g.drawString("Day " + day + ", " + timeStr + " (Tick " + ticks + ")", 5, y);
 			y += lineHeight;
 
@@ -212,11 +213,10 @@ public class DebugOverlay {
 	/**
 	 * Format time of day to HH:MM
 	 */
-	private String formatTime(long timeOfDay) {
-		// 0 = dawn (06:00), 5000 = noon (12:00), 10000 = dusk (18:00), 15000 = midnight
+	private String formatTime(long timeOfDay, int daylightSpeed) {
+		// 0 = dawn (06:00), 0.25 = noon (12:00), 0.5 = dusk (18:00), 0.75 = midnight
 		// (00:00)
-		// 20000 ticks = 24 hours
-		double hours = (timeOfDay / 20000.0) * 24.0 + 6.0; // Offset by 6 hours so 0 ticks = 06:00
+		double hours = (timeOfDay / (double) daylightSpeed) * 24.0 + 6.0; // Offset by 6 hours so 0 ticks = 06:00
 		if (hours >= 24.0) {
 			hours -= 24.0;
 		}

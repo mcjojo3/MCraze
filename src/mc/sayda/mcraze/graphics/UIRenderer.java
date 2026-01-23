@@ -20,6 +20,7 @@ import mc.sayda.mcraze.player.Player;
 import mc.sayda.mcraze.util.Int2;
 import mc.sayda.mcraze.util.StockMethods;
 import mc.sayda.mcraze.world.World;
+import mc.sayda.mcraze.entity.LivingEntity;
 
 /**
  * UIRenderer handles all UI rendering logic including:
@@ -132,45 +133,153 @@ public class UIRenderer {
 	 * @param screenHeight Screen height in pixels
 	 */
 	public void drawHealthBar(GraphicsHandler g, Player player, int screenWidth, int screenHeight) {
-		int heartX = (screenWidth - 250) / 2;
-		int heartY = screenHeight - 50;
-		for (int heartIdx = 1; heartIdx <= 10; ++heartIdx) {
-			int hpDiff = player.hitPoints - heartIdx * 10;
-			if (hpDiff >= 0) {
-				fullHeart.draw(g, heartX, heartY, 10, 10);
-			} else if (hpDiff >= -5) {
-				halfHeart.draw(g, heartX, heartY, 10, 10);
-			} else {
-				emptyHeart.draw(g, heartX, heartY, 10, 10);
-			}
-			heartX += 15;
-		}
+		int barWidth = 200;
+		int barHeight = 20;
+		int x = (screenWidth - barWidth) / 2;
+		int y = screenHeight - 60;
+
+		// Background (Black/Gray)
+		g.setColor(new Color(50, 50, 50));
+		g.fillRect(x, y, barWidth, barHeight);
+
+		// Health Fill (Red)
+		float healthPct = (float) player.hitPoints / player.getMaxHP();
+		int fillWidth = (int) (barWidth * healthPct);
+
+		g.setColor(new Color(200, 20, 20));
+		g.fillRect(x, y, fillWidth, barHeight);
+
+		// Border (White)
+		g.setColor(Color.white); // Assuming Color.white exists or using new Color(255,255,255)
+		g.drawRect(x, y, barWidth, barHeight);
+
+		// Text Overlay (HP / MaxHP)
+		String hpText = player.hitPoints + " / " + player.getMaxHP();
+		g.drawString(hpText, x + barWidth / 2 - hpText.length() * 4, y + 15); // Approximate centering
 	}
 
-	/**
-	 * Draw air bubbles (oxygen indicator) when player is underwater
-	 * 
-	 * @param g            Graphics handler
-	 * @param player       Player entity
-	 * @param world        Game world
-	 * @param tileSize     Size of tiles in pixels
-	 * @param screenWidth  Screen width in pixels
-	 * @param screenHeight Screen height in pixels
-	 */
+	public void drawManaBar(GraphicsHandler g, Player player, int screenWidth, int screenHeight) {
+		if (player.maxMana <= 0)
+			return; // Only draw if class uses mana
+
+		int barWidth = 100;
+		int barHeight = 15;
+		int hotbarWidth = 270; // Reference from InventoryView.java
+		int gap = 15;
+
+		// Position: RIGHT of Hotbar
+		int x = (screenWidth / 2) + (hotbarWidth / 2) + gap;
+		int y = screenHeight - 35; // Center-aligned vertically with hotbar
+
+		// Background
+		g.setColor(new Color(50, 50, 50));
+		g.fillRect(x, y, barWidth, barHeight);
+
+		// Mana Fill (Blue)
+		float manaPct = (float) player.mana / player.maxMana;
+		int fillWidth = (int) (barWidth * manaPct);
+
+		g.setColor(new Color(40, 40, 240)); // Mana Blue
+		g.fillRect(x, y, fillWidth, barHeight);
+
+		// Border
+		g.setColor(Color.white);
+		g.drawRect(x, y, barWidth, barHeight);
+
+		// Text
+		String manaText = player.mana + "";
+		g.drawString(manaText, x + barWidth / 2 - manaText.length() * 4, y + 12);
+	}
+
+	public void drawEssenceBar(GraphicsHandler g, Player player, int screenWidth, int screenHeight) {
+		if (player.maxEssence <= 0 && player.essence <= 0)
+			return;
+
+		int barWidth = 100;
+		int barHeight = 15;
+		int hotbarWidth = 270;
+		int gap = 15;
+
+		// Position: LEFT of Hotbar
+		int x = (screenWidth / 2) - (hotbarWidth / 2) - barWidth - gap;
+		int y = screenHeight - 35; // Center-aligned vertically with hotbar
+
+		// Background
+		g.setColor(new Color(50, 50, 50));
+		g.fillRect(x, y, barWidth, barHeight);
+
+		// Essence Fill (Purple)
+		float essencePct = (float) player.essence / player.maxEssence;
+		int fillWidth = (int) (barWidth * essencePct);
+
+		g.setColor(new Color(180, 40, 240)); // Essence Purple
+		g.fillRect(x, y, fillWidth, barHeight);
+
+		// Border
+		g.setColor(Color.white);
+		g.drawRect(x, y, barWidth, barHeight);
+
+		// Text
+		String text = player.essence + "";
+		g.drawString(text, x + barWidth / 2 - text.length() * 4, y + 12);
+	}
+
+	public void drawBowChargeBar(GraphicsHandler g, Player player, int screenWidth, int screenHeight) {
+		if (player.bowCharge <= 0)
+			return;
+
+		int barWidth = 100;
+		int barHeight = 6;
+		int hotbarWidth = 270;
+		int gap = 15;
+
+		// Position: LEFT of Hotbar (below essence if visible, or taking its place?)
+		// Let's stack it above Essence bar area.
+
+		int x = (screenWidth / 2) - (hotbarWidth / 2) - barWidth - gap;
+		int y = screenHeight - 35 - 20; // 20px above Essence bar
+
+		// Background
+		g.setColor(new Color(50, 50, 50));
+		g.fillRect(x, y, barWidth, barHeight);
+
+		// Charge Fill (White/Yellow)
+		float pct = (float) player.bowCharge / player.maxBowCharge;
+		if (pct > 1f)
+			pct = 1f;
+		int fillWidth = (int) (barWidth * pct);
+
+		g.setColor(new Color(255, 255, 200)); // Pale Yellow
+		g.fillRect(x, y, fillWidth, barHeight);
+
+		// Border
+		g.setColor(Color.white);
+		g.drawRect(x, y, barWidth, barHeight);
+	}
+
 	public void drawAirBubbles(GraphicsHandler g, Player player, World world, int tileSize,
 			int screenWidth, int screenHeight) {
 		if (player.isHeadUnderWater(world, tileSize)) {
-			int bubbleX = (screenWidth + 50) / 2;
-			int bubbleY = screenHeight - 50;
-			int numBubbles = player.airRemaining();
-			for (int bubbleIdx = 1; bubbleIdx <= 10; ++bubbleIdx) {
-				if (bubbleIdx <= numBubbles) {
-					bubble.draw(g, bubbleX, bubbleY, 10, 10);
-				} else {
-					emptyBubble.draw(g, bubbleX, bubbleY, 10, 10);
-				}
-				bubbleX += 15;
-			}
+			int barWidth = 200;
+			int barHeight = 15;
+			int x = (screenWidth - barWidth) / 2;
+			int y = screenHeight - 80; // Above health bar
+
+			// Background
+			g.setColor(new Color(50, 50, 50));
+			g.fillRect(x, y, barWidth, barHeight);
+
+			// Air Fill (Blue)
+			int maxAir = LivingEntity.MAX_AIR_TICKS;
+			float airPct = (float) player.airRemaining() / maxAir;
+			int fillWidth = (int) (barWidth * airPct);
+
+			g.setColor(new Color(50, 100, 255));
+			g.fillRect(x, y, fillWidth, barHeight);
+
+			// Border
+			g.setColor(Color.white);
+			g.drawRect(x, y, barWidth, barHeight);
 		}
 	}
 

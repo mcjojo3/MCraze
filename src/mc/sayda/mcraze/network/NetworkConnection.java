@@ -23,6 +23,8 @@ public class NetworkConnection implements Connection {
 	private Thread receiveThread;
 	private boolean connected = true;
 
+	private final mc.sayda.mcraze.logging.GameLogger logger = mc.sayda.mcraze.logging.GameLogger.get();
+
 	// BANDWIDTH MONITORING: Track bytes sent/received for optimization verification
 	private long bytesSent = 0;
 	private long bytesReceived = 0;
@@ -46,8 +48,8 @@ public class NetworkConnection implements Connection {
 
 		// Start background thread to receive packets
 		startReceiveThread();
-		if (GameLogger.get() != null)
-			GameLogger.get().info("NetworkConnection: Connected to " + socket.getRemoteSocketAddress());
+		if (logger != null)
+			logger.info("NetworkConnection: Connected to " + socket.getRemoteSocketAddress());
 	}
 
 	/**
@@ -64,7 +66,6 @@ public class NetworkConnection implements Connection {
 
 	private void startReceiveThread() {
 		receiveThread = new Thread(() -> {
-			GameLogger logger = GameLogger.get();
 			if (logger != null)
 				logger.info("NetworkConnection: Receive thread started");
 			while (connected) {
@@ -97,7 +98,7 @@ public class NetworkConnection implements Connection {
 						// Prevent unbounded growth - drop oldest packets if queue is full
 						if (receivedPackets.size() >= MAX_PACKET_QUEUE_SIZE) {
 							receivedPackets.remove(0); // Drop oldest (FIFO)
-							GameLogger queueLogger = GameLogger.get();
+							GameLogger queueLogger = logger;
 							if (queueLogger != null) {
 								queueLogger.warn(
 										"NetworkConnection: Packet queue overflow! Dropped oldest packet. Client may be lagging.");
@@ -107,26 +108,27 @@ public class NetworkConnection implements Connection {
 					}
 				} catch (EOFException e) {
 					// Connection closed
-					GameLogger closeLogger = GameLogger.get();
+					GameLogger closeLogger = logger;
 					if (closeLogger != null)
 						closeLogger.info("NetworkConnection: Connection closed by remote");
 					connected = false;
 				} catch (IOException e) {
 					if (connected) {
-						if (GameLogger.get() != null)
-							GameLogger.get().error("NetworkConnection: Error receiving packet: " + e.getMessage());
+						if (logger != null)
+							logger.error("NetworkConnection: Error receiving packet: " + e.getMessage());
 						e.printStackTrace();
 						connected = false;
 					}
 				} catch (Exception e) {
 					// Catch packet decoding errors
-					if (GameLogger.get() != null)
-						GameLogger.get().error("NetworkConnection: Error decoding packet: " + e.getMessage());
+					if (logger != null)
+						logger.error("NetworkConnection: Error decoding packet: " + e.getMessage());
 					e.printStackTrace();
 					connected = false;
 				}
 			}
-			System.out.println("NetworkConnection: Receive thread stopped");
+			if (logger != null)
+				logger.info("NetworkConnection: Receive thread stopped");
 		}, "NetworkReceive");
 		receiveThread.setDaemon(true);
 		receiveThread.start();
@@ -135,8 +137,8 @@ public class NetworkConnection implements Connection {
 	@Override
 	public void sendPacket(Packet packet) {
 		if (!connected) {
-			if (GameLogger.get() != null)
-				GameLogger.get().warn("NetworkConnection: Cannot send packet, not connected");
+			if (logger != null)
+				logger.warn("NetworkConnection: Cannot send packet, not connected");
 			return;
 		}
 
@@ -165,9 +167,8 @@ public class NetworkConnection implements Connection {
 					if (elapsed > 0) {
 						double sentKBps = (bytesSent / 1024.0) / (elapsed / 1000.0);
 						double recvKBps = (bytesReceived / 1024.0) / (elapsed / 1000.0);
-						GameLogger logger = GameLogger.get();
-						if (logger != null) {
-							logger.info(String.format("[BANDWIDTH] Sent: %.1f KB/sec | Recv: %.1f KB/sec",
+						if (this.logger != null) {
+							this.logger.info(String.format("[BANDWIDTH] Sent: %.1f KB/sec | Recv: %.1f KB/sec",
 									sentKBps, recvKBps));
 						}
 					}
@@ -182,7 +183,7 @@ public class NetworkConnection implements Connection {
 				// Otherwise, wait for batched flush from SharedWorld.flushAllConnections()
 
 				// Only log in debug mode (reduces console spam from 240+/sec to near zero)
-				GameLogger packetLogger = GameLogger.get();
+				GameLogger packetLogger = logger;
 				if (packetLogger != null && packetLogger.isDebugEnabled()) {
 					String packetType = packet.getClass().getSimpleName();
 					packetLogger.debug("NetworkConnection: Sent " + packetType + " (ID: " + packetId + ", "
@@ -190,8 +191,8 @@ public class NetworkConnection implements Connection {
 				}
 			}
 		} catch (IOException e) {
-			if (GameLogger.get() != null)
-				GameLogger.get().error("NetworkConnection: Error sending packet: " + e.getMessage());
+			if (logger != null)
+				logger.error("NetworkConnection: Error sending packet: " + e.getMessage());
 			e.printStackTrace();
 			connected = false;
 		}
@@ -226,16 +227,16 @@ public class NetworkConnection implements Connection {
 				out.flush();
 			}
 		} catch (IOException e) {
-			if (GameLogger.get() != null)
-				GameLogger.get().error("NetworkConnection: Error flushing output: " + e.getMessage());
+			if (logger != null)
+				logger.error("NetworkConnection: Error flushing output: " + e.getMessage());
 			connected = false;
 		}
 	}
 
 	@Override
 	public void disconnect() {
-		if (GameLogger.get() != null)
-			GameLogger.get().info("NetworkConnection: Disconnecting");
+		if (logger != null)
+			logger.info("NetworkConnection: Disconnecting");
 		connected = false;
 		try {
 			// Close streams before closing socket
@@ -251,8 +252,8 @@ public class NetworkConnection implements Connection {
 			}
 		} catch (IOException e) {
 			// Log but don't throw - we're cleaning up
-			if (GameLogger.get() != null)
-				GameLogger.get().error("NetworkConnection: Error during disconnect: " + e.getMessage());
+			if (logger != null)
+				logger.error("NetworkConnection: Error during disconnect: " + e.getMessage());
 		}
 	}
 }

@@ -23,21 +23,28 @@ import java.nio.ByteBuffer;
  */
 public class PacketGameruleUpdate extends ServerPacket {
 	public boolean spelunking = false;
+	public boolean darkness = true;
+	public int daylightSpeed = 40000;
 	public boolean keepInventory = false;
 	public boolean daylightCycle = true;
 	public boolean mobGriefing = true;
 	public boolean pvp = true;
+	public boolean insomnia = false;
 
 	public PacketGameruleUpdate() {
 	}
 
-	public PacketGameruleUpdate(boolean spelunking, boolean keepInventory, boolean daylightCycle, boolean mobGriefing,
-			boolean pvp) {
+	public PacketGameruleUpdate(boolean spelunking, boolean darkness, int daylightSpeed, boolean keepInventory,
+			boolean daylightCycle, boolean mobGriefing,
+			boolean pvp, boolean insomnia) {
 		this.spelunking = spelunking;
+		this.darkness = darkness;
+		this.daylightSpeed = daylightSpeed;
 		this.keepInventory = keepInventory;
 		this.daylightCycle = daylightCycle;
 		this.mobGriefing = mobGriefing;
 		this.pvp = pvp;
+		this.insomnia = insomnia;
 	}
 
 	@Override
@@ -52,22 +59,29 @@ public class PacketGameruleUpdate extends ServerPacket {
 
 	@Override
 	public byte[] encode() {
-		ByteBuffer buf = ByteBuffer.allocate(5);
+		// 7 booleans (1 byte each) + 1 int (4 bytes) = 11 bytes
+		ByteBuffer buf = ByteBuffer.allocate(11);
 		buf.put((byte) (spelunking ? 1 : 0));
+		buf.put((byte) (darkness ? 1 : 0));
+		buf.putInt(daylightSpeed);
 		buf.put((byte) (keepInventory ? 1 : 0));
 		buf.put((byte) (daylightCycle ? 1 : 0));
 		buf.put((byte) (mobGriefing ? 1 : 0));
 		buf.put((byte) (pvp ? 1 : 0));
+		buf.put((byte) (insomnia ? 1 : 0));
 		return buf.array();
 	}
 
 	public static PacketGameruleUpdate decode(ByteBuffer buf) {
 		PacketGameruleUpdate packet = new PacketGameruleUpdate();
 		packet.spelunking = buf.get() == 1;
+		packet.darkness = buf.get() == 1;
+		packet.daylightSpeed = buf.getInt();
 		packet.keepInventory = buf.get() == 1;
 		packet.daylightCycle = buf.get() == 1;
 		packet.mobGriefing = buf.get() == 1;
 		packet.pvp = buf.get() == 1;
+		packet.insomnia = buf.get() == 1;
 		return packet;
 	}
 }

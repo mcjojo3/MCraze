@@ -1,27 +1,25 @@
 package mc.sayda.mcraze.entity.mob;
 
-import mc.sayda.mcraze.entity.*;
-import mc.sayda.mcraze.graphics.*;
-import mc.sayda.mcraze.player.*;
 import mc.sayda.mcraze.entity.Entity;
-
 import mc.sayda.mcraze.entity.LivingEntity;
-
 import mc.sayda.mcraze.graphics.Sprite;
 import mc.sayda.mcraze.graphics.SpriteStore;
+import mc.sayda.mcraze.logging.GameLogger;
 import mc.sayda.mcraze.server.SharedWorld;
 import mc.sayda.mcraze.world.World;
 import mc.sayda.mcraze.Constants;
+import mc.sayda.mcraze.player.Player;
 
 import java.util.Random;
 
 public class EntityZombie extends LivingEntity {
     private static final long serialVersionUID = 1L;
+    protected final GameLogger logger = GameLogger.get();
 
     // AI State
     private int actionTimer = 0;
     private int attackCooldown = 0;
-    private Random random = new Random();
+    protected Random random = new Random();
 
     // Actions
     private static final int ACTION_IDLE = 0;
@@ -30,9 +28,8 @@ public class EntityZombie extends LivingEntity {
     protected static final int ACTION_CHASE = 3; // Dynamically track player
     protected static final int ACTION_ATTACK_FLAG = 4; // Target and break flag
     protected int currentAction = ACTION_IDLE;
-
-    private Entity target; // Target to chase/attack
-    private static final float CHASE_SPEED_MULTIPLIER = 1.2f; // Faster when chasing
+    protected Entity target; // The current AI target (Player or Flag)
+    private static final int TARGET_SCAN_INTERVAL = 20; // Scans every 20 ticks (1s)
 
     // Combat Stats
     private int attackDamage = 5;
@@ -76,6 +73,20 @@ public class EntityZombie extends LivingEntity {
     public void tick(SharedWorld sharedWorld) {
         super.tick(sharedWorld);
 
+        // Zombie Burn in Sunlight (Horde Mode or normal Survival)
+        // Check if it's day time
+        if (!sharedWorld.getWorld().isNight()) {
+            // Simplified Burn logic:
+            if (sharedWorld.getWorld().getGameMode() == mc.sayda.mcraze.world.GameMode.HORDE
+                    || sharedWorld.getWorld().getGameMode() == mc.sayda.mcraze.world.GameMode.SURVIVAL) {
+                // Burn!
+                if (ticksAlive % 100 == 0) { // Every 5 seconds
+                    takeDamage(20, mc.sayda.mcraze.entity.DamageType.TRUE_DAMAGE); // Sun burn ignores armor
+                    this.damageFlashTicks = 10; // Visual burn
+                }
+            }
+        }
+
         // AI Logic: Determine State
 
         // Check for targets
@@ -86,8 +97,8 @@ public class EntityZombie extends LivingEntity {
 
             for (mc.sayda.mcraze.server.PlayerConnection pc : sharedWorld.getPlayers()) {
                 Player p = pc.getPlayer();
-                // Check godmode
-                if (p != null && !p.dead && !p.godmode) {
+                // Check godmode and debugmode
+                if (p != null && !p.dead && !p.godmode && !p.debugMode) {
                     float dx = p.x - x;
                     float dy = p.y - y;
                     float distSq = dx * dx + dy * dy;
@@ -147,11 +158,12 @@ public class EntityZombie extends LivingEntity {
                 if (attackCooldown <= 0) {
                     // ATTACK!
                     if (((LivingEntity) target).invulnerabilityTicks <= 0) {
-                        ((LivingEntity) target).takeDamage(attackDamage);
+                        ((LivingEntity) target).takeDamage(attackDamage, mc.sayda.mcraze.entity.DamageType.PHYSICAL);
 
                         // Play hurt sound if target is player
                         if (target instanceof mc.sayda.mcraze.player.Player) {
-                            sharedWorld.broadcastPacket(new mc.sayda.mcraze.network.packet.PacketPlaySound("hurt.wav"));
+                            sharedWorld.broadcastPacket(
+                                    new mc.sayda.mcraze.network.packet.PacketPlaySound("hurt.wav", target.x, target.y));
                         }
                     }
 
@@ -160,6 +172,44 @@ public class EntityZombie extends LivingEntity {
                 }
             }
         }
+
+        // [NEW] Stacking & Conversion Logic
+        // If 5+ zombies are stacked at the same spot, convert to a bomber.
+        if (ticksAlive % 20 == 0 && !(this instanceof EntityBomber)) { // Check once per second
+            if (countZombiesInStack(sharedWorld) >= 5) {
+                convertToBomber(sharedWorld);
+            }
+        }
+    }
+
+    private int countZombiesInStack(SharedWorld sharedWorld) {
+        int count = 0;
+        // Check for zombies at almost exactly same position (overlapping)
+        float range = 0.5f;
+        for (Entity e : sharedWorld.getEntityManager().getAll()) {
+            if (e != this && e instanceof EntityZombie && !(e instanceof EntityBomber) && !e.dead) {
+                float dx = Math.abs(e.x - x);
+                float dy = Math.abs(e.y - y);
+                if (dx < range && dy < range) {
+                    count++;
+                }
+            }
+        }
+        return count + 1; // Include self
+    }
+
+    private void convertToBomber(SharedWorld sharedWorld) {
+        if (logger != null)
+            logger.info("Zombie stack reached limit! Converting to Bomber at " + (int) x + "," + (int) y);
+        EntityBomber bomber = new EntityBomber(gravityApplies, x, y, widthPX, heightPX);
+        // Copy wave scaling if applicable
+        if (sharedWorld.getWaveManager() != null) {
+            bomber.applyWaveScaling(sharedWorld.getWaveManager().getCurrentHealthMultiplier(),
+                    sharedWorld.getWaveManager().getCurrentDamageMultiplier());
+            bomber.setJumpMultiplier(sharedWorld.getWaveManager().getJumpMultiplier());
+        }
+        sharedWorld.addEntity(bomber);
+        this.dead = true; // Remove self
     }
 
     /**
@@ -174,15 +224,41 @@ public class EntityZombie extends LivingEntity {
         this.attackDamage = (int) (5 * damageMultiplier); // Base Dmg 5
     }
 
+    // Use centralized base jump from WaveConfig
+    @Override
+    protected float getBaseJumpVelocity() {
+        return mc.sayda.mcraze.survival.WaveConfig.ZOMBIE_BASE_JUMP;
+    }
+
     // Allow external setting of jump multiplier (called by WaveManager/Spawner)
     public void setJumpMultiplier(float jumpMult) {
         this.jumpMultiplier = jumpMult;
     }
 
+    // [NEW] Fall damage control
+    private boolean allowFallDamage = false;
+
     @Override
     public void updatePosition(World world, int tileSize) {
-        // AI State Machine (Navigation)
+        // [NEW] Pre-check for Spike Traps before super.updatePosition applies fall
+        // damage
+        // Get tile at center bottom
+        float left = x;
+        float width = (float) widthPX / tileSize;
+        float right = x + width;
+        float bottom = y + (float) heightPX / tileSize;
 
+        int tx = (int) ((left + right) / 2.0f);
+        int ty = (int) (bottom + 0.01f);
+
+        allowFallDamage = false;
+        if (tx >= 0 && tx < world.width && ty >= 0 && ty < world.height) {
+            if (world.tiles[tx][ty] != null && world.tiles[tx][ty].type.name == Constants.TileID.SPIKE_TRAP) {
+                allowFallDamage = true;
+            }
+        }
+
+        // AI State Machine (Navigation)
         if (currentAction == ACTION_CHASE && target != null) {
             // Update direction towards target
             float diffX = target.x - x;
@@ -204,9 +280,17 @@ public class EntityZombie extends LivingEntity {
                     jump(world, tileSize);
                 }
             }
-            // Or obstacle jump (handled by LivingEntity/World logic usually? implemented
-            // manually here)
-            // We'll rely on our manual jump check below.
+
+            // [NEW] Climbing logic for Water/Ladders
+            if (this.isInWaterOrClimbable(world, tileSize)) {
+                if (target.y < y - 0.5f || (Math.abs(dx) < 0.01f && Math.abs(moveDirection) > 0)) {
+                    startClimb();
+                } else {
+                    endClimb();
+                }
+            } else {
+                endClimb();
+            }
 
         } else if (currentAction == ACTION_ATTACK_FLAG) {
             // Move towards Flag
@@ -274,7 +358,6 @@ public class EntityZombie extends LivingEntity {
         }
 
         // IMPORTANT: LivingEntity.updatePosition() uses moveDirection to calculate
-
         super.updatePosition(world, tileSize);
 
         // Update Animation State
@@ -303,6 +386,17 @@ public class EntityZombie extends LivingEntity {
         if (currentSprite != null) {
             this.sprite = currentSprite;
         }
+    }
+
+    @Override
+    public void takeDamage(int amount, mc.sayda.mcraze.entity.DamageType type) {
+        // [NEW] Zombie Fall Damage Exception
+        if (type == mc.sayda.mcraze.entity.DamageType.FALL) {
+            if (!allowFallDamage) {
+                return; // Ignore fall damage unless on a trap
+            }
+        }
+        super.takeDamage(amount, type);
     }
 
     // Helper helper

@@ -61,4 +61,8 @@ public interface ClientPacketHandler {
     void handleWaveSync(PacketWaveSync packet); // NEW: Sync wave status
 
     void handleWorldBulkData(PacketWorldBulkData packet); // NEW: Compressed world loading
+
+    void handleAlchemyOpen(PacketAlchemyOpen packet);
+
+    void handleExplosion(PacketExplosion packet);
 }

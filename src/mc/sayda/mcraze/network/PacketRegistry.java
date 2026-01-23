@@ -56,6 +56,7 @@ public class PacketRegistry {
         registerClientPacket(17, PacketClassSelect.class, PacketClassSelect::decode); // Class system
         registerClientPacket(18, PacketSkillUpgrade.class, PacketSkillUpgrade::decode); // Skill tree
         registerClientPacket(19, PacketEntityInteract.class, PacketEntityInteract::decode); // Entity interaction
+        registerClientPacket(20, PacketAlchemyAction.class, PacketAlchemyAction::decode); // Alchemy UI
 
         // Server → Client packets (IDs 51-100)
         registerServerPacket(51, PacketWorldInit.class, PacketWorldInit::decode);
@@ -79,6 +80,8 @@ public class PacketRegistry {
         registerServerPacket(69, PacketPlaySound.class, PacketPlaySound::decode); // Sound effects
         registerServerPacket(70, PacketWaveSync.class, PacketWaveSync::decode); // Wave status sync
         registerServerPacket(71, PacketWorldBulkData.class, PacketWorldBulkData::decode); // Optimized world loading
+        registerServerPacket(72, PacketAlchemyOpen.class, PacketAlchemyOpen::decode); // Alchemy UI
+        registerServerPacket(73, PacketExplosion.class, PacketExplosion::decode); // Explosion visuals
     }
 
     /**

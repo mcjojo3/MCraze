@@ -174,7 +174,7 @@ public class ChestUI {
 
 		if (!overUI) {
 			dragHandler.cancelDrag(connection);
-			return false;
+			return true; // Block world interaction even if outside UI bounds
 		}
 
 		// Handle drag using DragHandler
@@ -217,7 +217,7 @@ public class ChestUI {
 			return true;
 		}
 
-		return overUI;
+		return true; // Block world interaction when visible
 	}
 
 	/**

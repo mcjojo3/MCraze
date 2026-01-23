@@ -10,10 +10,7 @@ import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.player.Player;
 import mc.sayda.mcraze.network.packet.PacketPlaySound;
 
-import java.util.List;
 import mc.sayda.mcraze.server.PlayerConnection;
-
-import java.util.Random;
 
 public class EntityBomber extends EntityZombie {
     private static final long serialVersionUID = 1L;
@@ -30,6 +27,7 @@ public class EntityBomber extends EntityZombie {
         this.hitPoints = maxHP;
     }
 
+    private final GameLogger logger = GameLogger.get();
     private int stuckTimer = 0;
 
     @Override
@@ -63,12 +61,13 @@ public class EntityBomber extends EntityZombie {
 
         // Check for explosion triggers
         if (!isExploding) {
-            // Trigger 1: Hit a wall (horizontal collision)
-            // We check if we tried to move but didn't actually move much horizontally
-            boolean hitWall = (Math.abs(dx) < 0.01f && Math.abs(moveDirection) > 0);
+            // Trigger 1: Stuck Detection (Wall Breach)
+            // Relaxed check: include slow movement while wanting to move
+            boolean effectivelyStuck = (Math.abs(dx) < 0.05f && Math.abs(moveDirection) > 0);
 
             // Update Stuck Timer
-            if (hitWall && currentAction == ACTION_ATTACK_FLAG) {
+            if (effectivelyStuck
+                    && (currentAction == ACTION_ATTACK_FLAG || (currentAction == ACTION_CHASE && target != null))) {
                 stuckTimer++;
             } else {
                 stuckTimer = 0;
@@ -76,55 +75,44 @@ public class EntityBomber extends EntityZombie {
 
             // Trigger 2: Reached target (very close)
             boolean reachedTarget = false;
-            // Access request: We need to know if we are in CHASE mode and close to target.
-            // Since target is private in EntityZombie, we rely on collision logic or
-            // distance check if we can.
-            // Actually, EntityZombie handles attacking. We want to explode INSTEAD of
-            // attacking.
-            // But we can't easily override just the attack logic without copy-pasting code.
-            // Workaround: Check distance to nearest player here.
 
-            // Find nearest player
-            List<PlayerConnection> players = sharedWorld.getPlayers();
-            Entity nearest = null;
-            float minDstSq = Float.MAX_VALUE;
-
-            for (PlayerConnection pc : players) {
+            // 1. Check distance to all players
+            for (PlayerConnection pc : sharedWorld.getPlayers()) {
                 Player p = pc.getPlayer();
-                if (p != null) {
-                    float dSq = (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y);
-                    if (dSq < minDstSq) {
-                        minDstSq = dSq;
-                        nearest = p;
+                if (p != null && !p.dead && !p.godmode && !p.debugMode) {
+                    float distanceX = Math.abs(p.x - x);
+                    float distanceY = Math.abs(p.y - y);
+                    // Strict X alignment (share 0.6 corridor), lenient Y (jumping/dropping)
+                    if (distanceX < 0.6f && distanceY < 3.5f) {
+                        reachedTarget = true;
+                        break;
                     }
                 }
             }
 
-            if (nearest != null) {
-                if (minDstSq < 2.0f * 2.0f) { // Within 2 blocks
-                    reachedTarget = true;
+            // 2. Check distance to Kingdom Flag
+            if (!reachedTarget) {
+                mc.sayda.mcraze.util.Int2 flagLoc = sharedWorld.getFlagLocation();
+                if (flagLoc != null) {
+                    float distanceX = Math.abs(flagLoc.x - x);
+                    float distanceY = Math.abs(flagLoc.y - y);
+                    // Same strict corridor check for the flag
+                    if (distanceX < 0.6f && distanceY < 3.5f) {
+                        reachedTarget = true;
+                    }
                 }
             }
 
-            // Trigger 3: Wall Breach (Smart Logic)
-            // Conditions:
-            // 1. Targeting Flag
-            // 2. Physically stuck (hitWall) for > 2 seconds (40 ticks)
-            // 3. Surrounded by a "Horde" (at least 2 other zombies nearby blocked by the
-            // same wall)
-            boolean breachWall = false;
+            // Trigger 3: Wall Breach or Overcrowding
+            boolean overCrowded = countNearbyZombies(sharedWorld, 2.0f) >= 8;
+            boolean breachWall = (stuckTimer > 40);
 
-            if (stuckTimer > 40) {
-                int nearbyZombies = countNearbyZombies(sharedWorld, 3.0f);
-                // Threshold: 3 total (Self + 2 others)
-                if (nearbyZombies >= 3) {
-                    breachWall = true;
-                    GameLogger.get()
-                            .info("Bomber initiating breach! (Stuck=" + stuckTimer + ", Horde=" + nearbyZombies + ")");
+            if (reachedTarget || breachWall || overCrowded) {
+                if (overCrowded && logger != null) {
+                    logger.info("Bomber overcrowding trigger activated at " + (int) x + "," + (int) y);
+                } else if (breachWall && logger != null) {
+                    logger.info("Bomber wall breach triggered at " + (int) x + "," + (int) y);
                 }
-            }
-
-            if (reachedTarget || breachWall) {
                 startExplosion(sharedWorld);
             }
         }
@@ -147,7 +135,7 @@ public class EntityBomber extends EntityZombie {
     private void startExplosion(SharedWorld sharedWorld) {
         isExploding = true;
         fuseTimer = 0;
-        sharedWorld.broadcastPacket(new PacketPlaySound("fuse.wav")); // Conceptual sound
+        sharedWorld.broadcastPacket(new PacketPlaySound("fuse.wav", x, y, 1.0f, 20.0f));
     }
 
     private void explode(SharedWorld sharedWorld) {
@@ -159,15 +147,15 @@ public class EntityBomber extends EntityZombie {
         int damage = 30;
 
         // Visuals
-        // TODO: Spawn explosion particles via packet
-        sharedWorld.broadcastPacket(new PacketPlaySound("explode.wav")); // Conceptual sound
+        sharedWorld.broadcastPacket(new mc.sayda.mcraze.network.packet.PacketExplosion(x, y, explosionRadius));
+        sharedWorld.broadcastPacket(new PacketPlaySound("explode.wav", x, y, 1.5f, 32.0f));
 
         // Deal Damage to Entities
         for (Entity e : sharedWorld.getEntityManager().getAll()) {
             if (e instanceof LivingEntity && e != this) {
                 float distSq = (e.x - x) * (e.x - x) + (e.y - y) * (e.y - y);
                 if (distSq < explosionRadius * explosionRadius) {
-                    ((LivingEntity) e).takeDamage(damage);
+                    ((LivingEntity) e).takeDamage(damage, mc.sayda.mcraze.entity.DamageType.PHYSICAL);
 
                     // Knockback
                     float dx = e.x - x;
@@ -193,8 +181,62 @@ public class EntityBomber extends EntityZombie {
                     if (distSq < explosionRadius * explosionRadius) {
                         // Don't break bedrock or unbreakable blocks
                         if (world.isBreakable(i, j)) {
-                            // Probabilistic breaking based on distance? Or just clear it.
-                            // Simple clear for now.
+                            // [NEW] Check for Containers (Chest/Furnace) and drop items
+                            mc.sayda.mcraze.world.tile.Tile tile = world.getTile(i, j);
+                            if (tile != null && tile.type != null) {
+                                if (tile.type.name == Constants.TileID.CHEST) {
+                                    // Drop Chest Contents
+                                    mc.sayda.mcraze.world.storage.ChestData chest = world.getChest(i, j);
+                                    if (chest != null) {
+                                        for (int xx = 0; xx < 10; xx++) {
+                                            for (int yy = 0; yy < 3; yy++) {
+                                                mc.sayda.mcraze.item.InventoryItem item = chest.items[xx][yy];
+                                                if (item != null && !item.isEmpty()) {
+                                                    mc.sayda.mcraze.item.Item drop = item.getItem().clone();
+                                                    drop.x = i + 0.5f;
+                                                    drop.y = j + 0.5f;
+                                                    drop.dx = (this.random.nextFloat() - 0.5f) * 0.1f;
+                                                    drop.dy = -0.1f;
+                                                    sharedWorld.addEntity(drop);
+                                                }
+                                            }
+                                        }
+                                        // Clear data
+                                        for (int xx = 0; xx < 10; xx++) {
+                                            for (int yy = 0; yy < 3; yy++) {
+                                                chest.items[xx][yy] = new mc.sayda.mcraze.item.InventoryItem(null);
+                                            }
+                                        }
+                                    }
+                                } else if (tile.type.name == Constants.TileID.FURNACE
+                                        || tile.type.name == Constants.TileID.FURNACE_LIT) {
+                                    // Drop Furnace Contents
+                                    mc.sayda.mcraze.world.storage.FurnaceData furnace = world.getFurnace(i, j);
+                                    if (furnace != null) {
+                                        for (int xx = 0; xx < 3; xx++) {
+                                            for (int yy = 0; yy < 2; yy++) {
+                                                mc.sayda.mcraze.item.InventoryItem item = furnace.items[xx][yy];
+                                                if (item != null && !item.isEmpty()) {
+                                                    mc.sayda.mcraze.item.Item drop = item.getItem().clone();
+                                                    drop.x = i + 0.5f;
+                                                    drop.y = j + 0.5f;
+                                                    drop.dx = (this.random.nextFloat() - 0.5f) * 0.1f;
+                                                    drop.dy = -0.1f;
+                                                    sharedWorld.addEntity(drop);
+                                                }
+                                            }
+                                        }
+                                        // Clear data
+                                        for (int xx = 0; xx < 3; xx++) {
+                                            for (int yy = 0; yy < 2; yy++) {
+                                                furnace.items[xx][yy] = new mc.sayda.mcraze.item.InventoryItem(null);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Normal breaking logic (drops block item + clears tile)
                             sharedWorld.mobBreakBlock(i, j, this);
                         }
                     }
@@ -250,5 +292,21 @@ public class EntityBomber extends EntityZombie {
                 graphics.drawImage(sprite, pos.x + drawW, pos.y, -drawW, drawH, tint);
             }
         }
+    }
+
+    public boolean isExploding() {
+        return isExploding;
+    }
+
+    public int getFuseTimer() {
+        return fuseTimer;
+    }
+
+    public void setExploding(boolean exploding) {
+        this.isExploding = exploding;
+    }
+
+    public void setFuseTimer(int fuseTimer) {
+        this.fuseTimer = fuseTimer;
     }
 }

@@ -18,6 +18,59 @@ import mc.sayda.mcraze.util.Template;
 public class Item extends Entity implements Cloneable {
 	private static final long serialVersionUID = 1L;
 
+	/**
+	 * Represents a single visual layer of an item, allowing for tinted overlays
+	 * (e.g. potion bottles with colored liquid).
+	 */
+	public static class SpriteLayer implements java.io.Serializable {
+		private static final long serialVersionUID = 1L;
+		public String spriteRef;
+		public mc.sayda.mcraze.graphics.Color tint;
+		public transient mc.sayda.mcraze.graphics.Sprite sprite;
+
+		public SpriteLayer(String spriteRef, mc.sayda.mcraze.graphics.Color tint) {
+			this.spriteRef = spriteRef;
+			this.tint = tint;
+		}
+	}
+
+	public java.util.List<SpriteLayer> layers = new java.util.ArrayList<>();
+
+	/**
+	 * Renders all layers of the item in order.
+	 * If no layers are defined, falls back to the default sprite.
+	 */
+	public void drawLayers(mc.sayda.mcraze.graphics.GraphicsHandler g, int x, int y, int width, int height) {
+		drawLayers(g, x, y, width, height, null);
+	}
+
+	public void drawLayers(mc.sayda.mcraze.graphics.GraphicsHandler g, int x, int y, int width, int height,
+			mc.sayda.mcraze.graphics.Color tintOverride) {
+		if (layers == null || layers.isEmpty()) {
+			if (sprite != null) {
+				if (tintOverride != null) {
+					sprite.draw(g, x, y, width, height, tintOverride);
+				} else {
+					sprite.draw(g, x, y, width, height);
+				}
+			}
+			return;
+		}
+
+		for (SpriteLayer layer : layers) {
+			if (layer.sprite == null && layer.spriteRef != null) {
+				layer.sprite = mc.sayda.mcraze.graphics.SpriteStore.get().getSprite(layer.spriteRef, layer.tint);
+			}
+			if (layer.sprite != null) {
+				if (tintOverride != null) {
+					layer.sprite.draw(g, x, y, width, height, tintOverride);
+				} else {
+					layer.sprite.draw(g, x, y, width, height);
+				}
+			}
+		}
+	}
+
 	public String itemId;
 	public String name;
 	public Template template;
@@ -28,6 +81,10 @@ public class Item extends Entity implements Cloneable {
 	// Class Requirement (null = available to all)
 	public mc.sayda.mcraze.player.specialization.PlayerClass requiredClass;
 	public mc.sayda.mcraze.player.specialization.SpecializationPath requiredPath; // [NEW] Path restriction
+	public String hexColor; // [NEW] Optional hex color for sprite tinting (potions)
+	public String remainsItemId; // [NEW] Item ID of what remains after use (e.g. "bucket", "bottle")
+	public boolean isGrowable = false; // [NEW] Can it be planted in a pot?
+	public int growthTime = 0; // [NEW] Ticks needed to grow
 
 	// Fuel properties (null/0 if not fuel)
 	public int fuelBurnTime = 0; // In ticks
@@ -57,6 +114,10 @@ public class Item extends Entity implements Cloneable {
 			Item cloned = (Item) super.clone();
 			// Reset spawn time for cloned items (e.g., when picking up from inventory)
 			cloned.spawnTime = System.currentTimeMillis();
+			// Copy complex/new fields
+			cloned.remainsItemId = this.remainsItemId;
+			cloned.isGrowable = this.isGrowable;
+			cloned.growthTime = this.growthTime;
 			// isMastercrafted is preserved by super.clone()
 			return cloned;
 		} catch (CloneNotSupportedException e) {

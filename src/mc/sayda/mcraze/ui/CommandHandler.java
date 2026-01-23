@@ -131,7 +131,8 @@ public class CommandHandler {
     private void registerCommands() {
         // Commands with arguments
         commandArguments.put("/gamerule",
-                new String[] { "keepInventory", "daylightCycle", "spelunking", "mobGriefing", "pvp" });
+                new String[] { "keepInventory", "daylightCycle", "spelunking", "darkness", "daylightSpeed",
+                        "mobGriefing", "pvp", "insomnia" });
         commandArguments.put("/time", new String[] { "set", "add" });
         commandArguments.put("/give", new String[] {}); // Item names are too many to list
         commandArguments.put("/summon", new String[] {}); // Item names are too many to list
@@ -149,6 +150,7 @@ public class CommandHandler {
         commandArguments.put("/heal", new String[] {});
         commandArguments.put("/fly", new String[] {});
         commandArguments.put("/spawn", new String[] {});
+        commandArguments.put("/home", new String[] {}); // [NEW] Teleport to bed spawn
         commandArguments.put("/setspawn", new String[] {});
         commandArguments.put("/ping", new String[] {});
         commandArguments.put("/template", new String[] {});
@@ -305,6 +307,9 @@ public class CommandHandler {
             case "gamemode":
                 handleGamemode(parts);
                 break;
+            case "home":
+                handleHome(executingPlayer);
+                break;
             default:
                 sendMessage("Unknown command: /" + command, new Color(255, 100, 100));
                 sendMessage("Type /help for a list of commands", Color.gray);
@@ -360,9 +365,12 @@ public class CommandHandler {
             sendMessage("Available rules:", Color.gray);
             sendMessage("  keepInventory - Keep items on death (true/false)", Color.gray);
             sendMessage("  daylightCycle - Enable day/night cycle (true/false)", Color.gray);
-            sendMessage("  spelunking - Disable darkness (true/false)", Color.gray);
+            sendMessage("  daylightSpeed - Length of day in ticks (default 40000)", Color.gray);
+            sendMessage("  spelunking - Disable darkness entirely (true/false)", Color.gray);
+            sendMessage("  darkness - Enable pitch-black nights (true/false)", Color.gray);
             sendMessage("  mobGriefing - Enable mob block destruction (true/false)", Color.gray);
             sendMessage("  pvp - Enable player vs player damage (true/false)", Color.gray);
+            sendMessage("  insomnia - Disable sleeping at night (true/false)", Color.gray);
             return;
         }
 
@@ -380,65 +388,94 @@ public class CommandHandler {
                 case "spelunking":
                     sendMessage("spelunking = " + server.world.spelunking, Color.green);
                     break;
+                case "darkness":
+                    sendMessage("darkness = " + server.world.darkness, Color.green);
+                    break;
+                case "daylightspeed":
+                    sendMessage("daylightSpeed = " + server.world.daylightSpeed, Color.green);
+                    break;
                 case "mobgriefing":
                     sendMessage("mobGriefing = " + server.world.mobGriefing, Color.green);
                     break;
                 case "pvp":
                     sendMessage("pvp = " + server.world.pvp, Color.green);
                     break;
+                case "insomnia":
+                    sendMessage("insomnia = " + server.world.insomnia, Color.green);
+                    break;
                 default:
                     sendMessage("Unknown gamerule: " + rule, new Color(255, 100, 100));
             }
             return;
         }
-
         // Set value
         String value = parts[2].toLowerCase();
-        boolean boolValue;
-
-        if (value.equals("true") || value.equals("1")) {
-            boolValue = true;
-        } else if (value.equals("false") || value.equals("0")) {
-            boolValue = false;
-        } else {
-            sendMessage("Invalid value. Use: true/false or 1/0", new Color(255, 100, 100));
-            return;
-        }
 
         switch (rule) {
             case "keepinventory":
-                server.world.keepInventory = boolValue;
-                sendMessage("Set keepInventory to " + boolValue, Color.green);
+                server.world.keepInventory = parseBoolean(value);
+                sendMessage("Set keepInventory to " + server.world.keepInventory, Color.green);
                 if (sharedWorld != null)
-                    sharedWorld.broadcastGamerules(); // Sync to all clients
+                    sharedWorld.broadcastGamerules();
                 break;
             case "daylightcycle":
-                server.world.daylightCycle = boolValue;
-                sendMessage("Set daylightCycle to " + boolValue, Color.green);
+                server.world.daylightCycle = parseBoolean(value);
+                sendMessage("Set daylightCycle to " + server.world.daylightCycle, Color.green);
                 if (sharedWorld != null)
-                    sharedWorld.broadcastGamerules(); // Sync to all clients
+                    sharedWorld.broadcastGamerules();
                 break;
             case "spelunking":
-                server.world.spelunking = boolValue;
-                sendMessage("Set spelunking to " + boolValue, Color.green);
+                server.world.spelunking = parseBoolean(value);
+                sendMessage("Set spelunking to " + server.world.spelunking, Color.green);
                 if (sharedWorld != null)
-                    sharedWorld.broadcastGamerules(); // Sync to all clients
+                    sharedWorld.broadcastGamerules();
+                break;
+            case "darkness":
+                server.world.darkness = parseBoolean(value);
+                sendMessage("Set darkness to " + server.world.darkness, Color.green);
+                if (sharedWorld != null)
+                    sharedWorld.broadcastGamerules();
+                break;
+            case "daylightspeed":
+                try {
+                    int speed = Integer.parseInt(value);
+                    if (speed < 100) {
+                        sendMessage("daylightSpeed must be at least 100!", new Color(255, 100, 100));
+                    } else {
+                        server.world.daylightSpeed = speed;
+                        sendMessage("Set daylightSpeed to " + speed, Color.green);
+                        if (sharedWorld != null)
+                            sharedWorld.broadcastGamerules();
+                    }
+                } catch (NumberFormatException e) {
+                    sendMessage("Invalid number for daylightSpeed: " + value, new Color(255, 100, 100));
+                }
                 break;
             case "mobgriefing":
-                server.world.mobGriefing = boolValue;
-                sendMessage("Set mobGriefing to " + boolValue, Color.green);
+                server.world.mobGriefing = parseBoolean(value);
+                sendMessage("Set mobGriefing to " + server.world.mobGriefing, Color.green);
                 if (sharedWorld != null)
-                    sharedWorld.broadcastGamerules(); // Sync to all clients
+                    sharedWorld.broadcastGamerules();
                 break;
             case "pvp":
-                server.world.pvp = boolValue;
-                sendMessage("Set pvp to " + boolValue, Color.green);
+                server.world.pvp = parseBoolean(value);
+                sendMessage("Set pvp to " + server.world.pvp, Color.green);
                 if (sharedWorld != null)
-                    sharedWorld.broadcastGamerules(); // Sync to all clients
+                    sharedWorld.broadcastGamerules();
+                break;
+            case "insomnia":
+                server.world.insomnia = parseBoolean(value);
+                sendMessage("Set insomnia to " + server.world.insomnia, Color.green);
+                if (sharedWorld != null)
+                    sharedWorld.broadcastGamerules();
                 break;
             default:
                 sendMessage("Unknown gamerule: " + rule, new Color(255, 100, 100));
         }
+    }
+
+    private boolean parseBoolean(String value) {
+        return value.equals("true") || value.equals("1");
     }
 
     private void handleTime(String[] parts) {
@@ -486,7 +523,7 @@ public class CommandHandler {
             if (executingPlayer.dead) {
                 sendMessage("You are already dead!", new Color(255, 100, 100));
             } else {
-                executingPlayer.takeDamage(executingPlayer.hitPoints);
+                executingPlayer.takeDamage(executingPlayer.hitPoints, mc.sayda.mcraze.entity.DamageType.TRUE_DAMAGE);
                 // Force immediate death processing (don't wait for tick)
                 if (executingPlayer.hitPoints <= 0 && !executingPlayer.dead) {
                     executingPlayer.dead = true;
@@ -670,7 +707,7 @@ public class CommandHandler {
             }
 
             if (executingPlayer != null) {
-                executingPlayer.speedMultiplier = multiplier;
+                executingPlayer.baseSpeedMultiplier = multiplier;
                 // Broadcast entity update immediately to all clients
                 sharedWorld.broadcastEntityUpdate();
                 sendMessage("Set speed to " + multiplier + "x for " + executingPlayer.username, Color.green);
@@ -754,7 +791,26 @@ public class CommandHandler {
         executingPlayer.dy = 0;
 
         sharedWorld.broadcastEntityUpdate();
-        sendMessage("Teleported to spawn", Color.green);
+        sendMessage("Teleported to world spawn", Color.green);
+    }
+
+    private void handleHome(Player executingPlayer) {
+        if (executingPlayer == null || sharedWorld == null)
+            return;
+
+        if (executingPlayer.spawnX != -1 && executingPlayer.spawnY != -1) {
+            // Coordinate system starts with head at top-left. Offset y by -1 to prevent
+            // spawning inside the bed.
+            executingPlayer.x = executingPlayer.spawnX;
+            executingPlayer.y = executingPlayer.spawnY - 1.75f;
+            executingPlayer.dx = 0;
+            executingPlayer.dy = 0;
+
+            sharedWorld.broadcastEntityUpdate();
+            sendMessage("Teleported to your bed spawn point", Color.green);
+        } else {
+            sendMessage("No spawn point set! Sleep in a bed to set one.", new Color(255, 100, 100));
+        }
     }
 
     private void handlePing(String[] parts, Player executingPlayer) {
@@ -1331,7 +1387,8 @@ public class CommandHandler {
             }
 
             // Always update speed
-            executingPlayer.speedMultiplier = speed;
+            executingPlayer.baseSpeedMultiplier = speed;
+            executingPlayer.speedMultiplier = speed; // Instant update
 
             // Sync
             sharedWorld.broadcastEntityUpdate();
@@ -1351,6 +1408,7 @@ public class CommandHandler {
 
             executingPlayer.flying = false;
             executingPlayer.noclip = false;
+            executingPlayer.baseSpeedMultiplier = 1.0f;
             executingPlayer.speedMultiplier = 1.0f;
             server.world.spelunking = false;
 
@@ -1363,13 +1421,14 @@ public class CommandHandler {
             executingPlayer.debugMode = true;
             executingPlayer.flying = true;
             executingPlayer.noclip = true;
-            executingPlayer.speedMultiplier = 10.0f;
+            executingPlayer.baseSpeedMultiplier = 5.0f;
+            executingPlayer.speedMultiplier = 5.0f;
             server.world.spelunking = true;
 
             sharedWorld.broadcastEntityUpdate();
             sharedWorld.broadcastGamerules();
 
-            sendMessage("Debug mode enabled (speed 10x)", Color.green);
+            sendMessage("Debug mode enabled (speed 5x)", Color.green);
         }
     }
 
@@ -1430,9 +1489,12 @@ public class CommandHandler {
             case "points":
                 handleClassPoints(parts, executingPlayer);
                 break;
+            case "essence":
+                handleClassEssence(parts, executingPlayer);
+                break;
             default:
                 sendMessage("Unknown subcommand: " + subCommand, new Color(255, 100, 100));
-                sendMessage("Use: /class, /class set, /class reset, /class points", Color.gray);
+                sendMessage("Use: /class, /class set, /class reset, /class points, /class essence", Color.gray);
         }
     }
 
@@ -1536,6 +1598,75 @@ public class CommandHandler {
             }
         } else {
             sendMessage("Usage: /class points, /class points set <amount>, /class points add <amount>",
+                    new Color(255, 200, 100));
+        }
+    }
+
+    private void handleClassEssence(String[] parts, Player executingPlayer) {
+        // /class essence - Show essence
+        if (parts.length == 2) {
+            sendMessage("Essence: " + executingPlayer.essence + "/" + executingPlayer.maxEssence, Color.white);
+            return;
+        }
+
+        String action = parts[2].toLowerCase();
+
+        // /class essence <set|add> <amount> [user]
+        if (parts.length >= 4) {
+            Player target = executingPlayer;
+
+            String valOrUser = parts[3];
+            int amount = 0;
+
+            // Try to parse as amount first (Self target)
+            try {
+                amount = Integer.parseInt(valOrUser);
+                // It is a number, so target is self
+            } catch (NumberFormatException e) {
+                // Not a number, treat as username
+                String username = valOrUser;
+                // Find player
+                boolean found = false;
+                if (sharedWorld != null) {
+                    for (mc.sayda.mcraze.server.PlayerConnection pc : sharedWorld.getPlayers()) {
+                        if (pc.getPlayer() != null && pc.getPlayer().username.equalsIgnoreCase(username)) {
+                            target = pc.getPlayer();
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if (!found) {
+                    sendMessage("Player not found: " + username, new Color(255, 100, 100));
+                    return;
+                }
+
+                if (parts.length < 5) {
+                    sendMessage("Usage: /class essence " + action + " <user> <amount>", new Color(255, 100, 100));
+                    return;
+                }
+                try {
+                    amount = Integer.parseInt(parts[4]);
+                } catch (NumberFormatException ex) {
+                    sendMessage("Invalid amount: " + parts[4], new Color(255, 100, 100));
+                    return;
+                }
+            }
+
+            if (action.equals("set")) {
+                target.essence = Math.max(0, Math.min(target.maxEssence, amount));
+                sendMessage("Essence set to " + target.essence + " for " + target.username, Color.green);
+                sharedWorld.broadcastEntityUpdate(); // Sync essence
+            } else if (action.equals("add")) {
+                target.essence = Math.max(0, Math.min(target.maxEssence, target.essence + amount));
+                sendMessage("Essence set to " + target.essence + " for " + target.username, Color.green);
+                sharedWorld.broadcastEntityUpdate(); // Sync essence
+            } else {
+                sendMessage("Unknown action: " + action, new Color(255, 100, 100));
+            }
+
+        } else {
+            sendMessage("Usage: /class essence, /class essence set <amount>, /class essence <set|add> <user> <amount>",
                     new Color(255, 200, 100));
         }
     }

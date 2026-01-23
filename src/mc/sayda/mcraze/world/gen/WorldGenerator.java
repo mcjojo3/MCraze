@@ -111,8 +111,13 @@ public class WorldGenerator {
 		return t * t * t * (t * (t * 6 - 15) + 10);
 	}
 
+	private static final int DUNGEON_MAX_Y = 100;
+	private static final int DUNGEON_RADIUS = 5;
+
+	private static final mc.sayda.mcraze.logging.GameLogger logger = mc.sayda.mcraze.logging.GameLogger.get();
+
 	/**
-	 * Linear interpolation
+	 * Generate a full world from scratch
 	 */
 	private static double lerp(double t, double a, double b) {
 		return a + t * (b - a);
@@ -459,14 +464,6 @@ public class WorldGenerator {
 			addTemplate(world, TileTemplate.skyblockIsland, islandPos);
 
 			// Populate the starter chest
-			// Based on calculation: Chest is at column 7, row 2 relative to template origin
-			// Template origin is at (centerX - 4, centerY - 0)
-			// Wait, addTemplate uses: x = position.x - spawnY + i
-			// our spawnY is 4.
-			// Chest is at index i=7, j=2
-			// World X = centerX - 4 + 7 = centerX + 3
-			// World Y = centerY - 0 + 2 = centerY + 2
-
 			if (worldObj != null) {
 				int chestX = centerX + 7;
 				int chestY = centerY - 2;
@@ -880,16 +877,16 @@ public class WorldGenerator {
 								slot++;
 							}
 
-							if (GameLogger.get() != null && GameLogger.get().isDebugEnabled()) {
-								GameLogger.get().debug("WorldGenerator: Placed dungeon with loot at (" + dungeonX + ", "
+							if (logger != null && logger.isDebugEnabled()) {
+								logger.debug("WorldGenerator: Placed dungeon with loot at (" + dungeonX + ", "
 										+ dungeonY + ") - " + loot1.size() + " items in chest 1, " + loot2.size()
 										+ " items in chest 2");
 							}
 						} else {
-							if (GameLogger.get() != null && GameLogger.get().isDebugEnabled()) {
-								GameLogger.get()
-										.debug("WorldGenerator: Placed dungeon at (" + dungeonX + ", " + dungeonY
-												+ ")");
+							if (logger != null && logger.isDebugEnabled()) {
+								logger
+										.debug("WorldGenerator: Placed dungeon (Empty) at (" + dungeonX + ", "
+												+ dungeonY + ")");
 							}
 						}
 						break; // Successfully placed, move to next dungeon

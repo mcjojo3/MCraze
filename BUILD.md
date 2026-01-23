@@ -120,8 +120,7 @@ Creates a native Windows installer (.msi) with bundled JRE.
 
 1. **Compiled classes** from `src/`
 2. **Resources**:
-   - `src/sprites/` - Game textures
-   - `src/sounds/` - Music and sound effects
+   - `src/assets/` - Game textures, Music and sound effects
    - `src/items/` - Item definitions (items.json)
 3. **Dependencies** (uber-JAR only):
    - gson-2.1.jar (JSON parsing)

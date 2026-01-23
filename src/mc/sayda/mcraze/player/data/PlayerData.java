@@ -46,6 +46,14 @@ public class PlayerData implements Serializable {
 	public float dx;
 	public float dy;
 	public boolean facingRight;
+	public int spawnX = -1; // -1 means no spawn set
+	public int spawnY = -1;
+
+	// Stats
+	public int mana;
+	public int maxMana;
+	public int essence;
+	public int maxEssence;
 
 	// Inventory data (flattened 2D array: 10 columns x 7 rows = 70 slots)
 	public String[] inventoryItemIds; // Item IDs
@@ -53,6 +61,12 @@ public class PlayerData implements Serializable {
 	public int[] inventoryToolUses; // Tool durability
 	public boolean[] inventoryItemMastercrafted; // [NEW] Mastercrafted status
 	public int inventoryHotbarIdx; // Selected hotbar slot
+
+	// Equipment data (Size 10: Head, Chest, Legs, Trinket, etc.)
+	public String[] equipmentItemIds;
+	public int[] equipmentItemCounts;
+	public int[] equipmentToolUses;
+	public boolean[] equipmentItemMastercrafted;
 
 	// Crafting grid size (2 = normal, 3 = workbench)
 	public int tableSizeAvailable = 2;
@@ -98,6 +112,10 @@ public class PlayerData implements Serializable {
 		this.dx = 0;
 		this.dy = 0;
 		this.facingRight = true;
+		this.essence = 0;
+		this.maxEssence = 100;
+		this.mana = 0;
+		this.maxMana = 0;
 
 		// Initialize empty inventory (10x7 grid = 70 slots)
 		int totalSlots = 70;

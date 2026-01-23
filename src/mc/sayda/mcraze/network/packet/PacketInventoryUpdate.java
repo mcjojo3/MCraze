@@ -51,6 +51,12 @@ public class PacketInventoryUpdate extends ServerPacket {
 	public int holdingToolUse; // Tool durability (0 if not a tool)
 	public boolean holdingMastercrafted; // [NEW] Mastercrafted status
 
+	// Equipment synchronization
+	public String[] equipmentItemIds;
+	public int[] equipmentItemCounts;
+	public int[] equipmentToolUses;
+	public boolean[] equipmentMastercrafted;
+
 	public PacketInventoryUpdate() {
 	}
 
@@ -94,6 +100,17 @@ public class PacketInventoryUpdate extends ServerPacket {
 		totalSize += 4; // holdingToolUse
 		totalSize += 1; // holdingMastercrafted
 
+		// Add equipment size
+		int equipCount = (equipmentItemIds != null) ? equipmentItemIds.length : 0;
+		totalSize += 4; // equipCount
+		for (int i = 0; i < equipCount; i++) {
+			String equipId = (equipmentItemIds[i] != null) ? equipmentItemIds[i] : "";
+			totalSize += 2 + equipId.getBytes(StandardCharsets.UTF_8).length;
+			totalSize += 4; // count
+			totalSize += 4; // toolUse
+			totalSize += 1; // mastercrafted
+		}
+
 		ByteBuffer buf = ByteBuffer.allocate(totalSize);
 
 		// Write UUID
@@ -134,6 +151,19 @@ public class PacketInventoryUpdate extends ServerPacket {
 		buf.putInt(holdingCount);
 		buf.putInt(holdingToolUse);
 		buf.put((byte) (holdingMastercrafted ? 1 : 0));
+
+		// Write Equipment
+		equipCount = (equipmentItemIds != null) ? equipmentItemIds.length : 0;
+		buf.putInt(equipCount);
+		for (int i = 0; i < equipCount; i++) {
+			String equipId = (equipmentItemIds[i] != null) ? equipmentItemIds[i] : "";
+			byte[] equipIdBytes = equipId.getBytes(StandardCharsets.UTF_8);
+			buf.putShort((short) equipIdBytes.length);
+			buf.put(equipIdBytes);
+			buf.putInt(equipmentItemCounts[i]);
+			buf.putInt(equipmentToolUses[i]);
+			buf.put((byte) (equipmentMastercrafted[i] ? 1 : 0));
+		}
 
 		return buf.array();
 	}
@@ -190,6 +220,24 @@ public class PacketInventoryUpdate extends ServerPacket {
 		packet.holdingCount = buf.getInt();
 		packet.holdingToolUse = buf.getInt();
 		packet.holdingMastercrafted = buf.get() == 1;
+
+		// Read Equipment
+		int equipCount = buf.getInt();
+		packet.equipmentItemIds = new String[equipCount];
+		packet.equipmentItemCounts = new int[equipCount];
+		packet.equipmentToolUses = new int[equipCount];
+		packet.equipmentMastercrafted = new boolean[equipCount];
+
+		for (int i = 0; i < equipCount; i++) {
+			short equipIdLen = buf.getShort();
+			byte[] equipIdBytes = new byte[equipIdLen];
+			buf.get(equipIdBytes);
+			String equipId = new String(equipIdBytes, StandardCharsets.UTF_8);
+			packet.equipmentItemIds[i] = equipId.isEmpty() ? null : equipId;
+			packet.equipmentItemCounts[i] = buf.getInt();
+			packet.equipmentToolUses[i] = buf.getInt();
+			packet.equipmentMastercrafted[i] = buf.get() == 1;
+		}
 
 		return packet;
 	}

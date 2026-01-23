@@ -22,8 +22,10 @@ public class Inventory implements java.io.Serializable, Cloneable {
 	private static final long serialVersionUID = 1L;
 
 	public InventoryItem[][] inventoryItems;
+	public InventoryItem[] equipment; // Size 4: Head, Chest, Legs, Trinket
 	public int tableSizeAvailable = 2;
 	public int hotbarIdx = 0;
+	private final mc.sayda.mcraze.logging.GameLogger logger = mc.sayda.mcraze.logging.GameLogger.get();
 
 	private int maxCount = 64;
 	private int playerRow;
@@ -46,6 +48,13 @@ public class Inventory implements java.io.Serializable, Cloneable {
 				inventoryItems[i][j] = new InventoryItem(null);
 			}
 		}
+
+		// Initialize equipment slots
+		equipment = new InventoryItem[10];
+		for (int i = 0; i < 10; i++) {
+			equipment[i] = new InventoryItem(null);
+		}
+
 		hotbarIdx = 0;
 		playerRow = height + craftingHeight - 1;
 		this.craftingHeight = craftingHeight;
@@ -114,6 +123,15 @@ public class Inventory implements java.io.Serializable, Cloneable {
 
 		if (mousePos.x < x || mousePos.x > x + panelWidth
 				|| mousePos.y < y || mousePos.y > y + panelHeight) {
+			// Mouse left inventory - handle drop if clicked
+			if ((leftClicked || rightClicked) && !holding.isEmpty()) {
+				if (connection != null) {
+					// Virtual X = -2 means Drop holding item
+					mc.sayda.mcraze.network.packet.PacketInventoryAction packet = new mc.sayda.mcraze.network.packet.PacketInventoryAction(
+							-2, 0, leftClicked, false, false);
+					connection.sendPacket(packet);
+				}
+			}
 			// Mouse left inventory - cancel any active drag
 			dragHandler.cancelDrag(connection);
 			return false;
@@ -145,8 +163,8 @@ public class Inventory implements java.io.Serializable, Cloneable {
 		// Normal click handling (when not actively dragging)
 		if (position != null && !dragHandler.isDragging() && (leftClicked || rightClicked)) {
 			if (connection == null) {
-				if (GameLogger.get() != null)
-					GameLogger.get().error("Inventory has no connection!");
+				if (logger != null)
+					logger.error("Inventory has no connection!");
 				return true;
 			}
 
@@ -177,12 +195,14 @@ public class Inventory implements java.io.Serializable, Cloneable {
 
 		// Check if clicking on craft output slot
 		if (mousePos.x >= x && mousePos.x <= x + tileSize && mousePos.y >= y && mousePos.y <= y + tileSize
-				&& (leftClicked || rightClicked)) {
+				&& (leftClicked || rightClicked))
+
+		{
 
 			// Send craft packet to server (ALL modes - integrated or dedicated server)
 			if (connection == null) {
-				if (GameLogger.get() != null)
-					GameLogger.get().error("Inventory has no connection! This should NEVER happen.");
+				if (logger != null)
+					logger.error("Inventory has no connection! This should NEVER happen.");
 				return true;
 			}
 
@@ -195,12 +215,38 @@ public class Inventory implements java.io.Serializable, Cloneable {
 			return true;
 		}
 
-		// NOTE: Crafting preview calculation is done SERVER-SIDE for all modes
-		// The server calculates what CAN be crafted and sends it via
-		// PacketInventoryUpdate
-		// Client just displays what the server tells it
+		// Check Equipment Slots (Left of inventory)
+		// 2 Columns of 5
+		int equipX = screenWidth / 2 - panelWidth / 2 - (tileSize + seperation) * 3;
+		int equipY = screenHeight / 2 - panelHeight / 2;
+
+		for (int i = 0; i < equipment.length; i++) {
+			int col = i % 2;
+			int row = i / 2;
+			int slotX = equipX + col * (tileSize + seperation);
+			int slotY = equipY + row * (tileSize + seperation);
+
+			if (mousePos.x >= slotX && mousePos.x <= slotX + tileSize &&
+					mousePos.y >= slotY && mousePos.y <= slotY + tileSize) {
+
+				// Handle interact with equipment slot
+				// Virtual X = -1 is handled by server as Equipment Swap
+				if (dragHandler.isDragging()) {
+					// Drag support can be added later
+				} else if (leftClicked || rightClicked) {
+					// Send "Special" slot action: x = -1 means equipment, y = slot index
+					if (connection != null) {
+						mc.sayda.mcraze.network.packet.PacketInventoryAction packet = new mc.sayda.mcraze.network.packet.PacketInventoryAction(
+								-1, i, leftClicked, false, shiftPressed);
+						connection.sendPacket(packet);
+					}
+				}
+				return true;
+			}
+		}
 
 		return true;
+
 	}
 
 	public void setVisible(boolean visible) {
@@ -227,13 +273,20 @@ public class Inventory implements java.io.Serializable, Cloneable {
 				cloned.inventoryItems[i] = new InventoryItem[inventoryItems[i].length];
 				for (int j = 0; j < inventoryItems[i].length; j++) {
 					if (inventoryItems[i][j] != null) {
-						cloned.inventoryItems[i][j] = inventoryItems[i][j].clone();
+						cloned.inventoryItems[i][j] = this.inventoryItems[i][j].clone();
 					}
 				}
 			}
+
+			// Clone equipment
+			cloned.equipment = new InventoryItem[this.equipment.length];
+			for (int i = 0; i < this.equipment.length; i++) {
+				cloned.equipment[i] = this.equipment[i].clone();
+			}
+
 			// Clone simple fields
-			cloned.holding = holding.clone();
-			cloned.craftable = craftable.clone();
+			cloned.holding = this.holding.clone();
+			cloned.craftable = this.craftable.clone();
 			// clickPos is transitient/input related, reset it or clone
 			cloned.clickPos = new Int2(0, 0);
 			return cloned;

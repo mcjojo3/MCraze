@@ -1,3 +1,15 @@
+/*
+ * Copyright 2026 SaydaGames (mc_jojo3)
+ *
+ * This file is part of MCraze
+ *
+ * MCraze is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * MCraze is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MCraze. If not, see http://www.gnu.org/licenses/.
+ */
+
 package mc.sayda.mcraze.player.specialization;
 
 /**
@@ -26,7 +38,7 @@ public enum PassiveEffectType {
     FORGE_MASTER,
     REINFORCED_CRAFT,
     SALVAGER,
-    EFFICIENT_SMELTING,
+    METALLURGY,
 
     // ============== ENGINEER (Marksman, Trap Master, Lumberjack) ==============
     // Marksman Path
@@ -37,8 +49,8 @@ public enum PassiveEffectType {
     RAPID_FIRE,
 
     // Trap Master Path
-    TRAP_TABLE,
-    TRAP_ENGINEER,
+    TRAP_MECHANISMS,
+    SPIKE_SPECIALIST,
     OWNER_SECURITY,
     AUTO_DEPLOY,
     FIELD_CONTROL,
@@ -56,7 +68,7 @@ public enum PassiveEffectType {
     ARCANE_INFUSION,
     MANA_SURGE,
     CRYSTAL_RESONANCE,
-    ELEMENTAL_MASTERY,
+    MANA_ECHO,
     MANA_BURN,
 
     // Guardian Angel Path
@@ -67,7 +79,7 @@ public enum PassiveEffectType {
     DIVINE_INTERVENTION,
 
     // Alchemist Path
-    ALCHEMISTS_BLESSING,
+    ALCHEMIST_BLESSING,
     ESSENCE_COLLECTOR,
     POTION_MASTER,
     EFFICIENT_BREWING,
@@ -78,7 +90,7 @@ public enum PassiveEffectType {
     GREEN_THUMB,
     MASTER_FARMER,
     IRRIGATED_SOIL,
-    NATURES_BLESSING,
+    PHOTOSYNTHESIS,
     BOUNTIFUL_YIELD,
 
     // Beast Tamer Path
@@ -90,8 +102,8 @@ public enum PassiveEffectType {
 
     // Chef Path
     BOUNTIFUL_HARVEST,
-    MASTER_CHEF,
-    SPRINT_EATER,
+    COMFORT_FOOD,
+    FAST_METABOLISM,
     FEAST_PREPARATION,
     ANIMAL_WHISPERER;
 

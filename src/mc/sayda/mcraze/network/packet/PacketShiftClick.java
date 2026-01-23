@@ -33,7 +33,8 @@ public class PacketShiftClick extends ClientPacket {
     public enum ContainerType {
         PLAYER_INVENTORY, // Regular inventory (no container open)
         CHEST,
-        FURNACE
+        FURNACE,
+        ALCHEMY
     }
 
     public PacketShiftClick() {

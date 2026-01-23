@@ -30,6 +30,7 @@ public class ServerTickThread extends Thread {
 	private final GameStateManager stateManager;
 	private volatile boolean running = true;
 	private long tickCount = 0;
+	private final mc.sayda.mcraze.logging.GameLogger logger = mc.sayda.mcraze.logging.GameLogger.get();
 
 	// Target 60 TPS (16.67ms per tick)
 	private static final long TARGET_TICK_TIME_MS = 16; // ~60 TPS
@@ -46,7 +47,6 @@ public class ServerTickThread extends Thread {
 		this.stateManager = stateManager;
 		setDaemon(true); // Don't prevent JVM shutdown
 
-		GameLogger logger = GameLogger.get();
 		if (logger != null) {
 			logger.info("ServerTickThread: Created with target " + (1000 / TARGET_TICK_TIME_MS) + " TPS");
 		}
@@ -54,7 +54,6 @@ public class ServerTickThread extends Thread {
 
 	@Override
 	public void run() {
-		GameLogger logger = GameLogger.get();
 		if (logger != null) {
 			logger.info("ServerTickThread: Starting tick loop");
 		}
@@ -136,7 +135,6 @@ public class ServerTickThread extends Thread {
 	 * Signal the thread to stop gracefully
 	 */
 	public void shutdown() {
-		GameLogger logger = GameLogger.get();
 		if (logger != null) {
 			logger.info("ServerTickThread: Shutdown requested");
 		}

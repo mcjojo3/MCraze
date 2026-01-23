@@ -29,7 +29,7 @@ rm -rf build
 mkdir -p build/lib-extracted
 
 echo "Compiling Java sources..."
-$JAVAC_CMD -d build -cp "lib/*" -sourcepath src src/mc/sayda/mcraze/Game.java
+$JAVAC_CMD -d build -cp "lib/*" -sourcepath src src/mc/sayda/mcraze/*.java
 if [ $? -ne 0 ]; then
     echo "Compilation failed!"
     exit 1
@@ -53,8 +53,7 @@ cd ../..
 
 # Copy resources
 echo "Copying resources..."
-cp -r src/sprites build/
-cp -r src/sounds build/
+cp -r src/assets build/
 cp -r src/items build/
 
 # Copy extracted dependencies to build root

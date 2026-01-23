@@ -3,6 +3,7 @@ package mc.sayda.mcraze.server;
 import mc.sayda.mcraze.Constants;
 import mc.sayda.mcraze.entity.Entity;
 import mc.sayda.mcraze.entity.projectile.EntityBoulder;
+import mc.sayda.mcraze.entity.projectile.EntityArrow;
 import mc.sayda.mcraze.entity.LivingEntity;
 import mc.sayda.mcraze.player.Player;
 import mc.sayda.mcraze.item.Item;
@@ -17,7 +18,8 @@ import mc.sayda.mcraze.network.packet.PacketFurnaceOpen;
 import mc.sayda.mcraze.network.packet.PacketEntityUpdate;
 import mc.sayda.mcraze.network.packet.PacketInteract;
 import mc.sayda.mcraze.network.packet.PacketInventoryUpdate;
-import mc.sayda.mcraze.network.packet.PacketPlayerDeath;
+import mc.sayda.mcraze.network.packet.PacketAlchemyOpen;
+import mc.sayda.mcraze.player.Inventory;
 import mc.sayda.mcraze.network.packet.PacketWorldInit;
 import mc.sayda.mcraze.network.packet.PacketWorldUpdate;
 import mc.sayda.mcraze.world.tile.Tile;
@@ -26,9 +28,7 @@ import mc.sayda.mcraze.world.storage.WorldAccess;
 import mc.sayda.mcraze.world.storage.ChestData;
 import mc.sayda.mcraze.world.storage.FurnaceData;
 import mc.sayda.mcraze.network.packet.PacketWorldBulkData;
-
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
@@ -49,11 +49,7 @@ public class SharedWorld {
 	private int tileSize = Constants.TILE_SIZE;
 
 	// Per-player breaking state
-	private HashMap<Player, BreakingState> playerBreakingState = new HashMap<>();
-	private final java.util.concurrent.ConcurrentHashMap<String, Long> doorCooldowns = new java.util.concurrent.ConcurrentHashMap<>();
-	private static final long DOOR_COOLDOWN_MS = 250;
-	private final java.util.concurrent.ConcurrentHashMap<String, Long> bedCooldowns = new java.util.concurrent.ConcurrentHashMap<>();
-	private static final long BED_COOLDOWN_MS = 500; // Bed message cooldown (0.5 seconds)
+	private java.util.concurrent.ConcurrentHashMap<Player, BreakingState> playerBreakingState = new java.util.concurrent.ConcurrentHashMap<>();
 	private final java.util.concurrent.ConcurrentHashMap<String, Long> interactCooldowns = new java.util.concurrent.ConcurrentHashMap<>();
 	private static final long INTERACT_COOLDOWN_MS = 200; // General interaction cooldown (doors, chests, workbenches)
 
@@ -62,6 +58,17 @@ public class SharedWorld {
 	private final EntityManager entityManager = new EntityManager();
 
 	// Performance: Reusable lists to avoid allocation in hot paths
+	private List<Entity> entitiesToRemove = new ArrayList<>();
+	private List<Entity> entitiesToAdd = new ArrayList<>();
+
+	public boolean isDay() {
+		return world != null && world.isDay();
+	}
+
+	public boolean isNight() {
+		return world != null && world.isNight();
+	}
+
 	private final List<Entity> entitiesToRemoveCache = new ArrayList<>();
 	private final List<Entity> despawnedItemsCache = new ArrayList<>();
 
@@ -86,14 +93,13 @@ public class SharedWorld {
 
 	// Flag Defense System
 	// Moved to World.flagLocation
-	private long lastFlagMessage = 0;
 
 	public SharedWorld(int worldWidth, Random random, String worldName, mc.sayda.mcraze.world.GameMode gameMode) {
 		this(worldWidth, random, worldName, null, gameMode); // Integrated server - no world directory
 	}
 
 	public SharedWorld(int worldWidth, Random random, String worldName) {
-		this(worldWidth, random, worldName, null, mc.sayda.mcraze.world.GameMode.SURVIVAL); // Default to SURVIVAL for
+		this(worldWidth, random, worldName, null, mc.sayda.mcraze.world.GameMode.CLASSIC); // Default to CLASSIC for
 																							// backward compatibility
 	}
 
@@ -148,15 +154,12 @@ public class SharedWorld {
 		// [NEW] Register Trap Multiplier Provider for class-specific trap bonuses
 		this.world.setTrapMultiplierProvider((x, y) -> {
 			mc.sayda.mcraze.world.tile.Tile tile = world.getTile(x, y);
-			if (tile instanceof mc.sayda.mcraze.world.tile.TrapTile) {
-				mc.sayda.mcraze.world.tile.TrapTile trap = (mc.sayda.mcraze.world.tile.TrapTile) tile;
-				if (trap.ownerUUID != null) {
-					// Find player by UUID
-					Entity owner = entityManager.findByUUID(trap.ownerUUID);
-					if (owner instanceof Player) {
-						Player player = (Player) owner;
-						return player.classStats.getTrapFallDamageMultiplier();
-					}
+			if (tile != null && tile.ownerUUID != null) {
+				// Find player by UUID
+				Entity owner = entityManager.findByUUID(tile.ownerUUID);
+				if (owner instanceof Player) {
+					Player player = (Player) owner;
+					return player.classStats.getTrapFallDamageMultiplier();
 				}
 			}
 			return 1.0f;
@@ -295,9 +298,9 @@ public class SharedWorld {
 		Player player = new Player(
 				true,
 				world.spawnLocation.x,
-				world.spawnLocation.y,
+				world.spawnLocation.y - 1.75f,
 				7 * 4,
-				14 * 4);
+				56);
 		player.username = username; // Set player's display name
 		if (logger != null)
 			logger.debug("SharedWorld.addPlayer: Player entity created for " + username);
@@ -307,7 +310,11 @@ public class SharedWorld {
 			// Auto-register new player
 			playerData = new mc.sayda.mcraze.player.data.PlayerData(
 					username, password, world.spawnLocation.x, world.spawnLocation.y);
-			mc.sayda.mcraze.player.data.PlayerDataManager.save(worldName, playerData);
+			if (worldDirectory != null) {
+				mc.sayda.mcraze.player.data.PlayerDataManager.save(worldDirectory, playerData);
+			} else {
+				mc.sayda.mcraze.player.data.PlayerDataManager.save(worldName, playerData);
+			}
 			if (logger != null)
 				logger.info("SharedWorld: Auto-registered new player: " + username);
 			if (logger != null)
@@ -387,6 +394,11 @@ public class SharedWorld {
 				logger.info("Sent initial inventory sync to " + username + " on login");
 			}
 		}
+
+		// Update class stats and Force immediate entity update to sync stats
+		// (Mana/Essence/Bow)
+		player.updateClassStats();
+		sendEntityUpdateToPlayer(playerConnection);
 
 		if (logger != null)
 			logger.info("SharedWorld: Player added (" + players.size() + " total players)");
@@ -506,6 +518,7 @@ public class SharedWorld {
 		initPacket.daylightCycle = world.daylightCycle;
 		initPacket.mobGriefing = world.mobGriefing;
 		initPacket.pvp = world.pvp;
+		initPacket.insomnia = world.insomnia;
 		playerConnection.getConnection().sendPacket(initPacket);
 
 		// Send biome data
@@ -697,6 +710,14 @@ public class SharedWorld {
 						packet.selectedItemCount[i] = 0;
 						packet.selectedItemDurability[i] = 0;
 					}
+
+					// SYNC STATS
+					packet.mana[i] = player.mana;
+					packet.maxMana[i] = player.maxMana;
+					packet.essence[i] = player.essence;
+					packet.maxEssence[i] = player.maxEssence;
+					packet.bowCharge[i] = player.bowCharge;
+					packet.maxBowCharge[i] = player.maxBowCharge;
 				} else {
 					packet.backdropPlacementMode[i] = false;
 					packet.handTargetX[i] = -1;
@@ -705,6 +726,12 @@ public class SharedWorld {
 					packet.selectedItemId[i] = null;
 					packet.selectedItemCount[i] = 0;
 					packet.selectedItemDurability[i] = 0;
+					packet.mana[i] = 0;
+					packet.maxMana[i] = 0;
+					packet.essence[i] = 0;
+					packet.maxEssence[i] = 0;
+					packet.bowCharge[i] = 0;
+					packet.maxBowCharge[i] = 0;
 				}
 			} else {
 				packet.entityHealth[i] = 0;
@@ -746,6 +773,10 @@ public class SharedWorld {
 	/**
 	 * Main world tick - updates world and all entities
 	 */
+	public long getTicksRunning() {
+		return ticksRunning;
+	}
+
 	public void tick() {
 		if (!running)
 			return;
@@ -810,7 +841,7 @@ public class SharedWorld {
 					continue;
 
 				// Check for timeout (player stopped breaking or disconnected)
-				long timeoutTicks = (worldDirectory == null) ? 60 : 10; // 1 second timeout
+				long timeoutTicks = 60; // 1 second timeout at 60Hz
 				if (ticksRunning - state.lastUpdateTick > timeoutTicks) {
 					if (state.ticks > 0) {
 						// Timed out - reset
@@ -826,16 +857,11 @@ public class SharedWorld {
 					continue;
 				}
 
-				// Normalize speed to 20 ticks/second standard
+				// Normalize speed to 20 ticks/second standard (Server runs at 60Hz)
+				if (ticksRunning % 3 != 0)
+					continue;
+
 				int increment = 1;
-				if (worldDirectory == null) {
-					// Integrated Server (60Hz): Throttle to 20Hz
-					if (ticksRunning % 3 != 0)
-						continue;
-				} else {
-					// Dedicated Server (10Hz): Boost to 20Hz equivalent
-					increment = 2;
-				}
 
 				// Increment progress
 				state.ticks += increment;
@@ -843,6 +869,29 @@ public class SharedWorld {
 				// Check if broken
 				Item currentItem = player.inventory.selectedItem().getItem();
 				int ticksNeeded = world.breakTicks(state.x, state.y, currentItem); // Calibrated for 20Hz
+
+				// Apply Class Speed Bonuses
+				if (currentItem instanceof mc.sayda.mcraze.item.Tool && player.classStats != null) {
+					mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) currentItem;
+					mc.sayda.mcraze.player.specialization.ClassStats.GatheringType type = null;
+
+					if (tool.toolType == mc.sayda.mcraze.item.Tool.ToolType.Pick) {
+						type = mc.sayda.mcraze.player.specialization.ClassStats.GatheringType.MINING;
+					} else if (tool.toolType == mc.sayda.mcraze.item.Tool.ToolType.Axe) {
+						type = mc.sayda.mcraze.player.specialization.ClassStats.GatheringType.WOOD;
+					} else if (tool.toolType == mc.sayda.mcraze.item.Tool.ToolType.Hoe) {
+						type = mc.sayda.mcraze.player.specialization.ClassStats.GatheringType.FARMING;
+					}
+
+					if (type != null) {
+						float multiplier = player.classStats.getGatheringSpeedMultiplier(type);
+						if (multiplier > 1.0f) {
+							ticksNeeded = (int) (ticksNeeded / multiplier);
+							if (ticksNeeded < 1)
+								ticksNeeded = 1;
+						}
+					}
+				}
 
 				if (player.debugMode)
 					ticksNeeded = 1;
@@ -918,7 +967,6 @@ public class SharedWorld {
 				if (entity instanceof mc.sayda.mcraze.item.Item || entity instanceof mc.sayda.mcraze.item.Tool) {
 					// Check collision with all players
 					boolean pickedUp = false;
-					PlayerConnection pickupPlayer = null;
 					for (PlayerConnection pc : players) {
 						Player player = pc.getPlayer();
 						if (player != null && !player.dead && player.collidesWith(entity, tileSize)) {
@@ -958,10 +1006,9 @@ public class SharedWorld {
 					continue;
 				}
 
-				// Allow entities access to server context (e.g. for AI targeting)
-				if (entity instanceof LivingEntity) {
-					((LivingEntity) entity).tick(this);
-				}
+				// Allow entities access to server context (e.g. for AI targeting / Essence
+				// attraction)
+				entity.tick(this);
 
 				// Update entity
 				entity.updatePosition(world, Constants.TILE_SIZE);
@@ -978,35 +1025,8 @@ public class SharedWorld {
 
 					if (livingEntity.hitPoints <= 0) {
 						livingEntity.dead = true;
-						if (logger != null)
-							logger.info("SharedWorld.tick: Entity died - type: " + entity.getClass().getSimpleName());
-
-						// Send immediate death packet to the player (ISSUE #13 fix)
-						if (entity instanceof Player) {
-							Player deadPlayer = (Player) entity;
-							for (PlayerConnection pc : players) {
-								if (pc.getPlayer() == deadPlayer) {
-									pc.getConnection().sendPacket(new PacketPlayerDeath());
-
-									// Drop all items from inventory - use thread-safe EntityManager
-									java.util.ArrayList<Item> droppedItems = deadPlayer.dropAllItems(random);
-									for (Item item : droppedItems) {
-										entityManager.add(item);
-									}
-									// TODO: Replace with GameLogger
-									if (logger != null)
-										logger.info("Player " + deadPlayer.username + " died and dropped "
-												+ droppedItems.size() + " items");
-
-									// Broadcast empty inventory after death
-									broadcastInventoryUpdates();
-
-									break;
-								}
-							}
-						}
-						// Ensure dead entities are removed from world and broadcast to clients
-						entitiesToRemove.add(entity);
+						handleEntityDeath(livingEntity, livingEntity.lastAttacker);
+						continue; // Already handled removal in handeEntityDeath
 					}
 				}
 			}
@@ -1102,7 +1122,6 @@ public class SharedWorld {
 		if (ticksRunning % 100 == 0) {
 			// Performance: Reuse cached list instead of allocating every 100 ticks
 			despawnedItemsCache.clear();
-			despawnedItemsCache.clear();
 			for (Entity entity : entityManager.getAll()) {
 				// 1. Check if entity is explicitly marked dead (e.g. killed mob)
 				if (entity.dead) {
@@ -1133,21 +1152,11 @@ public class SharedWorld {
 			}
 		}
 
-		// Despawn mobs far from players
-		if (mobSpawner != null) {
-			mobSpawner.despawnTick();
-		}
+		// Tick alchemies
+		tickAlchemies();
 
-		// Tick furnaces
-		tickFurnaces();
-
-		// Tick WaveManager (only in SURVIVAL or HORDE modes)
-		if (waveManager != null && world != null) {
-			mc.sayda.mcraze.world.GameMode gm = world.gameMode;
-			if (gm == mc.sayda.mcraze.world.GameMode.SURVIVAL || gm == mc.sayda.mcraze.world.GameMode.HORDE) {
-				waveManager.tick();
-			}
-		}
+		// Tick pots
+		tickPots();
 	}
 
 	/**
@@ -1195,7 +1204,6 @@ public class SharedWorld {
 
 		// Calculate camera position (same math as Client.java:290-291)
 		float cameraX = viewer.x - screenWidth / tileSize / 2f;
-		float cameraY = viewer.y - screenHeight / tileSize / 2f;
 
 		// Calculate visible bounds (same math as World.java:890-893)
 		// FIXED: Use CLIENT_MIN_ZOOM to account for players zooming out
@@ -1207,19 +1215,6 @@ public class SharedWorld {
 
 		int startX = Math.max(0, (int) Math.floor(cameraX) - (int) ((zoomedWidth / tileSize) / 2) - 2);
 		int endX = (int) Math.ceil(cameraX + (float) zoomedWidth / tileSize) + 2;
-
-		// TODO Decide on this
-		// Re-calculating proper camera bounds based on center view
-		// The original code assumed cameraX/Y was top-left, but previous math suggests
-		// center?
-		// Client.java:304: float cameraX = player.x - screenWidth / effectiveTileSize /
-		// 2;
-		// Here: float cameraX = viewer.x - screenWidth / tileSize / 2f;
-		// This cameraX IS top-left of the view at default zoom.
-
-		// If zoomed out, the view is LARGER and centered on player.
-		// So we need to expand startX and endX relative to the PLAYER, not just use
-		// cameraX.
 
 		// Let's use player center directly for safety:
 		int centerViewWidthTiles = (int) (zoomedWidth / tileSize);
@@ -1299,6 +1294,8 @@ public class SharedWorld {
 				packet.entityY[i] = entity.y;
 				packet.entityDX[i] = entity.dx;
 				packet.entityDY[i] = entity.dy;
+				packet.widthPX[i] = entity.widthPX;
+				packet.heightPX[i] = entity.heightPX;
 				packet.damageFlashTicks[i] = entity.damageFlashTicks;
 
 				// Determine entity type
@@ -1322,6 +1319,10 @@ public class SharedWorld {
 					packet.entityTypes[i] = "Cow";
 					packet.itemIds[i] = null;
 					packet.playerNames[i] = null;
+				} else if (entity instanceof mc.sayda.mcraze.entity.mob.EntityBomber) {
+					packet.entityTypes[i] = "Bomber";
+					packet.itemIds[i] = null;
+					packet.playerNames[i] = null;
 				} else if (entity instanceof mc.sayda.mcraze.entity.mob.EntityZombie) {
 					packet.entityTypes[i] = "Zombie";
 					packet.itemIds[i] = null;
@@ -1330,10 +1331,32 @@ public class SharedWorld {
 					packet.entityTypes[i] = "Wolf";
 					packet.itemIds[i] = null;
 					packet.playerNames[i] = null;
+				} else if (entity instanceof EntityBoulder) {
+					packet.entityTypes[i] = "Boulder";
+					packet.itemIds[i] = null;
+					packet.playerNames[i] = null;
+				} else if (entity instanceof mc.sayda.mcraze.entity.EntityEssence) {
+					packet.entityTypes[i] = "Essence";
+					packet.itemIds[i] = null;
+					packet.playerNames[i] = null;
+				} else if (entity instanceof EntityArrow) {
+					packet.entityTypes[i] = "Arrow";
+					packet.itemIds[i] = ((EntityArrow) entity).getType().itemId;
+					packet.playerNames[i] = null;
+				} else if (entity instanceof mc.sayda.mcraze.entity.item.EntityPrimedTNT) {
+					packet.entityTypes[i] = "PrimedTNT";
+					packet.itemIds[i] = null;
+					packet.playerNames[i] = null;
 				} else {
 					packet.entityTypes[i] = "Unknown";
 					packet.itemIds[i] = null;
 					packet.playerNames[i] = null;
+				}
+
+				if (entity instanceof mc.sayda.mcraze.entity.item.EntityPrimedTNT) {
+					mc.sayda.mcraze.entity.item.EntityPrimedTNT tnt = (mc.sayda.mcraze.entity.item.EntityPrimedTNT) entity;
+					packet.isExploding[i] = true;
+					packet.fuseTimer[i] = tnt.getFuseTimer();
 				}
 
 				if (entity instanceof LivingEntity) {
@@ -1350,12 +1373,22 @@ public class SharedWorld {
 					packet.jumping[i] = livingEntity.jumping;
 					packet.speedMultiplier[i] = livingEntity.speedMultiplier;
 
+					if (livingEntity instanceof mc.sayda.mcraze.entity.mob.EntityBomber) {
+						mc.sayda.mcraze.entity.mob.EntityBomber bomber = (mc.sayda.mcraze.entity.mob.EntityBomber) livingEntity;
+						packet.isExploding[i] = bomber.isExploding();
+						packet.fuseTimer[i] = bomber.getFuseTimer();
+					} else {
+						packet.isExploding[i] = false;
+						packet.fuseTimer[i] = 0;
+					}
+
 					// Player-specific fields
 					if (entity instanceof Player) {
 						Player player = (Player) entity;
 						packet.backdropPlacementMode[i] = player.backdropPlacementMode;
 						packet.handTargetX[i] = player.handTargetPos.x;
 						packet.handTargetY[i] = player.handTargetPos.y;
+						packet.skillPoints[i] = player.skillPoints;
 
 						packet.hotbarIndex[i] = player.inventory.hotbarIdx;
 						mc.sayda.mcraze.item.InventoryItem selectedSlot = player.inventory.selectedItem();
@@ -1373,14 +1406,14 @@ public class SharedWorld {
 							packet.selectedItemCount[i] = 0;
 							packet.selectedItemDurability[i] = 0;
 						}
-					} else {
-						packet.backdropPlacementMode[i] = false;
-						packet.handTargetX[i] = -1;
-						packet.handTargetY[i] = -1;
-						packet.hotbarIndex[i] = 0;
-						packet.selectedItemId[i] = null;
-						packet.selectedItemCount[i] = 0;
-						packet.selectedItemDurability[i] = 0;
+
+						// Stats sync (Always for players)
+						packet.essence[i] = player.essence;
+						packet.maxEssence[i] = player.maxEssence;
+						packet.mana[i] = player.mana;
+						packet.maxMana[i] = player.maxMana;
+						packet.bowCharge[i] = player.bowCharge;
+						packet.maxBowCharge[i] = player.maxBowCharge;
 					}
 				} else {
 					packet.entityHealth[i] = 0;
@@ -1401,6 +1434,10 @@ public class SharedWorld {
 					packet.selectedItemId[i] = null;
 					packet.selectedItemCount[i] = 0;
 					packet.selectedItemDurability[i] = 0;
+					packet.essence[i] = 0;
+					packet.maxEssence[i] = 0;
+					packet.mana[i] = 0;
+					packet.maxMana[i] = 0;
 				}
 			}
 
@@ -1484,6 +1521,32 @@ public class SharedWorld {
 			packet.holdingCount = 0;
 			packet.holdingToolUse = 0;
 			packet.holdingMastercrafted = false;
+		}
+
+		// Populate Equipment Data
+		int equipCount = (inv.equipment != null) ? inv.equipment.length : 0;
+		packet.equipmentItemIds = new String[equipCount];
+		packet.equipmentItemCounts = new int[equipCount];
+		packet.equipmentToolUses = new int[equipCount];
+		packet.equipmentMastercrafted = new boolean[equipCount];
+
+		for (int i = 0; i < equipCount; i++) {
+			mc.sayda.mcraze.item.InventoryItem slot = inv.equipment[i];
+			if (slot != null && slot.item != null && slot.count > 0) {
+				packet.equipmentItemIds[i] = slot.item.itemId;
+				packet.equipmentItemCounts[i] = slot.count;
+				packet.equipmentMastercrafted[i] = slot.item.isMastercrafted;
+				if (slot.item instanceof Tool) {
+					packet.equipmentToolUses[i] = ((Tool) slot.item).uses;
+				} else {
+					packet.equipmentToolUses[i] = 0;
+				}
+			} else {
+				packet.equipmentItemIds[i] = null;
+				packet.equipmentItemCounts[i] = 0;
+				packet.equipmentToolUses[i] = 0;
+				packet.equipmentMastercrafted[i] = false;
+			}
 		}
 
 		// Flatten 2D inventory array
@@ -1574,10 +1637,13 @@ public class SharedWorld {
 	public void broadcastGamerules() {
 		mc.sayda.mcraze.network.packet.PacketGameruleUpdate packet = new mc.sayda.mcraze.network.packet.PacketGameruleUpdate(
 				world.spelunking,
+				world.darkness,
+				world.daylightSpeed,
 				world.keepInventory,
 				world.daylightCycle,
 				world.mobGriefing,
-				world.pvp);
+				world.pvp,
+				world.insomnia);
 		broadcast(packet);
 	}
 
@@ -1599,6 +1665,27 @@ public class SharedWorld {
 	 */
 	private void broadcast(Object packet) {
 		broadcast(packet, false); // Default: no immediate flush (batched)
+	}
+
+	/**
+	 * Broadcast a sound effect to all players
+	 */
+	public void broadcastSound(String soundName) {
+		mc.sayda.mcraze.network.packet.PacketPlaySound packet = new mc.sayda.mcraze.network.packet.PacketPlaySound(
+				soundName);
+		broadcast(packet);
+	}
+
+	public void broadcastSound(String soundName, float x, float y) {
+		mc.sayda.mcraze.network.packet.PacketPlaySound packet = new mc.sayda.mcraze.network.packet.PacketPlaySound(
+				soundName, x, y, 1.0f, 16.0f);
+		broadcast(packet);
+	}
+
+	public void broadcastSound(String soundName, float x, float y, float volume, float maxDistance) {
+		mc.sayda.mcraze.network.packet.PacketPlaySound packet = new mc.sayda.mcraze.network.packet.PacketPlaySound(
+				soundName, x, y, volume, maxDistance);
+		broadcast(packet);
 	}
 
 	/**
@@ -1715,7 +1802,7 @@ public class SharedWorld {
 
 		// Wheat crops can only be on farmland
 		if (unstableBlock == Constants.TileID.WHEAT_SEEDS || unstableBlock == Constants.TileID.WHEAT) {
-			return support == Constants.TileID.FARMLAND;
+			return support == Constants.TileID.FARMLAND || support == Constants.TileID.IRRIGATED_FARMLAND;
 		}
 
 		// Other unstable blocks (flowers, saplings, tall grass, torches) need dirt or
@@ -1755,94 +1842,119 @@ public class SharedWorld {
 			}
 		}
 
-		// HEALING / EATING SYSTEM (Right-click with food)
-		if (!packet.isBreak && held != null && held.itemId != null) {
-			int healAmount = 0;
-			boolean isFood = false;
+		// CONSUMPTION SYSTEM (Right-click with food/potions)
+		if (!packet.isBreak && held instanceof mc.sayda.mcraze.item.Consumable) {
+			mc.sayda.mcraze.item.Consumable consumable = (mc.sayda.mcraze.item.Consumable) held;
 
-			if (held.itemId.equals("bread")) {
-				healAmount = 20; // 2 Hearts
-				isFood = true;
-			} else if (held.itemId.equals("apple")) {
-				healAmount = 5; // Half Heart
-				isFood = true;
-			} else if (held.itemId.equals("golden_apple")) {
-				healAmount = 100; // Full heal (max HP)
-				isFood = true;
-			} else if (held.itemId.equals("pork")) {
-				healAmount = 5; // Half Heart
-				isFood = true;
-			} else if (held.itemId.equals("beef")) {
-				healAmount = 5; // Half Heart
-				isFood = true;
-			} else if (held.itemId.equals("cooked_pork")) {
-				healAmount = 30; // 3 Hearts
-				isFood = true;
-			} else if (held.itemId.equals("cooked_beef")) {
-				healAmount = 30; // 3 Hearts
-				isFood = true;
-			} else if (held.itemId.equals("rotten_flesh")) {
-				// 50% Heal 5, 25% Damage 5, 25% Nothing (Changed to test RNG distribution)
-				double roll = this.random != null ? this.random.nextDouble() : Math.random();
-				if (roll < 0.5) {
-					healAmount = 5;
-				} else if (roll < 0.75) {
-					healAmount = -5;
-				} else {
-					healAmount = 0;
-				}
-				if (logger != null)
-					logger.debug("Rotten Flesh Roll: " + roll + " -> Heal: " + healAmount);
-				isFood = true;
-			} else if (held.itemId.equals("bad_apple")) {
-				healAmount = 10; // 1 Heart
-				isFood = true;
-
-				// Trigger Bad Apple video on client via packet
-				playerConnection.getConnection().sendPacket(
-						new mc.sayda.mcraze.network.packet.PacketItemTrigger("bad_apple"));
+			// Cooldown Check
+			long currentTime = System.currentTimeMillis();
+			Long lastEat = interactCooldowns.get(player.username + "_eat");
+			int eatCooldown = 500;
+			if (player.unlockedPassives
+					.contains(mc.sayda.mcraze.player.specialization.PassiveEffectType.FAST_METABOLISM)) {
+				eatCooldown = 250;
 			}
 
-			if (isFood) {
-				// EATING COOLDOWN CHECK
-				long currentTime = System.currentTimeMillis();
-				Long lastEat = interactCooldowns.get(player.username + "_eat"); // Separate key for eating
-				if (lastEat != null && currentTime - lastEat < 500) { // 500ms cooldown
-					return;
-				}
+			if (lastEat != null && currentTime - lastEat < eatCooldown) {
+				return;
+			}
 
-				if (player.hitPoints < player.getMaxHP()) {
-					// Apply heal or damage
-					if (healAmount > 0) {
-						player.heal(healAmount);
-					} else if (healAmount < 0) {
-						player.takeDamage(-healAmount);
-					}
-					// else 0: nothing happens but item consumed
+			// Don't eat if full HP, unless it's a buff potion
+			if (player.hitPoints < player.getMaxHP() || consumable.buffType != null) {
+				interactCooldowns.put(player.username + "_eat", currentTime);
 
-					interactCooldowns.put(player.username + "_eat", currentTime);
+				// 1. Calculate Effects
+				int healAmount = consumable.healingAmount;
 
-					// Consume item
-					player.inventory.selectedItem().remove(1);
-					broadcastInventoryUpdates();
-
-					// Feedback
-					String msg;
-					mc.sayda.mcraze.graphics.Color color;
-					if (healAmount > 0) {
-						msg = "Yummers! Healed " + healAmount + " HP.";
-						color = new mc.sayda.mcraze.graphics.Color(100, 255, 100);
-					} else if (healAmount < 0) {
-						msg = "Yikers! That tasted bad. Took " + (-healAmount) + " damage.";
-						color = new mc.sayda.mcraze.graphics.Color(255, 100, 100);
+				// Special cases for food items (RNG)
+				if (held.itemId.equals("rotten_flesh")) {
+					double roll = this.random != null ? this.random.nextDouble() : Math.random();
+					if (roll < 0.5) {
+						healAmount = 5;
+					} else if (roll < 0.75) {
+						healAmount = -5;
 					} else {
-						msg = "You feel nothing.";
-						color = new mc.sayda.mcraze.graphics.Color(200, 200, 200);
+						healAmount = 0;
 					}
-
-					playerConnection.getConnection().sendPacket(new PacketChatMessage(msg, color));
-					return; // Consumed food, don't place block
 				}
+
+				// Apply Healing/Damage
+				if (healAmount > 0) {
+					// Druid Core Bonus: +20% Food Healing
+					if (player.selectedClass == mc.sayda.mcraze.player.specialization.PlayerClass.DRUID) {
+						healAmount = (int) (healAmount * 1.2f);
+					}
+					player.heal(healAmount);
+				} else if (healAmount < 0) {
+					player.takeDamage(-healAmount, mc.sayda.mcraze.entity.DamageType.MAGICAL);
+				}
+
+				// Apply Buffs
+				if (consumable.buffType != null) {
+					int duration = consumable.buffDuration;
+					if (player.unlockedPassives
+							.contains(mc.sayda.mcraze.player.specialization.PassiveEffectType.ALCHEMIST_BLESSING)) {
+						duration *= 2;
+					}
+					player.addBuff(new mc.sayda.mcraze.entity.buff.Buff(consumable.buffType, duration,
+							consumable.buffAmplifier));
+				}
+
+				// Well Fed Buff from cooked food
+				if (player.unlockedPassives
+						.contains(mc.sayda.mcraze.player.specialization.PassiveEffectType.COMFORT_FOOD)) {
+					if (held.itemId.contains("cooked") || held.itemId.equals("golden_apple")
+							|| held.itemId.equals("bread")) {
+						player.addBuff(new mc.sayda.mcraze.entity.buff.Buff(
+								mc.sayda.mcraze.entity.buff.BuffType.WELL_FED, 6000, 0));
+					}
+				}
+
+				// 2. Feedback
+				broadcastPacket(new mc.sayda.mcraze.network.packet.PacketPlaySound("assets/sounds/item/drink.wav",
+						player.x, player.y));
+
+				if (held.itemId.equals("bad_apple")) {
+					playerConnection.getConnection()
+							.sendPacket(new mc.sayda.mcraze.network.packet.PacketItemTrigger("bad_apple"));
+				}
+
+				String msg;
+				mc.sayda.mcraze.graphics.Color color;
+				if (healAmount > 0) {
+					msg = "Yummers! Healed " + healAmount + " HP.";
+					color = new mc.sayda.mcraze.graphics.Color(100, 255, 100);
+				} else if (healAmount < 0) {
+					msg = "Yikers! That tasted bad. Took " + (-healAmount) + " damage.";
+					color = new mc.sayda.mcraze.graphics.Color(255, 100, 100);
+				} else if (consumable.buffType != null) {
+					String buffName = consumable.buffType.toString().toLowerCase().replace("_", " ");
+					msg = "Gulp! Applied " + buffName + " effect.";
+					color = new mc.sayda.mcraze.graphics.Color(180, 180, 255);
+				} else {
+					msg = "You feel nothing.";
+					color = new mc.sayda.mcraze.graphics.Color(200, 200, 200);
+				}
+				playerConnection.getConnection().sendPacket(new PacketChatMessage(msg, color));
+
+				// 3. Consume
+				player.inventory.selectedItem().remove(1);
+
+				// Return remains (e.g. empty bottle)
+				if (consumable.remainsItemId != null) {
+					mc.sayda.mcraze.item.Item remains = mc.sayda.mcraze.Constants.itemTypes
+							.get(consumable.remainsItemId);
+					if (remains != null) {
+						player.inventory.addItem(remains.clone(), 1);
+					}
+				}
+
+				broadcastInventoryUpdates();
+
+				if (logger != null) {
+					logger.info("SharedWorld: Player " + player.username + " consumed " + consumable.name);
+				}
+				return;
 			}
 		}
 
@@ -1921,6 +2033,28 @@ public class SharedWorld {
 			Item currentItem = player.inventory.selectedItem().getItem();
 			int ticksNeeded = world.breakTicks(packet.x, packet.y, currentItem);
 
+			// Master Miner & Lumber Expert: Class Speed Bonus
+			if (currentItem instanceof mc.sayda.mcraze.item.Tool) {
+				mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) currentItem;
+				mc.sayda.mcraze.player.specialization.ClassStats.GatheringType type = null;
+
+				if (tool.toolType == mc.sayda.mcraze.item.Tool.ToolType.Pick) {
+					type = mc.sayda.mcraze.player.specialization.ClassStats.GatheringType.MINING;
+				} else if (tool.toolType == mc.sayda.mcraze.item.Tool.ToolType.Axe) {
+					type = mc.sayda.mcraze.player.specialization.ClassStats.GatheringType.WOOD;
+				}
+
+				if (type != null && player.classStats != null) {
+					float multiplier = player.classStats.getGatheringSpeedMultiplier(type);
+					if (multiplier > 1.0f) {
+						// Apply multiplier (Speed increases -> Ticks decrease)
+						ticksNeeded = (int) (ticksNeeded / multiplier);
+						if (ticksNeeded < 1)
+							ticksNeeded = 1;
+					}
+				}
+			}
+
 			// Debug mode: instant break (1 tick)
 			if (player.debugMode) {
 				ticksNeeded = 1;
@@ -1949,6 +2083,30 @@ public class SharedWorld {
 			// CRITICAL FIX: Explicitly stop breaking when isBreak=false (or on release)
 			breakingState.reset();
 
+			// BACKDROP MODE: Place backdrop instead of foreground
+			// MOVED TO TOP to prevent interacting with foreground blocks when trying to
+			// place backdrop
+			if (player.backdropPlacementMode) {
+				// FIXED: Allow backdrop placement anywhere (no restrictions - backdrops are
+				// visual only)
+
+				// Place backdrop
+				// Validate tileId first
+				Constants.TileID tileId = null;
+				if (packet.newTileId >= 0 && packet.newTileId < Constants.TileID.values().length) {
+					tileId = Constants.TileID.values()[packet.newTileId];
+				}
+
+				if (tileId != null) {
+					if (world.setBackdrop(packet.x, packet.y, tileId)) {
+						player.inventory.decreaseSelected(1);
+						broadcastInventoryUpdates();
+						broadcastBackdropChange(packet.x, packet.y, tileId);
+					}
+				}
+				return; // Don't place foreground or interact
+			}
+
 			// Check if clicking on a crafting table FIRST (before parsing packet data)
 			if (world.isCraft(packet.x, packet.y)) {
 				// INTERACTION COOLDOWN CHECK
@@ -1968,204 +2126,9 @@ public class SharedWorld {
 
 			// Check if clicking on a chest block
 			Tile clickedTile = worldAccess.getTile(packet.x, packet.y);
-			if (clickedTile != null && clickedTile.type != null &&
-					clickedTile.type.name == Constants.TileID.CHEST) {
-				// Get or create chest data
-				mc.sayda.mcraze.world.storage.ChestData chestData = world.getOrCreateChest(packet.x, packet.y);
-
-				// INTERACTION COOLDOWN CHECK
-				long currentTime = System.currentTimeMillis();
-				Long lastInteract = interactCooldowns.get(player.username);
-				if (lastInteract != null && currentTime - lastInteract < INTERACT_COOLDOWN_MS) {
-					return;
-				}
-				interactCooldowns.put(player.username, currentTime);
-
-				// CRITICAL FIX: Track that this player has this chest open
-				// This is required for server-side validation of chest actions
-				playerConnection.setOpenedChest(packet.x, packet.y);
-
-				// CRITICAL FIX: Hide regular inventory when opening container
-				// This prevents dual input handling conflict
-				player.inventory.setVisible(false);
-
-				// Send chest open packet to this player (including UUID for client-side
-				// filtering)
-				PacketChestOpen chestPacket = new PacketChestOpen(packet.x, packet.y, chestData.items,
-						player.getUUID());
-				playerConnection.getConnection().sendPacket(chestPacket);
-
-				// Broadcast inventory state change to sync visibility
-				broadcastInventoryUpdates();
-
-				if (logger != null) {
-					logger.info("SharedWorld: Player " + player.username +
-							" opened chest at (" + packet.x + ", " + packet.y + ")");
-				}
-				return;
-			}
-
-			// DOOR SYSTEM
-			// Check if clicking on a furnace block
-			if (clickedTile != null && clickedTile.type != null &&
-					clickedTile.type.name == Constants.TileID.FURNACE) {
-				// Get or create furnace data
-				mc.sayda.mcraze.world.storage.FurnaceData furnaceData = world.getOrCreateFurnace(packet.x, packet.y);
-
-				// INTERACTION COOLDOWN CHECK
-				long currentTime = System.currentTimeMillis();
-				Long lastInteract = interactCooldowns.get(player.username);
-				if (lastInteract != null && currentTime - lastInteract < INTERACT_COOLDOWN_MS) {
-					return;
-				}
-				interactCooldowns.put(player.username, currentTime);
-
-				// CRITICAL FIX: Track that this player has this furnace open
-				// This is required for server-side validation of furnace actions
-				playerConnection.setOpenedFurnace(packet.x, packet.y);
-
-				// CRITICAL FIX: Hide regular inventory when opening container
-				// This prevents dual input handling conflict
-				player.inventory.setVisible(false);
-
-				// Send furnace open packet to this player
-				PacketFurnaceOpen furnacePacket = new PacketFurnaceOpen(
-						packet.x, packet.y,
-						furnaceData.items,
-						furnaceData.fuelTimeRemaining,
-						furnaceData.smeltProgress,
-						furnaceData.smeltTimeTotal,
-						player.getUUID(),
-						false);
-				playerConnection.getConnection().sendPacket(furnacePacket);
-
-				// Broadcast inventory state change to sync visibility
-				broadcastInventoryUpdates();
-
-				if (logger != null) {
-					logger.info("SharedWorld: Player " + player.username +
-							" opened furnace at (" + packet.x + ", " + packet.y + ")");
-				}
-				return;
-			}
-			// DOOR SYSTEM: Check if clicking on a door to toggle open/closed
-			Tile doorTile = worldAccess.getTile(packet.x, packet.y);
-			if (doorTile != null && doorTile.type != null) {
-				Constants.TileID doorType = doorTile.type.name;
-				boolean isDoorBot = (doorType == Constants.TileID.DOOR_BOT_CLOSED
-						|| doorType == Constants.TileID.DOOR_BOT);
-				boolean isDoorTop = (doorType == Constants.TileID.DOOR_TOP_CLOSED
-						|| doorType == Constants.TileID.DOOR_TOP);
-
-				if (isDoorBot || isDoorTop) {
-					// DOOR COOLDOWN CHECK
-					long currentTime = System.currentTimeMillis();
-					Long lastInteract = doorCooldowns.get(player.username);
-					if (lastInteract != null && currentTime - lastInteract < DOOR_COOLDOWN_MS) {
-						return; // Too fast!
-					}
-					doorCooldowns.put(player.username, currentTime);
-
-					// Determine the new state (toggle open/closed)
-					Constants.TileID newBotState, newTopState;
-					if (doorType == Constants.TileID.DOOR_BOT_CLOSED) {
-						newBotState = Constants.TileID.DOOR_BOT;
-						newTopState = Constants.TileID.DOOR_TOP;
-					} else if (doorType == Constants.TileID.DOOR_BOT) {
-						newBotState = Constants.TileID.DOOR_BOT_CLOSED;
-						newTopState = Constants.TileID.DOOR_TOP_CLOSED;
-					} else if (doorType == Constants.TileID.DOOR_TOP_CLOSED) {
-						newBotState = Constants.TileID.DOOR_BOT;
-						newTopState = Constants.TileID.DOOR_TOP;
-					} else { // DOOR_TOP
-						newBotState = Constants.TileID.DOOR_BOT_CLOSED;
-						newTopState = Constants.TileID.DOOR_TOP_CLOSED;
-					}
-
-					// Toggle the clicked door part and its counterpart
-					if (isDoorBot) {
-						// Clicked on bottom - toggle both parts
-						world.addTile(packet.x, packet.y, newBotState);
-						broadcastBlockChange(packet.x, packet.y, newBotState);
-						int topY = packet.y - 1;
-						if (topY >= 0) {
-							world.addTile(packet.x, topY, newTopState);
-							broadcastBlockChange(packet.x, topY, newTopState);
-						}
-					} else {
-						// Clicked on top - toggle both parts
-						world.addTile(packet.x, packet.y, newTopState);
-						broadcastBlockChange(packet.x, packet.y, newTopState);
-						int botY = packet.y + 1;
-						if (botY < world.height) {
-							world.addTile(packet.x, botY, newBotState);
-							broadcastBlockChange(packet.x, botY, newBotState);
-						}
-					}
-
-					if (logger != null) {
-						logger.debug("SharedWorld: Player " + player.username +
-								" toggled door at (" + packet.x + ", " + packet.y + ")");
-					}
-					return; // Don't proceed with block placement
-				}
-			}
-
-			// BED SYSTEM: Check if clicking on a bed to skip night
-			Tile bedTile = worldAccess.getTile(packet.x, packet.y);
-			if (bedTile != null && bedTile.type != null) {
-				Constants.TileID bedType = bedTile.type.name;
-				boolean isBed = (bedType == Constants.TileID.BED_LEFT || bedType == Constants.TileID.BED_RIGHT);
-
-				if (isBed) {
-					// Check if it's night time
-					if (world.isNight()) {
-						// Skip to morning (next day at time 0.0)
-						long currentTicks = world.getTicksAlive();
-						int dayLength = 20000; // From World.java
-						// Calculate the next morning (skip to next day start)
-						long nextMorning = ((currentTicks / dayLength) + 1) * dayLength;
-						world.setTicksAlive(nextMorning);
-
-						// Broadcast new time to all players
-						broadcastWorldTime();
-
-						// Heal player for sleeping
-						player.heal(20);
-
-						if (logger != null) {
-							logger.info("SharedWorld: Player " + player.username +
-									" used bed to skip night at (" + packet.x + ", " + packet.y + ")");
-						}
-
-						// Feedback
-						playerConnection.getConnection().sendPacket(
-								new PacketChatMessage("You slept and feel refreshed (+20 HP).",
-										new mc.sayda.mcraze.graphics.Color(100, 255, 100)));
-					} else {
-						// Can only sleep at night - add cooldown to prevent message spam
-						long currentTime = System.currentTimeMillis();
-						Long lastBedMessage = bedCooldowns.get(player.username);
-
-						// Only send message if cooldown has expired
-						if (lastBedMessage == null || currentTime - lastBedMessage >= BED_COOLDOWN_MS) {
-							bedCooldowns.put(player.username, currentTime);
-
-							if (logger != null) {
-								logger.debug("SharedWorld: Player " + player.username +
-										" tried to use bed during day at (" + packet.x + ", " + packet.y + ")");
-							}
-
-							// Send feedback message to player
-							PacketChatMessage msg = new PacketChatMessage(
-									"You can only sleep at night",
-									new mc.sayda.mcraze.graphics.Color(255, 100, 100)); // Red color
-							playerConnection.getConnection().sendPacket(msg);
-						}
-						// Else: Cooldown active, silently ignore click
-					}
-					return; // Don't proceed with block placement
-				}
+			if (clickedTile != null && clickedTile.type != null) {
+				// Handled in handleInteract / handleTileInteraction via PacketInteract
+				// Legacy block change handling removed
 			}
 
 			// Block placing - validate and apply
@@ -2184,22 +2147,23 @@ public class SharedWorld {
 					Tile targetTile = worldAccess.getTile(packet.x, packet.y);
 					if (targetTile != null && targetTile.type != null) {
 						Constants.TileID targetType = targetTile.type.name;
-						if (targetType == Constants.TileID.DIRT || targetType == Constants.TileID.GRASS) {
+						if (targetType == Constants.TileID.DIRT || targetType == Constants.TileID.GRASS
+								|| targetType == Constants.TileID.FARMLAND) {
 							// Convert to farmland
-							// DRUID: Irrigated Soil Passive (Cultivator Path)
+							// DRUID: Irrigated Soil Passive
 							Constants.TileID farmlandType = Constants.TileID.FARMLAND;
 
-							if (player.selectedClass == mc.sayda.mcraze.player.specialization.PlayerClass.DRUID) {
-								for (mc.sayda.mcraze.player.specialization.SpecializationPath path : player.selectedPaths) {
-									if (path == mc.sayda.mcraze.player.specialization.SpecializationPath.CULTIVATOR) {
-										farmlandType = Constants.TileID.IRRIGATED_FARMLAND;
-										break;
-									}
-								}
+							if (player.unlockedPassives
+									.contains(mc.sayda.mcraze.player.specialization.PassiveEffectType.IRRIGATED_SOIL)) {
+								farmlandType = Constants.TileID.IRRIGATED_FARMLAND;
 							}
 
-							world.addTile(packet.x, packet.y, farmlandType);
-							broadcastBlockChange(packet.x, packet.y, farmlandType);
+							// Ensure we don't convert to the same type (prevents infinite durability loss
+							// on same block)
+							if (targetType != farmlandType) {
+								world.addTile(packet.x, packet.y, farmlandType);
+								broadcastBlockChange(packet.x, packet.y, farmlandType);
+							}
 
 							// Handle hoe durability - each farmland created costs 1 durability
 							if (selectedItem instanceof Tool) {
@@ -2226,7 +2190,8 @@ public class SharedWorld {
 					if (belowY < world.height) {
 						Tile belowTile = worldAccess.getTile(packet.x, belowY);
 						if (belowTile != null && belowTile.type != null &&
-								belowTile.type.name == Constants.TileID.FARMLAND) {
+								(belowTile.type.name == Constants.TileID.FARMLAND
+										|| belowTile.type.name == Constants.TileID.IRRIGATED_FARMLAND)) {
 							// Can only plant if position is empty
 							if (!world.isBreakable(packet.x, packet.y)) {
 								// Place wheat crop
@@ -2243,6 +2208,63 @@ public class SharedWorld {
 					}
 				}
 
+			}
+
+			// POTION/FOOD CONSUMPTION
+			if (selectedItem instanceof mc.sayda.mcraze.item.Consumable) {
+				mc.sayda.mcraze.item.Consumable consumable = (mc.sayda.mcraze.item.Consumable) selectedItem;
+
+				// Apply Healing
+				if (consumable.healingAmount > 0) {
+					player.heal(consumable.healingAmount);
+				}
+
+				// Apply Buffs
+				if (consumable.buffType != null) {
+					int duration = consumable.buffDuration;
+					// ARCANIST: Alchemist's Blessing (Path 3)
+					if (player.unlockedPassives
+							.contains(mc.sayda.mcraze.player.specialization.PassiveEffectType.ALCHEMIST_BLESSING)) {
+						duration *= 2; // +100% Duration
+					}
+
+					player.addBuff(
+							new mc.sayda.mcraze.entity.buff.Buff(consumable.buffType, duration,
+									consumable.buffAmplifier));
+				}
+
+				// Feedback sound/effect
+				broadcastSound("assets/sounds/item/drink.wav", player.x, player.y, 1.0f, 16.0f);
+
+				// [NEW] Chat feedback prompt
+				String msg = "";
+				mc.sayda.mcraze.graphics.Color color = new mc.sayda.mcraze.graphics.Color(180, 180, 255); // Light blue
+																											// for
+																											// potions
+				if (consumable.buffType != null) {
+					String buffName = consumable.buffType.toString().toLowerCase().replace("_", " ");
+					msg = "Gulp! Applied " + buffName + " effect.";
+				} else if (consumable.healingAmount > 0) {
+					msg = "Yummers! Healed " + consumable.healingAmount + " HP.";
+					color = new mc.sayda.mcraze.graphics.Color(100, 255, 100); // Green for healing
+				} else {
+					msg = "You feel nothing.";
+					color = new mc.sayda.mcraze.graphics.Color(200, 200, 200);
+				}
+
+				if (playerConnection != null) {
+					playerConnection.getConnection()
+							.sendPacket(new mc.sayda.mcraze.network.packet.PacketChatMessage(msg, color));
+				}
+
+				// Consume item
+				player.inventory.decreaseSelected(1);
+				broadcastInventoryUpdates();
+
+				if (logger != null) {
+					logger.info("SharedWorld: Player " + player.username + " consumed " + consumable.name);
+				}
+				return; // Handled click
 			}
 
 			// BUCKET LOGIC: Handling fluids
@@ -2265,11 +2287,15 @@ public class SharedWorld {
 
 						// Place fluid
 						if (world.addTile(packet.x, packet.y, fluidInfo)) {
-							// Consumed bucket -> Empty bucket
-							mc.sayda.mcraze.item.Item emptyBucket = Constants.itemTypes.get("bucket");
-							if (emptyBucket != null) {
-								player.inventory.selectedItem().setItem(emptyBucket);
-								player.inventory.selectedItem().setCount(1); // Should be 1
+							// Consumed bucket -> Remains item (e.g. empty bucket)
+							if (selectedItem.remainsItemId != null) {
+								mc.sayda.mcraze.item.Item remains = Constants.itemTypes.get(selectedItem.remainsItemId);
+								if (remains != null) {
+									player.inventory.selectedItem().setItem(remains.clone());
+									player.inventory.selectedItem().setCount(1);
+								} else {
+									player.inventory.decreaseSelected(1);
+								}
 							} else {
 								player.inventory.decreaseSelected(1);
 							}
@@ -2290,6 +2316,12 @@ public class SharedWorld {
 						Constants.TileID targetId = targetTile.type.name;
 
 						if (targetId == Constants.TileID.WATER || targetId == Constants.TileID.LAVA) {
+							// LIQUID PHYSICS: Only pick up SOURCE blocks (metadata = 0)
+							if (targetTile.metadata != 0) {
+								// Flowing liquid - cannot be picked up with bucket
+								return;
+							}
+
 							// Determine result item
 							String resultId = (targetId == Constants.TileID.WATER) ? "water_bucket" : "lava_bucket";
 							mc.sayda.mcraze.item.Item resultItem = Constants.itemTypes.get(resultId);
@@ -2309,6 +2341,34 @@ public class SharedWorld {
 						}
 					}
 				}
+
+				// BOTTLE LOGIC: Filling empty bottles with water
+				if (selectedItem.itemId.equals("bottle")) {
+					mc.sayda.mcraze.world.tile.Tile target = worldAccess.getTile(packet.x, packet.y);
+					if (target != null && target.type != null && target.type.name == Constants.TileID.WATER) {
+						mc.sayda.mcraze.item.Item waterBottle = Constants.itemTypes.get("water_bottle");
+						if (waterBottle != null) {
+							// Update selected item to water bottle (consume 1 empty bottle)
+							if (player.inventory.selectedItem().getCount() > 1) {
+								player.inventory.selectedItem()
+										.setCount(player.inventory.selectedItem().getCount() - 1);
+								// Try to add water bottle to inventory, or drop it if full
+								if (player.inventory.addItem(waterBottle, 1) > 0) {
+									dropItem("water_bottle", player.x, player.y, 1);
+								}
+							} else {
+								player.inventory.selectedItem().setItem(waterBottle);
+								player.inventory.selectedItem().setCount(1);
+							}
+
+							broadcastInventoryUpdates();
+							// Sound: Water fill
+							broadcastPacket(new mc.sayda.mcraze.network.packet.PacketPlaySound(
+									"assets/sounds/item/bucket_fill.wav", packet.x, packet.y));
+							return;
+						}
+					}
+				}
 			}
 
 			// Block placing validation - check if tileId is valid for normal placement
@@ -2319,20 +2379,6 @@ public class SharedWorld {
 				playerConnection.getConnection()
 						.sendPacket(new PacketBlockChange(packet.x, packet.y, (char) currentId, false));
 				return; // Cannot place air or invalid tiles
-			}
-
-			// BACKDROP MODE: Place backdrop instead of foreground
-			if (player.backdropPlacementMode) {
-				// FIXED: Allow backdrop placement anywhere (no restrictions - backdrops are
-				// visual only)
-
-				// Place backdrop
-				if (world.setBackdrop(packet.x, packet.y, tileId)) {
-					player.inventory.decreaseSelected(1);
-					broadcastInventoryUpdates();
-					broadcastBackdropChange(packet.x, packet.y, tileId);
-				}
-				return; // Don't place foreground
 			}
 
 			// FOREGROUND MODE: Normal block placement (existing code)
@@ -2373,6 +2419,26 @@ public class SharedWorld {
 				return; // Cannot place - would collide with player
 			}
 
+			// TRAP RESTRICTION
+			boolean isTrap = (tileId == Constants.TileID.SPIKE_TRAP || tileId == Constants.TileID.BOULDER_TRAP);
+			if (isTrap) {
+				boolean hasTrapSkill = player.unlockedPassives
+						.contains(mc.sayda.mcraze.player.specialization.PassiveEffectType.TRAP_MECHANISMS);
+
+				if (!hasTrapSkill) {
+					playerConnection.getConnection().sendPacket(new PacketChatMessage(
+							"Only Trap Masters can place traps!",
+							new mc.sayda.mcraze.graphics.Color(255, 100, 100)));
+
+					// Revert ghost block
+					Tile current = worldAccess.getTile(packet.x, packet.y);
+					int currentId = (current != null && current.type != null) ? current.type.name.ordinal() : 0;
+					playerConnection.getConnection()
+							.sendPacket(new PacketBlockChange(packet.x, packet.y, (char) currentId, false));
+					return;
+				}
+			}
+
 			// Place the block
 			if (world.addTile(packet.x, packet.y, tileId)) {
 				// FLAG SYSTEM: Valid placement
@@ -2381,17 +2447,19 @@ public class SharedWorld {
 					logger.info("SharedWorld: Flag placed at " + packet.x + "," + packet.y);
 				}
 
-				// ENGINEER: Trap Ownership (TrapTile)
+				// ENGINEER: Trap Ownership (Tile ownerUUID)
 				if (tileId == Constants.TileID.SPIKE_TRAP || tileId == Constants.TileID.BOULDER_TRAP) {
-					// Replace the basic Tile with a TrapTile that tracks the owner
-					mc.sayda.mcraze.world.tile.TrapTile trapTile = new mc.sayda.mcraze.world.tile.TrapTile(
-							Constants.tileTypes.get(tileId).type, player.getUUID());
-					world.setTileNoUpdate(packet.x, packet.y, trapTile);
-					if (logger != null) {
-						logger.debug("SharedWorld: Trap (" + tileId + ") placed by " + player.username + " at ("
-								+ packet.x + ", " + packet.y + ")");
+					Tile tile = world.getTile(packet.x, packet.y);
+					if (tile != null) {
+						tile.ownerUUID = player.getUUID();
+						if (logger != null) {
+							logger.debug("SharedWorld: Trap (" + tileId + ") placed by " + player.username + " at ("
+									+ packet.x + "," + packet.y + ")");
+						}
 					}
 				}
+
+				broadcastBlockChange(packet.x, packet.y, tileId);
 
 				// Trapdoor placement
 				if (tileId == Constants.TileID.TRAPDOOR) {
@@ -2399,7 +2467,27 @@ public class SharedWorld {
 				}
 
 				// Successfully placed - decrease inventory
-				player.inventory.decreaseSelected(1);
+				boolean consume = true;
+				if (player.selectedClass == mc.sayda.mcraze.player.specialization.PlayerClass.ENGINEER &&
+						player.unlockedPassives
+								.contains(mc.sayda.mcraze.player.specialization.PassiveEffectType.EFFICIENT_BUILDER)) {
+					// Check if tile is wood-based
+					if (tileId == Constants.TileID.WOOD || tileId == Constants.TileID.PLANK ||
+							tileId == Constants.TileID.DOOR_BOT_CLOSED || tileId == Constants.TileID.TRAPDOOR
+							|| tileId == Constants.TileID.TRAPDOOR_CLOSED ||
+							tileId == Constants.TileID.BED_LEFT || tileId == Constants.TileID.LADDER) {
+						if (random.nextDouble() < 0.25) {
+							consume = false;
+							if (logger != null) {
+								logger.info("Efficient Builder triggered! Wood block not consumed.");
+							}
+						}
+					}
+				}
+
+				if (consume) {
+					player.inventory.decreaseSelected(1);
+				}
 				// Immediately sync inventory after placing block (ISSUE #10 fix)
 				broadcastInventoryUpdates();
 
@@ -2438,6 +2526,7 @@ public class SharedWorld {
 					}
 				}
 			}
+
 		}
 	}
 
@@ -2474,6 +2563,38 @@ public class SharedWorld {
 				inv.inventoryItems.length + "][" + inv.inventoryItems[0].length +
 				"] | craftingHeight=" + inv.craftingHeight + " tableSizeAvailable=" + inv.tableSizeAvailable);
 
+		// Handle Item Dropping (Virtual X = -2)
+		if (slotX == -2) {
+			mc.sayda.mcraze.item.InventoryItem holding = inv.holding;
+			if (!holding.isEmpty()) {
+				int count = holding.getCount();
+				mc.sayda.mcraze.item.Item itemDef = holding.getItem();
+				holding.setEmpty();
+
+				for (int i = 0; i < count; i++) {
+					mc.sayda.mcraze.item.Item tossed = itemDef.clone();
+					if (player.facingRight) {
+						tossed.x = player.x + 1 + random.nextFloat();
+					} else {
+						tossed.x = player.x - 1 - random.nextFloat();
+					}
+					tossed.y = player.y;
+					tossed.dy = -.1f;
+					addEntity(tossed);
+				}
+				broadcastInventoryUpdates();
+			}
+			return;
+		}
+
+		// Handle Equipment Slots (Virtual X = -1)
+		if (slotX == -1) {
+			if (slotY >= 0 && slotY < inv.equipment.length) {
+				handleEquipmentInteraction(playerConnection, inv, slotY, !packet.leftClick);
+				return;
+			}
+		}
+
 		// Validate array bounds
 		if (slotX < 0 || slotX >= inv.inventoryItems.length ||
 				slotY < 0 || slotY >= inv.inventoryItems[0].length) {
@@ -2501,7 +2622,7 @@ public class SharedWorld {
 					if (item != null) {
 						currentTable[j][i] = item.itemId;
 					} else {
-						currentTable[j][i] = "0";
+						currentTable[j][i] = null;
 					}
 				}
 			}
@@ -2649,10 +2770,20 @@ public class SharedWorld {
 						int gridX = i + inv.inventoryItems.length - inv.tableSizeAvailable;
 						int gridY = j;
 						if (inv.inventoryItems[gridX][gridY].count > 0) {
-							inv.inventoryItems[gridX][gridY].count -= 1;
-							if (inv.inventoryItems[gridX][gridY].count <= 0) {
-								inv.inventoryItems[gridX][gridY].item = null;
-								inv.inventoryItems[gridX][gridY].count = 0;
+							// ENGINEER: Resourceful Engineering Core Bonus (10% chance to not consume)
+							boolean consume = true;
+							if (player.selectedClass == mc.sayda.mcraze.player.specialization.PlayerClass.ENGINEER) {
+								if (random.nextDouble() < 0.10) {
+									consume = false;
+								}
+							}
+
+							if (consume) {
+								inv.inventoryItems[gridX][gridY].count -= 1;
+								if (inv.inventoryItems[gridX][gridY].count <= 0) {
+									inv.inventoryItems[gridX][gridY].item = null;
+									inv.inventoryItems[gridX][gridY].count = 0;
+								}
 							}
 						}
 					}
@@ -2663,8 +2794,15 @@ public class SharedWorld {
 
 			logger.info("  Crafted " + craftedItem.itemId + " x" + (actualCrafted * craftedCount));
 		} else {
-			// Use common slot interaction logic for consistency across all UIs
-			handleInventorySlotInteraction(inv, slotX, slotY, !packet.leftClick, logger);
+			// Check if this is a mapped equipment slot (Top-left 5x2 area)
+			if (slotY < 2 && slotX < 5) {
+				// Map to equipment slots 0-9
+				int equipIdx = slotY * 5 + slotX;
+				handleEquipmentInteraction(playerConnection, inv, equipIdx, !packet.leftClick);
+			} else {
+				// Use common slot interaction logic for consistency across all UIs
+				handleInventorySlotInteraction(inv, slotX, slotY, !packet.leftClick, logger);
+			}
 		}
 
 		// Calculate craftable preview (what CAN be crafted from current grid)
@@ -2700,7 +2838,7 @@ public class SharedWorld {
 				if (item != null) {
 					currentTable[j][i] = item.itemId;
 				} else {
-					currentTable[j][i] = "0";
+					currentTable[j][i] = null;
 				}
 			}
 		}
@@ -2739,79 +2877,48 @@ public class SharedWorld {
 							.getItem()).toolType == mc.sayda.mcraze.item.Tool.ToolType.Bow) {
 				// Search for arrows: Diamond > Iron > Stone
 				mc.sayda.mcraze.item.InventoryItem arrowSlot = player.inventory.findItem("arrow_diamond");
-				mc.sayda.mcraze.entity.projectile.EntityArrow.ArrowType arrowType = mc.sayda.mcraze.entity.projectile.EntityArrow.ArrowType.DIAMOND;
 
 				if (arrowSlot == null) {
 					arrowSlot = player.inventory.findItem("arrow_iron");
-					arrowType = mc.sayda.mcraze.entity.projectile.EntityArrow.ArrowType.IRON;
 				}
 				if (arrowSlot == null) {
 					arrowSlot = player.inventory.findItem("arrow_stone");
-					arrowType = mc.sayda.mcraze.entity.projectile.EntityArrow.ArrowType.STONE;
 				}
 
 				if (arrowSlot != null) {
 					// Consume Arrow
-					arrowSlot.count--;
-					if (arrowSlot.count <= 0)
-						arrowSlot.setEmpty();
-					broadcastInventoryUpdates();
+					// Moved to Player.tick() for charge mechanic
+					/*
+					 * arrowSlot.count--;
+					 * if (arrowSlot.count <= 0)
+					 * arrowSlot.setEmpty();
+					 * broadcastInventoryUpdates();
+					 * 
+					 * // Spawn Arrow
+					 * // Velocity: Towards clicked point (packet.blockX, packet.blockY) treated as
+					 * // target
+					 * float dx = packet.blockX - player.x;
+					 * float dy = packet.blockY - player.y;
+					 * float len = (float) Math.sqrt(dx * dx + dy * dy);
+					 * if (len < 0.01f)
+					 * len = 1f;
+					 * 
+					 * float speed = 1.0f;
+					 * 
+					 * mc.sayda.mcraze.entity.projectile.EntityArrow arrow = new
+					 * mc.sayda.mcraze.entity.projectile.EntityArrow(
+					 * player.x, player.y + 0.2f, player, arrowType);
+					 * arrow.dx = (dx / len) * speed;
+					 * arrow.dy = (dy / len) * speed;
+					 * // Arrow needs to look right? Rotation is handled by client/entity tick.
+					 * // Just set velocity.
+					 * addEntity(arrow);
+					 */
 
-					// Spawn Arrow
-					// Velocity: Towards clicked point (packet.blockX, packet.blockY) treated as
-					// target
-					float dx = packet.blockX - player.x;
-					float dy = packet.blockY - player.y;
-					float len = (float) Math.sqrt(dx * dx + dy * dy);
-					if (len < 0.01f)
-						len = 1f;
-
-					float speed = 1.0f;
-
-					mc.sayda.mcraze.entity.projectile.EntityArrow arrow = new mc.sayda.mcraze.entity.projectile.EntityArrow(
-							player.x, player.y - 0.5f, player, arrowType);
-					arrow.dx = (dx / len) * speed;
-					arrow.dy = (dy / len) * speed;
-					// Arrow needs to look right? Rotation is handled by client/entity tick.
-					// Just set velocity.
-					addEntity(arrow);
-
-					// TODO: Sound
+					// Sound: Arrow hit
+					broadcastSound("assets/sounds/hit.wav");
 
 					return; // Stop further processing
-				}
-			}
-		}
-
-		// TRAPDOOR INTERACTION
-		// We handle trapdoors here because they are tile interactions
-		if (packet.type == PacketInteract.InteractionType.INTERACT) {
-			Tile tile = world.getTile(packet.blockX, packet.blockY);
-			if (tile != null) {
-				if (tile.type.name == Constants.TileID.TRAPDOOR_CLOSED) {
-					// Toggle to OPEN
-					world.addTile(packet.blockX, packet.blockY, Constants.TileID.TRAPDOOR);
-					broadcastBlockChange(packet.blockX, packet.blockY, Constants.TileID.TRAPDOOR);
-					// TODO: Sound
-					return;
-				} else if (tile.type.name == Constants.TileID.TRAPDOOR) {
-					// Toggle to CLOSE
-					world.addTile(packet.blockX, packet.blockY, Constants.TileID.TRAPDOOR_CLOSED);
-					broadcastBlockChange(packet.blockX, packet.blockY, Constants.TileID.TRAPDOOR_CLOSED);
-					// TODO: Sound
-					return;
-				} else if (tile.type.name == Constants.TileID.BOULDER_TRAP) {
-					// Trigger Boulder
-					world.removeTile(packet.blockX, packet.blockY);
-					broadcastBlockChange(packet.blockX, packet.blockY, null);
-
-					// Spawn Boulder
-					// If player is to the left of the trap, it rolls right (away from player)
-					boolean rollRight = player.x < packet.blockX + 0.5f;
-					mc.sayda.mcraze.entity.projectile.EntityBoulder boulder = new mc.sayda.mcraze.entity.projectile.EntityBoulder(
-							packet.blockX, packet.blockY, rollRight);
-					addEntity(boulder);
-					return;
 				}
 			}
 		}
@@ -2820,9 +2927,11 @@ public class SharedWorld {
 		if (packet.type == PacketInteract.InteractionType.TOGGLE_INVENTORY) {
 			// If player has a furnace or chest open, just close it (stop tracking) without
 			// toggling inventory
-			if (playerConnection.getOpenedFurnaceX() != -1 || playerConnection.getOpenedChestX() != -1) {
+			if (playerConnection.getOpenedFurnaceX() != -1 || playerConnection.getOpenedChestX() != -1
+					|| playerConnection.getOpenedAlchemyX() != -1) {
 				playerConnection.setOpenedFurnace(-1, -1);
 				playerConnection.setOpenedChest(-1, -1);
+				playerConnection.setOpenedAlchemy(-1, -1);
 				// Ensure inventory is closed on server side logic
 				player.inventory.setVisible(false);
 			} else {
@@ -2852,69 +2961,28 @@ public class SharedWorld {
 		}
 
 		// Handle different interaction types
-		if (packet.type == PacketInteract.InteractionType.OPEN_CRAFTING) {
-			// Check if the tile is actually a crafting table
-			if (tile.type.name != Constants.TileID.WORKBENCH) {
-				return;
+		// TRAP/INTERACT LOGIC
+		// Re-fetch from main world for interaction logic (ensures current state)
+		Tile interactTile = world.getTile(packet.blockX, packet.blockY);
+
+		if (logger != null)
+			logger.info("SharedWorld: handleInteract at " + packet.blockX + "," + packet.blockY + " Type: "
+					+ (interactTile != null && interactTile.type != null ? interactTile.type.name : "null"));
+
+		// Unified Interaction Handling
+		// Routes all block-based interactions to handleTileInteraction
+		if (packet.type == PacketInteract.InteractionType.INTERACT ||
+				packet.type == PacketInteract.InteractionType.OPEN_CRAFTING ||
+				packet.type == PacketInteract.InteractionType.OPEN_FURNACE ||
+				packet.type == PacketInteract.InteractionType.OPEN_CHEST ||
+				packet.type == PacketInteract.InteractionType.OPEN_ALCHEMY) {
+
+			// Use world.getTile() instead of worldAccess to ensure current state
+			Tile targetTile = world.getTile(packet.blockX, packet.blockY);
+			if (targetTile != null) {
+				handleTileInteraction(playerConnection, packet.blockX, packet.blockY, targetTile);
 			}
-
-			// Enable 3x3 crafting grid for this player
-			player.inventory.tableSizeAvailable = 3;
-
-			// Open the inventory UI
-			player.inventory.setVisible(true);
-
-			// Broadcast inventory update with crafting UI to all clients
-			broadcastInventoryUpdates();
-		} else if (packet.type == PacketInteract.InteractionType.OPEN_FURNACE) {
-			// Check if tile is a furnace
-			if (tile.type.name != Constants.TileID.FURNACE && tile.type.name != Constants.TileID.FURNACE_LIT) {
-				return;
-			}
-
-			// Track that this player has this furnace open
-			playerConnection.setOpenedFurnace(packet.blockX, packet.blockY);
-
-			// Hide regular inventory when opening container
-			player.inventory.setVisible(false);
-
-			// Send initial furnace data
-			mc.sayda.mcraze.world.storage.FurnaceData furnaceData = world.getOrCreateFurnace(packet.blockX,
-					packet.blockY);
-			mc.sayda.mcraze.network.packet.PacketFurnaceOpen refreshPacket = new mc.sayda.mcraze.network.packet.PacketFurnaceOpen(
-					packet.blockX, packet.blockY,
-					furnaceData.items,
-					furnaceData.fuelTimeRemaining,
-					furnaceData.smeltProgress,
-					furnaceData.smeltTimeTotal,
-					player.getUUID(),
-					false);
-			playerConnection.getConnection().sendPacket(refreshPacket);
-
-			// Broadcast inventory state change
-			broadcastInventoryUpdates();
-		} else if (packet.type == PacketInteract.InteractionType.OPEN_CHEST) {
-			// Check if tile is a chest
-			if (tile.type.name != Constants.TileID.CHEST) {
-				return;
-			}
-
-			// Track that this player has this chest open
-			playerConnection.setOpenedChest(packet.blockX, packet.blockY);
-
-			// Hide regular inventory when opening container
-			player.inventory.setVisible(false);
-
-			// Send initial chest data
-			mc.sayda.mcraze.world.storage.ChestData chestData = world.getOrCreateChest(packet.blockX, packet.blockY);
-			mc.sayda.mcraze.network.packet.PacketChestOpen refreshPacket = new mc.sayda.mcraze.network.packet.PacketChestOpen(
-					packet.blockX, packet.blockY,
-					chestData.items,
-					player.getUUID());
-			playerConnection.getConnection().sendPacket(refreshPacket);
-
-			// Broadcast inventory state change
-			broadcastInventoryUpdates();
+			return;
 		}
 	}
 
@@ -3105,9 +3173,30 @@ public class SharedWorld {
 							furnaceSlot.setCount(furnaceSlot.getCount() - halfCount);
 						} else {
 							// Left click or output slot - pick up all
+							int countToTake = furnaceSlot.getCount();
+
+							// [NEW] Metallurgy Passive (Vanguard)
+							if (isOutputSlot
+									&& player.selectedClass == mc.sayda.mcraze.player.specialization.PlayerClass.VANGUARD
+									&& player.unlockedPassives.contains(
+											mc.sayda.mcraze.player.specialization.PassiveEffectType.METALLURGY)) {
+								if (random.nextDouble() < 0.20) {
+									countToTake *= 2;
+									logger.info("Metallurgy triggered! Doubling output.");
+								}
+							}
+
 							inv.holding.setItem(furnaceSlot.getItem());
-							inv.holding.setCount(furnaceSlot.getCount());
-							furnaceSlot.setEmpty();
+							// Cap at 64 for holding, surplus stays in furnace
+							int toHolding = Math.min(64, countToTake);
+							inv.holding.setCount(toHolding);
+
+							int surplus = countToTake - toHolding;
+							if (surplus > 0) {
+								furnaceSlot.setCount(surplus);
+							} else {
+								furnaceSlot.setEmpty();
+							}
 						}
 					}
 				} else {
@@ -3377,6 +3466,9 @@ public class SharedWorld {
 				break;
 			case FURNACE:
 				handleFurnaceShiftClick(playerConnection, packet, playerInv);
+				break;
+			case ALCHEMY:
+				handleAlchemyShiftClick(playerConnection, packet, playerInv);
 				break;
 			case PLAYER_INVENTORY:
 				handlePlayerInventoryShiftClick(playerConnection, packet, playerInv);
@@ -4092,6 +4184,35 @@ public class SharedWorld {
 		}
 	}
 
+	private void handleEquipmentInteraction(PlayerConnection playerConnection,
+			mc.sayda.mcraze.player.Inventory inv, int slotIdx, boolean rightClick) {
+		if (slotIdx < 0 || slotIdx >= inv.equipment.length)
+			return;
+
+		mc.sayda.mcraze.item.InventoryItem equipSlot = inv.equipment[slotIdx];
+		mc.sayda.mcraze.item.InventoryItem holding = inv.holding;
+
+		// Basic Swap
+		mc.sayda.mcraze.item.Item tempItem = equipSlot.getItem();
+		int tempCount = equipSlot.getCount();
+
+		// Move holding -> equipment
+		equipSlot.setItem(holding.getItem());
+		equipSlot.setCount(holding.getCount()); // Usually 1 for equipment
+
+		// Move old equipment -> holding
+		holding.setItem(tempItem);
+		holding.setCount(tempCount);
+
+		if (equipSlot.getCount() <= 0)
+			equipSlot.setEmpty();
+		if (holding.getCount() <= 0)
+			holding.setEmpty();
+
+		// Broadcast update
+		broadcastInventoryUpdates();
+	}
+
 	private void handleInventorySlotInteraction(mc.sayda.mcraze.player.Inventory inv, int slotX, int slotY,
 			boolean rightClick, GameLogger logger) {
 
@@ -4249,20 +4370,16 @@ public class SharedWorld {
 			// Check if player is holding a bone
 			mc.sayda.mcraze.item.Item held = player.inventory.selectedItem().getItem();
 			if (held != null && "bone".equals(held.itemId)) {
-				// Must be Druid with Beast Tamer path
-				boolean isBeastTamer = false;
-				if (player.selectedClass == mc.sayda.mcraze.player.specialization.PlayerClass.DRUID) {
-					for (mc.sayda.mcraze.player.specialization.SpecializationPath path : player.selectedPaths) {
-						if (path == mc.sayda.mcraze.player.specialization.SpecializationPath.BEAST_TAMER) {
-							isBeastTamer = true;
-							break;
-						}
-					}
-				}
+				// Must have TAME_WOLVES passive (Beast Tamer path)
+				boolean hasTamingSkill = player.unlockedPassives
+						.contains(mc.sayda.mcraze.player.specialization.PassiveEffectType.TAME_WOLVES);
 
-				if (isBeastTamer && !wolf.isTamed()) {
+				if (hasTamingSkill && !wolf.isTamed()) {
 					// Tame the wolf!
 					wolf.setOwner(player.getUUID());
+					// [NEW] Beast Tamer HP Boost
+					wolf.maxHP = 30;
+					wolf.heal(10);
 					player.inventory.selectedItem().remove(1);
 					broadcastInventoryUpdates();
 
@@ -4275,10 +4392,38 @@ public class SharedWorld {
 					if (logger != null) {
 						logger.info("Player " + player.username + " tamed a wolf.");
 					}
-				} else if (!isBeastTamer) {
+				} else if (!hasTamingSkill) {
 					playerConnection.getConnection().sendPacket(new mc.sayda.mcraze.network.packet.PacketChatMessage(
-							"Only a Druid (Beast Tamer) can tame wild animals!",
+							"You need the 'Tame Wolves' skill to tame wild animals!",
 							new mc.sayda.mcraze.graphics.Color(255, 100, 100)));
+				}
+			}
+		}
+	}
+
+	// Unified entity damage handling with attacker tracking
+	public void damageEntity(mc.sayda.mcraze.entity.LivingEntity victim, mc.sayda.mcraze.entity.Entity attacker,
+			int amount, mc.sayda.mcraze.entity.DamageType type) {
+		victim.takeDamage(amount, type, attacker);
+
+		// If a player is attacked, alert their wolves
+		if (victim instanceof Player && attacker != null) {
+			alertWolvesOfTarget((Player) victim, attacker);
+		}
+	}
+
+	/**
+	 * Alert all tamed wolves of a specific owner to attack a target.
+	 */
+	public void alertWolvesOfTarget(Player owner, mc.sayda.mcraze.entity.Entity target) {
+		if (owner == null || target == null || target.dead)
+			return;
+
+		for (mc.sayda.mcraze.entity.Entity e : entityManager.getAll()) {
+			if (e instanceof mc.sayda.mcraze.entity.mob.EntityWolf) {
+				mc.sayda.mcraze.entity.mob.EntityWolf wolf = (mc.sayda.mcraze.entity.mob.EntityWolf) e;
+				if (wolf.isTamed() && owner.getUUID().equals(wolf.getOwner())) {
+					wolf.alertTarget(target);
 				}
 			}
 		}
@@ -4351,14 +4496,22 @@ public class SharedWorld {
 		// Calculate damage from held item
 		int damage = 1; // Default punch damage
 		mc.sayda.mcraze.item.InventoryItem heldItem = attacker.inventory.selectedItem();
-		boolean isSword = false;
-
 		if (heldItem != null && !heldItem.isEmpty() && heldItem.getItem() instanceof mc.sayda.mcraze.item.Tool) {
 			mc.sayda.mcraze.item.Tool tool = (mc.sayda.mcraze.item.Tool) heldItem.getItem();
 			damage = tool.attackDamage;
 
-			if (tool.toolType == mc.sayda.mcraze.item.Tool.ToolType.Sword) {
-				isSword = true;
+			// Apply Class Melee Damage Multiplier
+			if (attacker.classStats != null) {
+				damage = (int) (damage * attacker.classStats.getMeleeDamageMultiplier());
+
+				// BLOOD_RAGE: +2% damage per 10% HP missing (Vanguard passive)
+				if (attacker.classStats.provider instanceof mc.sayda.mcraze.player.specialization.VanguardStats) {
+					mc.sayda.mcraze.player.specialization.VanguardStats vanguard = (mc.sayda.mcraze.player.specialization.VanguardStats) attacker.classStats.provider;
+					float bloodRageBonus = vanguard.getBloodRageBonus(attacker.hitPoints, attacker.getMaxHP());
+					if (bloodRageBonus > 0) {
+						damage = (int) (damage * (1.0f + bloodRageBonus));
+					}
+				}
 			}
 
 			// Damage tool durability
@@ -4367,42 +4520,88 @@ public class SharedWorld {
 				// Tool broke
 				heldItem.setEmpty();
 				broadcastInventoryUpdates();
-				broadcastPacket(new mc.sayda.mcraze.network.packet.PacketPlaySound("break.wav"));
+				broadcastSound("break.wav", target.x, target.y);
 			}
 		}
+
+		// Apply Battle Frenzy (Add Buff)
+		if (attacker instanceof mc.sayda.mcraze.player.Player)
+
+		{
+			mc.sayda.mcraze.player.Player p = (mc.sayda.mcraze.player.Player) attacker;
+			if (p.unlockedPassives.contains(mc.sayda.mcraze.player.specialization.PassiveEffectType.BATTLE_FRENZY)) {
+				// Find existing Frenzy buff
+				mc.sayda.mcraze.entity.buff.Buff frenzy = null;
+				for (mc.sayda.mcraze.entity.buff.Buff b : p.activeBuffs) {
+					if (b.getType() == mc.sayda.mcraze.entity.buff.BuffType.FRENZY) {
+						frenzy = b;
+						break;
+					}
+				}
+
+				if (frenzy != null) {
+					// Stack up to 3x (Amplifier 2)
+					if (frenzy.getAmplifier() < 2) {
+						frenzy.setAmplifier(frenzy.getAmplifier() + 1);
+					}
+					frenzy.setDuration(100); // Reset duration to 5s
+				} else {
+					p.addBuff(
+							new mc.sayda.mcraze.entity.buff.Buff(mc.sayda.mcraze.entity.buff.BuffType.FRENZY, 100, 0));
+				}
+			}
+		}
+
+		// Apply Buff Modifiers (Strength / Weakness / Frenzy)
+		int strengthLevel = attacker.getBuffAmplifier(mc.sayda.mcraze.entity.buff.BuffType.STRENGTH);
+		if (strengthLevel >= 0) {
+			damage += 3 * (strengthLevel + 1);
+		}
+
+		int weaknessLevel = attacker.getBuffAmplifier(mc.sayda.mcraze.entity.buff.BuffType.WEAKNESS);
+		if (weaknessLevel >= 0) {
+			damage -= 3 * (weaknessLevel + 1);
+		}
+
+		int frenzyLevel = attacker.getBuffAmplifier(mc.sayda.mcraze.entity.buff.BuffType.FRENZY);
+		if (frenzyLevel >= 0) {
+			// +5% damage per stack (min +1)
+			int bonus = (int) Math.max(frenzyLevel + 1, damage * 0.05f * (frenzyLevel + 1));
+			damage += bonus;
+		}
+
+		if (attacker.hasBuff(mc.sayda.mcraze.entity.buff.BuffType.WELL_FED)) {
+			int bonus = (int) Math.max(1, damage * 0.10f); // +10% Damage
+			damage += bonus;
+		}
+
+		if (damage < 1)
+			damage = 1; // Minimum 1 damage
 
 		// Apply damage to target
 		if (logger != null && logger.isDebugEnabled())
 			logger.debug("Applying " + damage + " damage to " + livingTarget.getClass().getSimpleName());
-		livingTarget.takeDamage(damage);
 
-		// Play hit sound
-		broadcastPacket(new mc.sayda.mcraze.network.packet.PacketPlaySound("hit.wav"));
+		// Use damageEntity to track attacker and alert wolves if needed
+		damageEntity(livingTarget, attacker, damage, mc.sayda.mcraze.entity.DamageType.PHYSICAL);
 
-		// Apply knockback to target (away from attacker)
-		float kbDx = livingTarget.x - attacker.x;
-		float kbDy = livingTarget.y - attacker.y;
-		float kbDistSq = kbDx * kbDx + kbDy * kbDy;
-
-		// Normalize roughly
-		float kbLen = (float) Math.sqrt(kbDistSq);
-		if (kbLen > 0) {
-			kbDx /= kbLen;
-			kbDy /= kbLen;
-		} else {
-			kbDx = 1.0f;
-			kbDy = 0.0f;
+		// Also alert wolves to help attack the player's target
+		if (attacker instanceof Player) {
+			alertWolvesOfTarget((Player) attacker, livingTarget);
 		}
 
-		livingTarget.dx += kbDx * 0.4f; // Knockback force
-		livingTarget.dy = -0.2f; // Slight lift
+		// Play hit sound
+		broadcastSound("hit.wav", target.x, target.y);
+
+		// Apply knockback to target
+		livingTarget.applyKnockback(attacker.x, 0.4f);
 
 		// Broadcast entity update to show health change
 		broadcastEntityUpdate();
 
 		// Check if target died
 		if (livingTarget.dead) {
-			handleEntityDeath(livingTarget);
+			handleEntityDeath(livingTarget, attacker);
 		}
 	}
 
@@ -4438,9 +4637,17 @@ public class SharedWorld {
 			return;
 		}
 
-		// Get spawn coordinates from world
-		float spawnX = world.spawnLocation.x;
-		float spawnY = world.spawnLocation.y;
+		// Get spawn coordinates (Player specific or World default)
+		float spawnX;
+		float spawnY;
+
+		if (player.spawnX != -1 && player.spawnY != -1) {
+			spawnX = player.spawnX;
+			spawnY = player.spawnY - 1.75f;
+		} else {
+			spawnX = world.spawnLocation.x;
+			spawnY = world.spawnLocation.y - 1.75f;
+		}
 
 		if (logger != null) {
 			logger.info("SharedWorld.respawnPlayer: Respawning " + playerConn.getPlayerName() +
@@ -4481,7 +4688,7 @@ public class SharedWorld {
 		return mobSpawner;
 	}
 
-	private void handleEntityDeath(mc.sayda.mcraze.entity.LivingEntity entity) {
+	private void handleEntityDeath(mc.sayda.mcraze.entity.LivingEntity entity, mc.sayda.mcraze.entity.Entity attacker) {
 		logger.info(entity.getClass().getSimpleName() + " died from attack");
 		if (logger != null && logger.isDebugEnabled())
 			logger.debug("Entity died. UUID: " + entity.getUUID());
@@ -4536,6 +4743,47 @@ public class SharedWorld {
 			dropItem("rotten_flesh", entity.x, entity.y, count);
 		}
 
+		// MAGE: Essence Drop System
+		// Drop depends on killer (Arcanist/Druid) OR nearby Mage with ESSENCE_COLLECTOR
+		Player killer = (attacker instanceof Player) ? (Player) attacker : null;
+		boolean killerIsMage = killer != null
+				&& (killer.selectedClass == mc.sayda.mcraze.player.specialization.PlayerClass.ARCANIST
+						|| killer.selectedClass == mc.sayda.mcraze.player.specialization.PlayerClass.DRUID);
+
+		Player nearbySupportMage = null;
+		float rangeSq = 10 * 10 * mc.sayda.mcraze.Constants.TILE_SIZE * mc.sayda.mcraze.Constants.TILE_SIZE;
+
+		for (mc.sayda.mcraze.server.PlayerConnection pc : players) {
+			Player p = pc.getPlayer();
+			if (p != null && !p.dead
+					&& p.unlockedPassives
+							.contains(mc.sayda.mcraze.player.specialization.PassiveEffectType.ESSENCE_COLLECTOR)) {
+				// We only look for a support mage if the killer isn't a mage, or if we want to
+				// boost drops
+				float distSq = (p.x - entity.x) * (p.x - entity.x) + (p.y - entity.y) * (p.y - entity.y);
+				if (distSq < rangeSq) {
+					nearbySupportMage = p;
+					break;
+				}
+			}
+		}
+
+		if (killerIsMage || nearbySupportMage != null) {
+			float dropChance = killerIsMage ? 1.0f : 0.5f; // Mage killers always drop, teammates 50%
+			int baseValue = 5 + (int) (Math.random() * 6); // 5-10 essence
+
+			// Boost if someone has collector nearby (including the killer themselves)
+			if (nearbySupportMage != null || (killerIsMage && killer.unlockedPassives
+					.contains(mc.sayda.mcraze.player.specialization.PassiveEffectType.ESSENCE_COLLECTOR))) {
+				baseValue *= 1.5; // 50% more essence
+				dropChance = 1.0f; // collector makes it 100%
+			}
+
+			if (Math.random() < dropChance) {
+				addEntity(new mc.sayda.mcraze.entity.EntityEssence(entity.x, entity.y, baseValue));
+			}
+		}
+
 		// Remove entity
 		entityManager.remove(entity);
 
@@ -4550,6 +4798,19 @@ public class SharedWorld {
 			return world.getTicksAlive();
 		}
 		return 0;
+	}
+
+	public void broadcastSkillpointReward(int amount) {
+		for (PlayerConnection pc : players) {
+			Player p = pc.getPlayer();
+			if (p != null) {
+				p.addSkillPoint(amount);
+				pc.getConnection()
+						.sendPacket(new mc.sayda.mcraze.network.packet.PacketChatMessage(
+								"§aYou have been awarded " + amount + " Skillpoint for surviving 7 days!",
+								new mc.sayda.mcraze.graphics.Color(50, 255, 50)));
+			}
+		}
 	}
 
 	/**
@@ -4649,8 +4910,34 @@ public class SharedWorld {
 			return;
 		}
 
+		Tile tile = world.getTile(x, y);
+		if (tile != null && tile.type != null && tile.type.name == Constants.TileID.TNT) {
+			// Remove block
+			world.removeTile(x, y);
+			broadcastBlockChange(x, y, null);
+
+			// Spawn Primed TNT
+			mc.sayda.mcraze.entity.item.EntityPrimedTNT tnt = new mc.sayda.mcraze.entity.item.EntityPrimedTNT(x, y);
+			tnt.dx = (random.nextFloat() - 0.5f) * 0.1f;
+			tnt.dy = -0.1f + (random.nextFloat() * 0.1f);
+			addEntity(tnt);
+
+			// Sound
+			broadcastSound("fuse.wav", x, y);
+			return;
+		}
+
 		// Remove the tile
 		Constants.TileID broken = world.removeTile(x, y);
+
+		// Handle pot breaking
+		if (broken == Constants.TileID.FLOWER_POT) {
+			mc.sayda.mcraze.world.storage.PotData potData = world.getPot(x, y);
+			if (potData != null && potData.plantId != null) {
+				dropItem(potData.plantId, x, y, 1);
+			}
+			world.removePot(x, y);
+		}
 
 		// Handle chest breaking
 		if (broken == Constants.TileID.CHEST) {
@@ -4673,6 +4960,52 @@ public class SharedWorld {
 				world.removeChest(x, y);
 				if (logger != null) {
 					logger.debug("SharedWorld: Chest broken at (" + x + ", " + y + "), items dropped");
+				}
+			}
+		}
+
+		// Handle furnace breaking
+		if (broken == Constants.TileID.FURNACE || broken == Constants.TileID.FURNACE_LIT) {
+			mc.sayda.mcraze.world.storage.FurnaceData furnaceData = world.getFurnace(x, y);
+			if (furnaceData != null) {
+				for (mc.sayda.mcraze.item.InventoryItem[] row : furnaceData.items) {
+					for (mc.sayda.mcraze.item.InventoryItem invItem : row) {
+						if (invItem != null && !invItem.isEmpty()) {
+							for (int i = 0; i < invItem.getCount(); i++) {
+								Item droppedItem = invItem.getItem().clone();
+								droppedItem.x = x + random.nextFloat() * 0.8f + 0.1f;
+								droppedItem.y = y + random.nextFloat() * 0.8f + 0.1f;
+								droppedItem.dy = -0.05f - random.nextFloat() * 0.05f;
+								entityManager.add(droppedItem);
+							}
+						}
+					}
+				}
+				world.removeFurnace(x, y);
+				if (logger != null) {
+					logger.debug("SharedWorld: Furnace broken at (" + x + ", " + y + "), items dropped");
+				}
+			}
+		}
+
+		// Handle alchemy table breaking
+		if (broken == Constants.TileID.ALCHEMY_TABLE) {
+			mc.sayda.mcraze.world.storage.AlchemyData alchemyData = world.getAlchemy(x, y);
+			if (alchemyData != null) {
+				for (mc.sayda.mcraze.item.InventoryItem invItem : alchemyData.items) {
+					if (invItem != null && !invItem.isEmpty()) {
+						for (int i = 0; i < invItem.getCount(); i++) {
+							Item droppedItem = invItem.getItem().clone();
+							droppedItem.x = x + random.nextFloat() * 0.8f + 0.1f;
+							droppedItem.y = y + random.nextFloat() * 0.8f + 0.1f;
+							droppedItem.dy = -0.05f - random.nextFloat() * 0.05f;
+							entityManager.add(droppedItem);
+						}
+					}
+				}
+				world.removeAlchemy(x, y);
+				if (logger != null) {
+					logger.debug("SharedWorld: Alchemy Table broken at (" + x + ", " + y + "), items dropped");
 				}
 			}
 		}
@@ -4760,16 +5093,34 @@ public class SharedWorld {
 		}
 
 		if (broken == Constants.TileID.LEAVES) {
-			if (random.nextDouble() < 0.1) {
+			// FOREST_HARVEST: Higher drop rates + golden apple chance
+			boolean hasForestHarvest = player != null && player.unlockedPassives
+					.contains(mc.sayda.mcraze.player.specialization.PassiveEffectType.FOREST_HARVEST);
+			double saplingChance = hasForestHarvest ? 0.25 : 0.1; // 25% vs 10%
+			double appleChance = hasForestHarvest ? 0.12 : 0.05; // 12% vs 5%
+			double goldenAppleChance = hasForestHarvest ? 0.02 : 0.0; // 2% vs 0%
+
+			if (random.nextDouble() < saplingChance) {
 				dropId = Constants.TileID.SAPLING;
 			}
 			// Apple drops (independent chance)
-			if (random.nextDouble() < 0.05) { // 5% chance
+			if (random.nextDouble() < appleChance) {
 				Item apple = Constants.itemTypes.get("apple").clone();
 				apple.x = x + random.nextFloat() * 0.5f;
 				apple.y = y + random.nextFloat() * 0.5f;
 				apple.dy = -0.07f;
 				entityManager.add(apple);
+			}
+			// Golden apple drops (FOREST_HARVEST only)
+			if (random.nextDouble() < goldenAppleChance) {
+				Item goldenApple = Constants.itemTypes.get("golden_apple");
+				if (goldenApple != null) {
+					Item ga = goldenApple.clone();
+					ga.x = x + random.nextFloat() * 0.5f;
+					ga.y = y + random.nextFloat() * 0.5f;
+					ga.dy = -0.07f;
+					entityManager.add(ga);
+				}
 			}
 		}
 
@@ -4813,6 +5164,39 @@ public class SharedWorld {
 					item.y = y + random.nextFloat() * 0.5f;
 					item.dy = -0.07f;
 					entityManager.add(item);
+
+					// Apply Class Extra Drops
+					if (player.classStats != null) {
+						// Lumber Expert: +2 extra wood when breaking trees
+						if (broken == Constants.TileID.WOOD &&
+								player.unlockedPassives.contains(
+										mc.sayda.mcraze.player.specialization.PassiveEffectType.LUMBER_EXPERT)) {
+							for (int i = 0; i < 2; i++) {
+								Item extra = droppedItem.clone();
+								extra.x = x + random.nextFloat() * 0.5f;
+								extra.y = y + random.nextFloat() * 0.5f;
+								extra.dy = -0.07f - (random.nextFloat() * 0.05f);
+								entityManager.add(extra);
+							}
+						}
+
+						// Bountiful Yield: +20% chance for extra crop yield (rounded up to +1 for now)
+						if (broken == Constants.TileID.WHEAT &&
+								player.unlockedPassives.contains(
+										mc.sayda.mcraze.player.specialization.PassiveEffectType.BOUNTIFUL_YIELD)) {
+							// Wheat already drops 1 wheat. Bountiful Yield adds another one 50% of the
+							// time,
+							// or just +1 always if simpler.
+							// Design says "20% more items". Let's do 50% chance for +1.
+							if (random.nextDouble() < 0.5) {
+								Item extra = droppedItem.clone();
+								extra.x = x + random.nextFloat() * 0.5f;
+								extra.y = y + random.nextFloat() * 0.5f;
+								extra.dy = -0.07f - (random.nextFloat() * 0.05f);
+								entityManager.add(extra);
+							}
+						}
+					}
 				}
 			}
 		}
@@ -4850,7 +5234,7 @@ public class SharedWorld {
 				for (PlayerConnection pc : players) {
 					Player p = pc.getPlayer();
 					if (p != null && !p.dead) {
-						p.takeDamage(1); // 0.5 hearts damage
+						p.takeDamage(1, mc.sayda.mcraze.entity.DamageType.MAGICAL); // 0.5 hearts damage (Curse)
 						pc.getConnection().sendPacket(new PacketChatMessage(
 								"The darkness consumes you! Place the Flag!",
 								new mc.sayda.mcraze.graphics.Color(200, 0, 0)));
@@ -4873,6 +5257,21 @@ public class SharedWorld {
 	public void mobBreakBlock(int x, int y, mc.sayda.mcraze.entity.Entity source) {
 		if (world == null)
 			return;
+
+		Tile tile = world.getTile(x, y);
+		if (tile != null && tile.type != null && tile.type.name == Constants.TileID.TNT) {
+			// Remove block
+			world.removeTile(x, y);
+			broadcastBlockChange(x, y, null);
+
+			// Spawn Primed TNT
+			mc.sayda.mcraze.entity.item.EntityPrimedTNT tnt = new mc.sayda.mcraze.entity.item.EntityPrimedTNT(x, y);
+			tnt.dx = (random.nextFloat() - 0.5f) * 0.1f;
+			tnt.dy = -0.1f;
+			addEntity(tnt);
+			broadcastSound("fuse.wav", x, y);
+			return;
+		}
 
 		// Remove the tile
 		Constants.TileID broken = world.removeTile(x, y);
@@ -4922,4 +5321,604 @@ public class SharedWorld {
 		broadcast(packet);
 	}
 
+	public void handleAlchemyAction(PlayerConnection playerConnection,
+			mc.sayda.mcraze.network.packet.PacketAlchemyAction packet) {
+		Player player = playerConnection.getPlayer();
+		if (player == null || player.inventory == null || player.dead)
+			return;
+
+		mc.sayda.mcraze.world.storage.AlchemyData alchemyData = world.getOrCreateAlchemy(packet.blockX, packet.blockY);
+		mc.sayda.mcraze.player.Inventory inv = player.inventory;
+
+		if (packet.isDepositEssence) {
+			// Deprecated: Essence is now drawn directly from player pool during brewing.
+		} else if (packet.isAlchemySlot) {
+			if (packet.slotIdx >= 0 && packet.slotIdx < 5) {
+				mc.sayda.mcraze.item.InventoryItem alcSlot = alchemyData.items[packet.slotIdx];
+				handleContainerSlotInteraction(inv, alcSlot, packet.isRightClick, packet.slotIdx == 4);
+			}
+		} else {
+			if (packet.slotIdx >= 0 && packet.slotIdx < 40) {
+				int invX = packet.slotIdx % 10;
+				int invY = packet.slotIdx / 10 + 3;
+				handleInventorySlotInteraction(inv, invX, invY, packet.isRightClick, logger);
+			}
+		}
+
+		mc.sayda.mcraze.item.ItemLoader.ItemDefinition recipe = findAlchemyRecipe(alchemyData.items);
+		int cost = (recipe != null) ? recipe.alchemy.essence : 0;
+
+		PacketAlchemyOpen refreshPacket = new PacketAlchemyOpen(
+				packet.blockX, packet.blockY,
+				alchemyData.items,
+				player.essence,
+				alchemyData.brewProgress,
+				alchemyData.brewTimeTotal,
+				player.getUUID(),
+				true,
+				cost);
+		playerConnection.getConnection().sendPacket(refreshPacket);
+		broadcastInventoryUpdates();
+	}
+
+	private void handleContainerSlotInteraction(Inventory inv, mc.sayda.mcraze.item.InventoryItem containerSlot,
+			boolean isRightClick, boolean isOutput) {
+		if (inv.holding.isEmpty()) {
+			if (!containerSlot.isEmpty()) {
+				if (isRightClick && containerSlot.getCount() > 1 && !isOutput) {
+					int pick = (containerSlot.getCount() + 1) / 2;
+					inv.holding.setItem(containerSlot.getItem().clone());
+					inv.holding.setCount(pick);
+					containerSlot.setCount(containerSlot.getCount() - pick);
+				} else {
+					inv.holding.setItem(containerSlot.getItem());
+					inv.holding.setCount(containerSlot.getCount());
+					containerSlot.setEmpty();
+				}
+			}
+		} else {
+			if (isOutput) {
+				if (!containerSlot.isEmpty() && containerSlot.getItem().itemId.equals(inv.holding.getItem().itemId)) {
+					int leftover = inv.holding.add(containerSlot.getItem(), containerSlot.getCount());
+					containerSlot.setCount(leftover);
+					if (leftover == 0)
+						containerSlot.setEmpty();
+				}
+				return;
+			}
+
+			if (containerSlot.isEmpty()) {
+				if (isRightClick) {
+					containerSlot.setItem(inv.holding.getItem().clone());
+					containerSlot.setCount(1);
+					inv.holding.remove(1);
+				} else {
+					containerSlot.setItem(inv.holding.getItem().clone());
+					containerSlot.setCount(inv.holding.getCount());
+					inv.holding.setEmpty();
+				}
+			} else if (containerSlot.getItem().itemId.equals(inv.holding.getItem().itemId)) {
+				if (isRightClick) {
+					if (containerSlot.add(inv.holding.getItem(), 1) == 0) {
+						inv.holding.remove(1);
+					}
+				} else {
+					int leftover = containerSlot.add(inv.holding.getItem(), inv.holding.getCount());
+					inv.holding.setCount(leftover);
+					if (leftover == 0)
+						inv.holding.setEmpty();
+				}
+			} else {
+				mc.sayda.mcraze.item.InventoryItem temp = new mc.sayda.mcraze.item.InventoryItem(null);
+				temp.setItem(inv.holding.getItem());
+				temp.setCount(inv.holding.getCount());
+				inv.holding.setItem(containerSlot.getItem());
+				inv.holding.setCount(containerSlot.getCount());
+				containerSlot.setItem(temp.getItem());
+				containerSlot.setCount(temp.getCount());
+			}
+		}
+	}
+
+	public void tickAlchemies() {
+		for (mc.sayda.mcraze.world.storage.AlchemyData alchemy : world.getAllAlchemies().values()) {
+			tickAlchemy(alchemy);
+		}
+	}
+
+	private void tickAlchemy(mc.sayda.mcraze.world.storage.AlchemyData alchemy) {
+		if (alchemy.x < 0 || alchemy.x >= world.width || alchemy.y < 0 || alchemy.y >= world.height)
+			return;
+
+		// CRITICAL FIX: Upgrade 3-slot alchemy tables to 5-slot to prevent crash on old
+		// saves
+		if (alchemy.items.length < 5) {
+			mc.sayda.mcraze.item.InventoryItem[] newItems = new mc.sayda.mcraze.item.InventoryItem[5];
+			for (int i = 0; i < 5; i++) {
+				if (i < alchemy.items.length) {
+					newItems[i] = alchemy.items[i];
+				} else {
+					newItems[i] = new mc.sayda.mcraze.item.InventoryItem(null);
+				}
+			}
+			alchemy.items = newItems;
+		}
+
+		mc.sayda.mcraze.item.InventoryItem[] items = alchemy.items;
+		mc.sayda.mcraze.item.ItemLoader.ItemDefinition recipe = findAlchemyRecipe(items);
+
+		// Find a player who has this table open and has enough essence
+		Player primaryUser = null;
+		for (PlayerConnection pc : players) {
+			if (pc.getOpenedAlchemyX() == alchemy.x && pc.getOpenedAlchemyY() == alchemy.y) {
+				Player p = pc.getPlayer();
+				if (recipe != null && p != null && p.essence >= recipe.alchemy.essence) {
+					primaryUser = p;
+					break;
+				}
+			}
+		}
+
+		boolean canBrew = (recipe != null && primaryUser != null);
+
+		if (canBrew && !items[4].isEmpty()) {
+			if (!items[4].getItem().itemId.equals(recipe.itemId) || items[4].getCount() >= 64) {
+				canBrew = false;
+			}
+		}
+
+		if (canBrew) {
+			if (alchemy.currentRecipe == null || !alchemy.currentRecipe.equals(recipe.itemId)) {
+				alchemy.currentRecipe = recipe.itemId;
+				alchemy.brewProgress = 0;
+				alchemy.brewTimeTotal = recipe.alchemy.time;
+			}
+
+			alchemy.brewProgress++;
+			if (alchemy.brewProgress >= alchemy.brewTimeTotal) {
+				// Deduct essence from the player who enabled this brew
+				if (primaryUser != null) {
+					primaryUser.essence -= recipe.alchemy.essence;
+				}
+				mc.sayda.mcraze.item.Item result = mc.sayda.mcraze.Constants.itemTypes.get(recipe.itemId);
+				if (items[4].isEmpty()) {
+					items[4].setItem(result.clone());
+					items[4].setCount(recipe.alchemy.yield);
+				} else {
+					items[4].add(result, recipe.alchemy.yield);
+				}
+
+				for (int i = 0; i < 4; i++) {
+					items[i].remove(1);
+				}
+
+				alchemy.brewProgress = 0;
+				alchemy.currentRecipe = null;
+
+				// Sound: Brewing Complete
+				broadcastSound("assets/sounds/random/levelup.wav"); // Placeholder
+			}
+		} else {
+			if (alchemy.brewProgress > 0) {
+				alchemy.brewProgress--;
+			}
+			alchemy.currentRecipe = null;
+		}
+
+		for (PlayerConnection pc : players) {
+			if (pc.getConnection().isConnected() && pc.getOpenedAlchemyX() == alchemy.x
+					&& pc.getOpenedAlchemyY() == alchemy.y) {
+				PacketAlchemyOpen syncPacket = new PacketAlchemyOpen(
+						alchemy.x, alchemy.y,
+						alchemy.items,
+						pc.getPlayer().essence, // Send player essence as "stored" for UI display
+						alchemy.brewProgress,
+						alchemy.brewTimeTotal,
+						pc.getPlayer().getUUID(),
+						true,
+						recipe != null ? recipe.alchemy.essence : 0);
+				pc.getConnection().sendPacket(syncPacket);
+			}
+		}
+	}
+
+	private mc.sayda.mcraze.item.ItemLoader.ItemDefinition findAlchemyRecipe(
+			mc.sayda.mcraze.item.InventoryItem[] slots) {
+		if (slots[3].isEmpty())
+			return null;
+
+		for (mc.sayda.mcraze.item.Item itm : mc.sayda.mcraze.Constants.itemTypes.values()) {
+			mc.sayda.mcraze.item.ItemLoader.ItemDefinition def = mc.sayda.mcraze.item.ItemLoader
+					.getItemDefinition(itm.itemId);
+			if (def != null && def.alchemy != null) {
+				if (!slots[3].getItem().itemId.equals(def.alchemy.bottle))
+					continue;
+
+				java.util.List<String> needed = new java.util.ArrayList<>(
+						java.util.Arrays.asList(def.alchemy.ingredients));
+				boolean match = true;
+				for (int i = 0; i < 3; i++) {
+					String slotId = slots[i].isEmpty() ? "empty" : slots[i].getItem().itemId;
+					if (!needed.remove(slotId)) {
+						if (!slots[i].isEmpty()) {
+							match = false;
+							break;
+						}
+					}
+				}
+				if (match && needed.isEmpty())
+					return def;
+			}
+		}
+		return null;
+	}
+
+	private void handleAlchemyShiftClick(PlayerConnection playerConnection,
+			mc.sayda.mcraze.network.packet.PacketShiftClick packet,
+			mc.sayda.mcraze.player.Inventory playerInv) {
+		if (playerConnection.getOpenedAlchemyX() == -1 || playerConnection.getOpenedAlchemyY() == -1) {
+			return;
+		}
+
+		mc.sayda.mcraze.world.storage.AlchemyData alchemyData = world.getOrCreateAlchemy(
+				playerConnection.getOpenedAlchemyX(), playerConnection.getOpenedAlchemyY());
+		if (alchemyData == null)
+			return;
+
+		if (packet.isContainerSlot) {
+			if (packet.slotX >= 0 && packet.slotX < 5) {
+				mc.sayda.mcraze.item.InventoryItem sourceSlot = alchemyData.items[packet.slotX];
+				if (sourceSlot != null && !sourceSlot.isEmpty()) {
+					quickTransferToPlayerInventory(sourceSlot, playerInv);
+				}
+			}
+		} else {
+			int playerRow = packet.slotY + 3;
+			if (packet.slotX >= 0 && packet.slotX < 10 && playerRow >= 0
+					&& playerRow < playerInv.inventoryItems[0].length) {
+				mc.sayda.mcraze.item.InventoryItem sourceSlot = playerInv.inventoryItems[packet.slotX][playerRow];
+				if (!sourceSlot.isEmpty()) {
+					quickTransferToAlchemy(sourceSlot, alchemyData);
+				}
+			}
+		}
+	}
+
+	private void quickTransferToAlchemy(mc.sayda.mcraze.item.InventoryItem source,
+			mc.sayda.mcraze.world.storage.AlchemyData alchemy) {
+		if (source.getItem().itemId.equals("water_bottle") || source.getItem().itemId.equals("bottle")) {
+			if (alchemy.items[3].isEmpty() || alchemy.items[3].getItem().itemId.equals(source.getItem().itemId)) {
+				int leftover = alchemy.items[3].add(source.getItem(), source.getCount());
+				source.setCount(leftover);
+				if (leftover == 0)
+					source.setEmpty();
+				if (source.isEmpty())
+					return;
+			}
+		}
+
+		for (int i = 0; i < 3; i++) {
+			if (alchemy.items[i].isEmpty() || alchemy.items[i].getItem().itemId.equals(source.getItem().itemId)) {
+				int leftover = alchemy.items[i].add(source.getItem(), source.getCount());
+				source.setCount(leftover);
+				if (leftover == 0)
+					source.setEmpty();
+				if (source.isEmpty())
+					return;
+			}
+		}
+	}
+
+	private void tickPots() {
+		for (mc.sayda.mcraze.world.storage.PotData pot : world.getPots()) {
+			if (pot.plantId != null) {
+				// Check tile above
+				int aboveY = pot.y - 1;
+				if (aboveY < 0)
+					continue;
+
+				mc.sayda.mcraze.world.tile.Tile aboveTile = world.getTile(pot.x, aboveY);
+				// Pause if blocked (must be AIR to grow/place)
+
+				boolean blocked = (aboveTile != null && aboveTile.type.name != Constants.TileID.AIR);
+
+				if (blocked) {
+					continue; // Paused
+				}
+
+				// Not blocked, so grow
+				if (pot.growthProgress < pot.growthTimeTotal) {
+					pot.growthProgress++;
+				}
+
+				// Check if ready to place
+				if (pot.isFinished()) {
+					// Place the plant above
+					try {
+						// Map plantId (item id) to TileID
+						// e.g. "rose" -> ROSE, "wheat_seeds" -> WHEAT_SEEDS
+						Constants.TileID plantTile = Constants.TileID.valueOf(pot.plantId.toUpperCase());
+						world.addTile(pot.x, aboveY, plantTile);
+						broadcastBlockChange(pot.x, aboveY, plantTile);
+
+						// Sound effect
+						broadcastSound("assets/sounds/random/pop.wav");
+
+						// Reset progress but KEEP plantId (Continuous production)
+						pot.growthProgress = 0;
+					} catch (IllegalArgumentException e) {
+						if (logger != null)
+							logger.error("Failed to map pot plantId '" + pot.plantId + "' to TileID");
+						pot.plantId = null; // Error recovery
+						pot.growthProgress = 0;
+					}
+				}
+			}
+		}
+	}
+
+	private void handlePotAction(PlayerConnection playerConnection, int x, int y) {
+		Player player = playerConnection.getPlayer();
+		mc.sayda.mcraze.world.storage.PotData pot = world.getOrCreatePot(x, y);
+		mc.sayda.mcraze.item.InventoryItem held = player.inventory.selectedItem();
+
+		if (pot.isEmpty()) {
+			// Try to plant
+			if (!held.isEmpty()) {
+				// Check if item is growable
+				if (held.getItem().isGrowable) {
+					// Plant it
+					pot.plantId = held.getItem().itemId;
+					pot.growthTimeTotal = held.getItem().growthTime;
+					pot.growthProgress = 0;
+
+					player.inventory.decreaseSelected(1);
+					broadcastInventoryUpdates();
+
+					playerConnection.getConnection().sendPacket(new mc.sayda.mcraze.network.packet.PacketChatMessage(
+							"Planted " + held.getItem().name + ". Grows in "
+									+ (pot.growthTimeTotal / 20) + "s.",
+							new mc.sayda.mcraze.graphics.Color(100, 255, 100)));
+				} else {
+					playerConnection.getConnection().sendPacket(new mc.sayda.mcraze.network.packet.PacketChatMessage(
+							"This cannot be planted.",
+							new mc.sayda.mcraze.graphics.Color(255, 100, 100)));
+				}
+			} else {
+				// Empty pot, empty hand
+				playerConnection.getConnection().sendPacket(new mc.sayda.mcraze.network.packet.PacketChatMessage(
+						"Empty Pot.",
+						new mc.sayda.mcraze.graphics.Color(200, 200, 200)));
+			}
+		} else {
+			// Pot has plant - Show Status Only (Continuous Production)
+			mc.sayda.mcraze.item.Item plant = Constants.itemTypes.get(pot.plantId);
+			String plantName = (plant != null ? plant.name : "Unknown");
+
+			// Check for blockage
+			int aboveY = y - 1;
+			mc.sayda.mcraze.world.tile.Tile aboveTile = world.getTile(x, aboveY);
+			boolean blocked = (aboveTile != null && aboveTile.type.name != Constants.TileID.AIR);
+
+			if (blocked) {
+				// Check if blocked by the plant itself (Harvest needed)
+				boolean blockedByProduct = false;
+				if (plant != null) {
+					try {
+						Constants.TileID productID = Constants.TileID.valueOf(pot.plantId.toUpperCase());
+						if (aboveTile.type.name == productID) {
+							blockedByProduct = true;
+						}
+					} catch (Exception e) {
+					}
+				}
+
+				if (blockedByProduct) {
+					playerConnection.getConnection().sendPacket(new mc.sayda.mcraze.network.packet.PacketChatMessage(
+							"Harvest the " + plantName + " above to continue!",
+							new mc.sayda.mcraze.graphics.Color(255, 200, 100)));
+				} else {
+					playerConnection.getConnection().sendPacket(new mc.sayda.mcraze.network.packet.PacketChatMessage(
+							"Pot is blocked by " + aboveTile.type.name + "!",
+							new mc.sayda.mcraze.graphics.Color(255, 100, 100)));
+				}
+			} else {
+				// Growing status
+				int percent = (int) ((float) pot.growthProgress / pot.growthTimeTotal * 100f);
+				int secondsLeft = Math.max(0, (pot.growthTimeTotal - pot.growthProgress) / 20);
+				playerConnection.getConnection().sendPacket(new mc.sayda.mcraze.network.packet.PacketChatMessage(
+						"Growing " + plantName + ": " + percent + "% (" + secondsLeft
+								+ "s left)",
+						new mc.sayda.mcraze.graphics.Color(100, 255, 100)));
+			}
+		}
+	}
+
+	private boolean handleTileInteraction(PlayerConnection playerConnection, int x, int y,
+			mc.sayda.mcraze.world.tile.Tile tile) {
+		Player player = playerConnection.getPlayer();
+
+		// Shared cooldown check for all interactions
+		long currentTime = System.currentTimeMillis();
+		Long lastInteract = interactCooldowns.get(player.username);
+		if (lastInteract != null && currentTime - lastInteract < INTERACT_COOLDOWN_MS) {
+			// Allow Spam?
+		}
+
+		switch (tile.type.name) {
+			case WORKBENCH:
+				interactCooldowns.put(player.username, currentTime);
+				player.inventory.tableSizeAvailable = 3;
+				player.inventory.setVisible(true);
+				broadcastInventoryUpdates();
+				return true;
+
+			case CHEST:
+				interactCooldowns.put(player.username, currentTime);
+				mc.sayda.mcraze.world.storage.ChestData chestData = world.getOrCreateChest(x, y);
+				playerConnection.setOpenedChest(x, y);
+				player.inventory.setVisible(false);
+				mc.sayda.mcraze.network.packet.PacketChestOpen chestPacket = new mc.sayda.mcraze.network.packet.PacketChestOpen(
+						x, y,
+						chestData.items,
+						player.getUUID());
+				playerConnection.getConnection().sendPacket(chestPacket);
+				broadcastInventoryUpdates();
+				if (logger != null)
+					logger.info("Player " + player.username + " opened chest at " + x + "," + y);
+				return true;
+
+			case FURNACE:
+			case FURNACE_LIT:
+				interactCooldowns.put(player.username, currentTime);
+				mc.sayda.mcraze.world.storage.FurnaceData furnaceData = world.getOrCreateFurnace(x, y);
+				playerConnection.setOpenedFurnace(x, y);
+				player.inventory.setVisible(false);
+				mc.sayda.mcraze.network.packet.PacketFurnaceOpen furnacePacket = new mc.sayda.mcraze.network.packet.PacketFurnaceOpen(
+						x, y,
+						furnaceData.items,
+						furnaceData.fuelTimeRemaining,
+						furnaceData.smeltProgress,
+						furnaceData.smeltTimeTotal,
+						player.getUUID(),
+						false);
+				playerConnection.getConnection().sendPacket(furnacePacket);
+				broadcastInventoryUpdates();
+				if (logger != null)
+					logger.info("Player " + player.username + " opened furnace at " + x + "," + y);
+				return true;
+
+			case ALCHEMY_TABLE:
+				interactCooldowns.put(player.username, currentTime);
+				playerConnection.setOpenedAlchemy(x, y);
+				player.inventory.setVisible(false);
+				mc.sayda.mcraze.world.storage.AlchemyData alchemyData = world.getOrCreateAlchemy(x, y);
+				mc.sayda.mcraze.network.packet.PacketAlchemyOpen alchemyPacket = new mc.sayda.mcraze.network.packet.PacketAlchemyOpen(
+						x, y,
+						alchemyData.items,
+						player.essence,
+						alchemyData.brewProgress,
+						alchemyData.brewTimeTotal,
+						player.getUUID(),
+						false,
+						alchemyData.getCurrentRecipeCost());
+				playerConnection.getConnection().sendPacket(alchemyPacket);
+				broadcastInventoryUpdates();
+				return true;
+			case TRAPDOOR_CLOSED:
+				// Toggle to OPEN
+				world.addTile(x, y, Constants.TileID.TRAPDOOR);
+				broadcastBlockChange(x, y, Constants.TileID.TRAPDOOR);
+				broadcastSound("assets/sounds/hit.wav", x, y);
+				return true;
+
+			case TRAPDOOR:
+				// Toggle to CLOSE
+				world.addTile(x, y, Constants.TileID.TRAPDOOR_CLOSED);
+				broadcastBlockChange(x, y, Constants.TileID.TRAPDOOR_CLOSED);
+				broadcastSound("assets/sounds/hit.wav", x, y);
+				return true;
+
+			case DOOR_BOT:
+			case DOOR_TOP:
+			case DOOR_BOT_CLOSED:
+			case DOOR_TOP_CLOSED:
+				// Standard Door Toggle Logic
+				boolean isBot = (tile.type.name == Constants.TileID.DOOR_BOT
+						|| tile.type.name == Constants.TileID.DOOR_BOT_CLOSED);
+				boolean isTop = (tile.type.name == Constants.TileID.DOOR_TOP
+						|| tile.type.name == Constants.TileID.DOOR_TOP_CLOSED);
+
+				if (!isBot && !isTop)
+					return false;
+
+				interactCooldowns.put(player.username, currentTime);
+
+				// Determine new state
+				Constants.TileID newBot, newTop;
+				if (tile.type.name == Constants.TileID.DOOR_BOT_CLOSED) {
+					newBot = Constants.TileID.DOOR_BOT;
+					newTop = Constants.TileID.DOOR_TOP;
+				} else if (tile.type.name == Constants.TileID.DOOR_BOT) {
+					newBot = Constants.TileID.DOOR_BOT_CLOSED;
+					newTop = Constants.TileID.DOOR_TOP_CLOSED;
+				} else if (tile.type.name == Constants.TileID.DOOR_TOP_CLOSED) {
+					newBot = Constants.TileID.DOOR_BOT;
+					newTop = Constants.TileID.DOOR_TOP;
+				} else { // DOOR_TOP
+					newBot = Constants.TileID.DOOR_BOT_CLOSED;
+					newTop = Constants.TileID.DOOR_TOP_CLOSED;
+				}
+
+				if (isBot) {
+					// Clicked bottom part
+					world.addTile(x, y, newBot);
+					broadcastBlockChange(x, y, newBot);
+					if (y > 0) { // Top part is at y-1
+						world.addTile(x, y - 1, newTop);
+						broadcastBlockChange(x, y - 1, newTop);
+					}
+				} else {
+					// Clicked top part
+					world.addTile(x, y, newTop);
+					broadcastBlockChange(x, y, newTop);
+					if (y < world.height - 1) { // Bottom part is at y+1
+						world.addTile(x, y + 1, newBot);
+						broadcastBlockChange(x, y + 1, newBot);
+					}
+				}
+				broadcastSound("assets/sounds/hit.wav", x, y);
+				return true;
+
+			case BOULDER_TRAP:
+				// Trigger Boulder
+				world.removeTile(x, y);
+				broadcastBlockChange(x, y, null);
+
+				// Spawn Boulder
+				boolean rollRight = player.x < x + 0.5f;
+				mc.sayda.mcraze.entity.projectile.EntityBoulder boulder = new mc.sayda.mcraze.entity.projectile.EntityBoulder(
+						x, y, rollRight);
+				addEntity(boulder);
+				return true;
+
+			case FLOWER_POT:
+				handlePotAction(playerConnection, x, y);
+				return true;
+
+			case BED_LEFT:
+			case BED_RIGHT:
+				// 1. Check Insomnia (True = Block Sleep)
+				if (world.insomnia) {
+					playerConnection.getConnection().sendPacket(new mc.sayda.mcraze.network.packet.PacketChatMessage(
+							"Your insomnia is preventing you from sleeping...",
+							new mc.sayda.mcraze.graphics.Color(255, 100, 100)));
+					return true;
+				}
+
+				// 2. Check Time - Only allow sleep if it's night
+				if (world.isNight()) {
+					// Skip to dawn (06:00, which is tick 0 relative to daylightSpeed)
+					long ticksToSkip = world.getNextTime(0);
+					world.setTicksAlive(world.getTicksAlive() + ticksToSkip);
+
+					player.heal(20);
+					broadcastEntityUpdate(); // Sync health
+
+					player.setSpawnPoint(x, y);
+					broadcastWorldTime();
+					playerConnection.getConnection().sendPacket(new mc.sayda.mcraze.network.packet.PacketChatMessage(
+							"You sleep through the night... (+20 HP)",
+							new mc.sayda.mcraze.graphics.Color(100, 255, 100)));
+				} else {
+					playerConnection.getConnection().sendPacket(new mc.sayda.mcraze.network.packet.PacketChatMessage(
+							"You can only sleep at night!",
+							new mc.sayda.mcraze.graphics.Color(255, 100, 100)));
+				}
+				return true;
+
+			default:
+				return false;
+		}
+	}
 }

@@ -79,7 +79,10 @@ public class Constants {
 		BOULDER_TRAP("boulder_trap"), // Engineer trap (spawns EntityBoulder)
 		FLAG("flag"), // The Nexus/Defense Objective
 		TRAPDOOR_CLOSED("trapdoor"),
-		TRAPDOOR("trapdoor");
+		TRAPDOOR("trapdoor"),
+		ALCHEMY_TABLE("alchemy_table"),
+		FLOWER_POT("flower_pot"),
+		TNT("tnt");
 
 		// The string ID of the item this tile drops when broken (null = no drop)
 		public final String itemDropId;
@@ -267,12 +270,20 @@ public class Constants {
 				TileID.LIME_WOOL)));
 		tileTypes.put(TileID.GRAY_WOOL, new Tile(new TileType("assets/sprites/tiles/gray_wool.png",
 				TileID.GRAY_WOOL)));
+		tileTypes.put(TileID.ALCHEMY_TABLE, new Tile(new TileType("assets/sprites/tiles/alchemy_table.png",
+				TileID.ALCHEMY_TABLE, true, false, 0)));
+		tileTypes.put(TileID.FLOWER_POT, new Tile(new TileType("assets/sprites/tiles/flower_pot.png",
+				TileID.FLOWER_POT, true, false, 0)));
+		tileTypes.put(TileID.TNT, new Tile(new TileType("assets/sprites/tiles/tnt.png",
+				TileID.TNT, true, false, 0)));
 	}
 
 	public static Map<String, Item> itemTypes;
 	static {
 		itemTypes = ItemLoader.loadItems(16);
 	}
+
+	public static final String GAME_VERSION = "0.1.0";
 
 	// Tile rendering size in pixels
 	public static final int TILE_SIZE = 32;
@@ -305,7 +316,14 @@ public class Constants {
 
 	// World Constants
 	public static final int WORLD_CHUNK_SIZE = 16;
-	public static final int WORLD_DAY_LENGTH_TICKS = 20000;
+	public static final int CAVE_DEPTH = 140;
+
+	// World Times
+	public static final int DAY_LENGTH = 40000;
+	public static final int DAWN_TIME = 0;
+	public static final int NOON_TIME = 5000;
+	public static final int DUSK_TIME = 10000;
+	public static final int MIDNIGHT = 15000;
 
 	// Client Constants
 	public static final float CLIENT_MIN_ZOOM = 0.125f;

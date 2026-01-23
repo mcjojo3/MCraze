@@ -43,22 +43,25 @@ public class World implements java.io.Serializable {
 	private int chunkWidth = Constants.WORLD_CHUNK_SIZE;
 	private volatile boolean chunkFillRight = true;
 	private Random random;
+	private static final mc.sayda.mcraze.logging.GameLogger logger = mc.sayda.mcraze.logging.GameLogger.get();
 
 	// Performance: Reuse list for block changes instead of allocating every tick
 	private final java.util.ArrayList<BlockChange> blockChangesCache = new java.util.ArrayList<>();
 	private long seed; // World generation seed
 	private Biome[] biomeMap; // One biome per X column
 	private long ticksAlive = 0;
-	private final int dayLength = Constants.WORLD_DAY_LENGTH_TICKS;
 	private LightingEngine lightingEngineSun;
 	private LightingEngine lightingEngineSourceBlocks;
 
 	// Gamerules (synced to clients)
-	public boolean spelunking = false; // Disable darkness
+	public boolean spelunking = false; // Full light everywhere (no darkness at all)
+	public boolean darkness = true; // Enable pitch-black nights (false = dimmer but not pitch black)
+	public int daylightSpeed = 40000; // Day length in ticks (default: 40000 = ~33 min)
 	public boolean keepInventory = false; // Keep items on death
 	public boolean daylightCycle = true; // Enable day/night cycle
 	public boolean mobGriefing = true; // Enable mob block destruction/pickup
 	public boolean pvp = true; // Enable player-vs-player damage
+	public boolean insomnia = false; // Enable bed usage (respawn/day-skip)
 
 	// Wave Status (Synced from server for client display)
 	public int waveDay = 0;
@@ -67,13 +70,23 @@ public class World implements java.io.Serializable {
 	public float diffMultDmg = 1.0f; // Current difficulty multiplier for Damage
 	public float diffMultJump = 1.0f; // Current difficulty multiplier for Jump Height
 	// Game Mode (SURVIVAL, CLASSIC, etc.)
-	public GameMode gameMode = GameMode.SURVIVAL;
+	public GameMode gameMode = GameMode.CLASSIC;
 
 	// Chest storage (position -> chest data)
 	private java.util.Map<String, ChestData> chests = new java.util.HashMap<>();
 
 	// Furnace storage (position -> furnace data)
 	private java.util.Map<String, FurnaceData> furnaces = new java.util.HashMap<>();
+
+	// Alchemy storage (position -> alchemy data)
+	private java.util.Map<String, AlchemyData> alchemies = new java.util.HashMap<>();
+
+	// Flower Pot storage (position -> pot data)
+	private java.util.Map<String, PotData> pots = new java.util.HashMap<>();
+
+	// Entity data loaded from world.dat (Version 4+), to be instantiated by
+	// SharedWorld
+	public java.util.ArrayList<mc.sayda.mcraze.world.storage.WorldSaveManager.EntityData> pendingEntities = new java.util.ArrayList<>();
 
 	// PERFORMANCE: Pre-allocated Color objects for lighting tints
 	// Indexed by light intensity (0-255), eliminates 72,000 allocations/sec
@@ -86,6 +99,22 @@ public class World implements java.io.Serializable {
 
 	public void setTicksAlive(long ticksAlive) {
 		this.ticksAlive = ticksAlive;
+	}
+
+	/**
+	 * Get ticks to skip to reach the next occurrence of targetTime.
+	 */
+	public long getNextTime(int targetTime) {
+		int currentInDay = (int) (ticksAlive % daylightSpeed);
+		if (currentInDay < targetTime) {
+			return targetTime - currentInDay;
+		} else {
+			return (daylightSpeed - currentInDay) + targetTime;
+		}
+	}
+
+	public GameMode getGameMode() {
+		return gameMode;
 	}
 
 	public long getSeed() {
@@ -161,6 +190,60 @@ public class World implements java.io.Serializable {
 		return tiles[x][y];
 	}
 
+	public void setTile(int x, int y, TileID id) {
+		if (x < 0 || x >= width || y < 0 || y >= height) {
+			return;
+		}
+		if (id == null) {
+			// If setting to null (AIR), use appropriate AIR tile
+			id = TileID.AIR;
+		}
+
+		Tile template = Constants.tileTypes.get(id);
+		if (template != null) {
+			// CRITICAL FIX: Preserve existing backdrop
+			TileType existingBackdrop = tiles[x][y] != null ? tiles[x][y].backdropType : null;
+			tiles[x][y] = new Tile(template.type);
+			tiles[x][y].backdropType = existingBackdrop;
+		}
+
+		// Trigger lighting updates immediately
+		lightingEngineSun.addedTile(x, y);
+		lightingEngineSourceBlocks.addedTile(x, y);
+	}
+
+	/**
+	 * Set tile directly without triggering lighting updates.
+	 * Used for batch processing from network packets.
+	 */
+	public void setTileNoUpdate(int x, int y, TileID id) {
+		if (x < 0 || x >= width || y < 0 || y >= height) {
+			return;
+		}
+		if (id == null) {
+			id = TileID.AIR;
+		}
+
+		Tile template = Constants.tileTypes.get(id);
+		if (template != null) {
+			// CRITICAL FIX: Preserve existing backdrop
+			TileType existingBackdrop = tiles[x][y] != null ? tiles[x][y].backdropType : null;
+			tiles[x][y] = new Tile(template.type);
+			tiles[x][y].backdropType = existingBackdrop;
+		}
+	}
+
+	/**
+	 * Trigger lighting updates for a specific tile.
+	 */
+	public void updateLightingAt(int x, int y) {
+		if (x < 0 || x >= width || y < 0 || y >= height) {
+			return;
+		}
+		lightingEngineSun.addedTile(x, y);
+		lightingEngineSourceBlocks.addedTile(x, y);
+	}
+
 	public World(int width, int height, Random random, GameMode gameMode) {
 		this.gameMode = gameMode;
 		// Store seed for display in debug menu
@@ -210,8 +293,8 @@ public class World implements java.io.Serializable {
 
 		// Find a safe spawn location using the suggested spawn as starting point
 		this.spawnLocation = findSafeSpawn(suggestedSpawn.x);
-		if (GameLogger.get() != null)
-			GameLogger.get().info("World: Spawn location set to (" + spawnLocation.x + ", " + spawnLocation.y + ")");
+		if (logger != null)
+			logger.info("World: Spawn location set to (" + spawnLocation.x + ", " + spawnLocation.y + ")");
 
 		// PERFORMANCE: Pre-allocate all Color objects for lighting
 		// Initialize cache before lighting engines to be safe/consistent
@@ -230,8 +313,8 @@ public class World implements java.io.Serializable {
 	 * The server will populate this world with tile data
 	 */
 	public static World createEmpty(int width, int height, Random random) {
-		if (GameLogger.get() != null)
-			GameLogger.get().info("World.createEmpty: Starting (" + width + "x" + height + ")");
+		if (logger != null)
+			logger.info("World.createEmpty: Starting (" + width + "x" + height + ")");
 
 		World world = new World();
 		world.width = width;
@@ -239,8 +322,8 @@ public class World implements java.io.Serializable {
 		world.tiles = new Tile[width][height];
 		world.random = random;
 
-		if (GameLogger.get() != null && GameLogger.get().isDebugEnabled())
-			GameLogger.get().debug("World.createEmpty: Filling with AIR tiles...");
+		if (logger != null && logger.isDebugEnabled())
+			logger.debug("World.createEmpty: Filling with AIR tiles...");
 		// Fill with AIR tiles (each position gets unique Tile instance)
 		TileType airType = Constants.tileTypes.get(TileID.AIR).type;
 		for (int i = 0; i < width; i++) {
@@ -249,8 +332,8 @@ public class World implements java.io.Serializable {
 			}
 		}
 
-		if (GameLogger.get() != null && GameLogger.get().isDebugEnabled())
-			GameLogger.get().debug("World.createEmpty: Setting spawn location...");
+		if (logger != null && logger.isDebugEnabled())
+			logger.debug("World.createEmpty: Setting spawn location...");
 		// Set default spawn location (will be updated by server)
 		world.spawnLocation = new Int2(width / 2, height / 2);
 		world.chunkCount = (int) Math.ceil((double) width / world.chunkWidth);
@@ -265,17 +348,17 @@ public class World implements java.io.Serializable {
 			world.backdropTintCache[i] = new Color(16, 16, 16, 255 - backdropLight);
 		}
 
-		if (GameLogger.get() != null && GameLogger.get().isDebugEnabled())
-			GameLogger.get().debug("World.createEmpty: Creating lighting engines...");
+		if (logger != null && logger.isDebugEnabled())
+			logger.debug("World.createEmpty: Creating lighting engines...");
 		world.lightingEngineSun = new LightingEngine(width, height, world.tiles, true);
-		if (GameLogger.get() != null && GameLogger.get().isDebugEnabled())
-			GameLogger.get().debug("World.createEmpty: Sun lighting engine created");
+		if (logger != null && logger.isDebugEnabled())
+			logger.debug("World.createEmpty: Sun lighting engine created");
 		world.lightingEngineSourceBlocks = new LightingEngine(width, height, world.tiles, false);
-		if (GameLogger.get() != null && GameLogger.get().isDebugEnabled())
-			GameLogger.get().debug("World.createEmpty: Block lighting engine created");
+		if (logger != null && logger.isDebugEnabled())
+			logger.debug("World.createEmpty: Block lighting engine created");
 
-		if (GameLogger.get() != null)
-			GameLogger.get().info("World.createEmpty: Complete!");
+		if (logger != null)
+			logger.info("World.createEmpty: Complete!");
 		return world;
 	}
 
@@ -333,15 +416,15 @@ public class World implements java.io.Serializable {
 	 * Force a refresh of all lighting (call after loading a world)
 	 */
 	public void refreshLighting() {
-		if (GameLogger.get() != null)
-			GameLogger.get().info("World.refreshLighting: Recreating lighting engines...");
+		if (logger != null)
+			logger.info("World.refreshLighting: Recreating lighting engines...");
 		// Recreate lighting engines to force recalculation
 		lightingEngineSun = new LightingEngine(width, height, tiles, true);
-		if (GameLogger.get() != null)
-			GameLogger.get().info("World.refreshLighting: Sun lighting engine recreated");
+		if (logger != null)
+			logger.info("World.refreshLighting: Sun lighting engine recreated");
 		lightingEngineSourceBlocks = new LightingEngine(width, height, tiles, false);
-		if (GameLogger.get() != null)
-			GameLogger.get().info("World.refreshLighting: Block lighting engine recreated");
+		if (logger != null)
+			logger.info("World.refreshLighting: Block lighting engine recreated");
 	}
 
 	// Methods for async saving (Deep copy)
@@ -424,6 +507,29 @@ public class World implements java.io.Serializable {
 		return clone;
 	}
 
+	public java.util.Map<String, AlchemyData> cloneAlchemies() {
+		java.util.Map<String, AlchemyData> clone = new java.util.HashMap<>();
+		for (java.util.Map.Entry<String, AlchemyData> entry : alchemies.entrySet()) {
+			AlchemyData original = entry.getValue();
+			AlchemyData copy = new AlchemyData(original.x, original.y);
+
+			copy.brewProgress = original.brewProgress;
+			copy.brewTimeTotal = original.brewTimeTotal;
+			copy.currentRecipe = original.currentRecipe;
+
+			for (int i = 0; i < 5; i++) {
+				if (original.items[i] != null) {
+					mc.sayda.mcraze.item.Item itemType = original.items[i].getItem();
+					int count = original.items[i].getCount();
+					copy.items[i] = new mc.sayda.mcraze.item.InventoryItem(itemType);
+					copy.items[i].setCount(count);
+				}
+			}
+			clone.put(entry.getKey(), copy);
+		}
+		return clone;
+	}
+
 	/**
 	 * Simple class to track block changes for multiplayer broadcasting
 	 */
@@ -497,7 +603,9 @@ public class World implements java.io.Serializable {
 						}
 					}
 				} else if (tiles[x][y].type.name == TileID.SAPLING) {
-					if (random.nextDouble() < .01) {
+					mc.sayda.mcraze.item.Item sapling = Constants.itemTypes.get("sapling");
+					double growthChance = (sapling != null && sapling.growthTime > 0) ? 1.0 / sapling.growthTime : 0.01;
+					if (random.nextDouble() < growthChance) {
 						addTemplate(TileTemplate.tree, x, y);
 						// CRITICAL FIX: Track all tree blocks placed by template for multiplayer sync
 						TileTemplate tree = TileTemplate.tree;
@@ -516,14 +624,44 @@ public class World implements java.io.Serializable {
 						}
 					}
 				} else if (tiles[x][y].type.name == TileID.WHEAT_SEEDS) {
-					if (y + 1 < height && tiles[x][y + 1].type.name == TileID.FARMLAND) {
-						// CRITICAL FIX: Reduced from 0.01 (1%) to 0.001 (0.1%) for slower growth
-						// At 20 TPS: 0.001 = ~1000 ticks = ~50 seconds to grow
-						// Previously: 0.01 = ~100 ticks = ~5 seconds (too fast!)
-						if (random.nextDouble() < .001) {
+					Tile ground = (y + 1 < height) ? tiles[x][y + 1] : null;
+					if (ground != null && (ground.type.name == TileID.FARMLAND
+							|| ground.type.name == TileID.IRRIGATED_FARMLAND)) {
+						mc.sayda.mcraze.item.Item seeds = Constants.itemTypes.get("wheat_seeds");
+						double baseChance = (seeds != null && seeds.growthTime > 0) ? 1.0 / seeds.growthTime : 0.001;
+						double growthChance = baseChance;
+
+						// IRRIGATED_FARMLAND: 2x growth speed
+						if (ground.type.name == TileID.IRRIGATED_FARMLAND) {
+							growthChance *= 2.0;
+						}
+
+						if (random.nextDouble() < growthChance) {
 							changeTile(x, y,
 									new Tile(Constants.tileTypes.get(TileID.WHEAT).type));
 							changes.add(new BlockChange(x, y, TileID.WHEAT));
+						}
+					}
+				} else if (tiles[x][y].type.name == TileID.CACTUS) {
+					// Cactus Vertical Growth
+					if (y - 1 >= 0 && tiles[x][y - 1].type.name == TileID.AIR) {
+						// Check height (max 3)
+						int heightCount = 1;
+						if (y + 1 < height && tiles[x][y + 1].type.name == TileID.CACTUS) {
+							heightCount++;
+							if (y + 2 < height && tiles[x][y + 2].type.name == TileID.CACTUS) {
+								heightCount++;
+							}
+						}
+
+						if (heightCount < 3) {
+							mc.sayda.mcraze.item.Item cactus = Constants.itemTypes.get("cactus");
+							double growthChance = (cactus != null && cactus.growthTime > 0) ? 1.0 / cactus.growthTime
+									: 0.0004;
+							if (random.nextDouble() < growthChance) {
+								tiles[x][y - 1] = Constants.tileTypes.get(TileID.CACTUS);
+								changes.add(new BlockChange(x, y - 1, TileID.CACTUS));
+							}
 						}
 					}
 				} else if (tiles[x][y].type.name == TileID.FARMLAND) {
@@ -538,31 +676,53 @@ public class World implements java.io.Serializable {
 						}
 					}
 				} else if (tiles[x][y].type.liquid) {
-					// Improved Fluid Physics
-					// Metadata: 0 = Source/Falling (Full strength), 1-7 = Flow distance
+					// ========================================
+					// LIQUID PHYSICS OVERHAUL
+					// ========================================
+					// Metadata: 0 = Source (full block, no decay), 1-7 = Flowing (decays)
+					// Water: 25% tick chance, max 7 block spread
+					// Lava: 10% tick chance, max 3 block spread
 					Tile thisTile = tiles[x][y];
 					int level = thisTile.metadata;
-					int maxFlow = 7; // Max horizontal spread
+					boolean isLava = thisTile.type.name == TileID.LAVA;
+					int maxFlow = isLava ? 3 : 7; // Lava spreads shorter
+					double tickChance = isLava ? 0.10 : 0.25; // Lava spreads slower
 
-					// Randomize flow speed to prevent instant chunk flooding
-					if (random.nextDouble() < 0.25) { // 25% chance per tick to spread
+					// --- DECAY LOGIC (flowing blocks only) ---
+					// Flowing blocks (metadata > 0) must have a source path or they evaporate
+					if (level > 0) {
+						if (!hasLiquidSupport(x, y, thisTile.type.name)) {
+							// No source support - decay quickly (Minecraft-like)
+							if (random.nextDouble() < 0.40) { // 40% chance to decay per tick (~0.5-1 sec)
+								changeTile(x, y, Constants.tileTypes.get(TileID.AIR));
+								changes.add(new BlockChange(x, y, TileID.AIR));
+								continue; // Skip further processing for this tile
+							}
+						}
+					}
 
-						// 1. Flow Down
+					// --- WATER/LAVA INTERACTION ---
+					// Check for opposite liquid nearby and convert appropriately
+					if (checkLiquidInteraction(x, y, thisTile, changes)) {
+						continue; // Interaction occurred, skip normal flow
+					}
+
+					// --- FLOW LOGIC ---
+					if (random.nextDouble() < tickChance) {
+
+						// 1. Flow Down (creates source at bottom)
 						if (y + 1 < height) {
 							Tile down = tiles[x][y + 1];
-							if (down.type.name == TileID.AIR || (down.type.liquid && down.metadata > 0
-									&& down.type.name != thisTile.type.name)) {
-								// Falling water resets strength to 0 (acts as source)
+							if (down.type.name == TileID.AIR) {
+								// Falling liquid becomes source at landing
 								setLiquid(x, y + 1, thisTile.type, 0, changes);
 							} else if (down.type.liquid && down.type.name == thisTile.type.name && down.metadata > 0) {
-								// Merging with water below -> ensure it is full strength
-								if (down.metadata != 0) {
-									setLiquid(x, y + 1, thisTile.type, 0, changes);
-								}
+								// Falling into same liquid type - make it source
+								setLiquid(x, y + 1, thisTile.type, 0, changes);
 							}
 						}
 
-						// 2. Flow Horizontally (only if supported by block below)
+						// 2. Flow Horizontally (only sources and supported flowing)
 						boolean grounded = (y + 1 < height)
 								&& (!tiles[x][y + 1].type.passable || tiles[x][y + 1].type.liquid);
 
@@ -574,6 +734,10 @@ public class World implements java.io.Serializable {
 								Tile left = tiles[x - 1][y];
 								if (left.type.name == TileID.AIR) {
 									setLiquid(x - 1, y, thisTile.type, nextLevel, changes);
+								} else if (left.type.liquid && left.type.name == thisTile.type.name
+										&& left.metadata > nextLevel) {
+									// Strengthen weaker flowing block
+									setLiquid(x - 1, y, thisTile.type, nextLevel, changes);
 								}
 							}
 
@@ -581,6 +745,10 @@ public class World implements java.io.Serializable {
 							if (x + 1 < width) {
 								Tile right = tiles[x + 1][y];
 								if (right.type.name == TileID.AIR) {
+									setLiquid(x + 1, y, thisTile.type, nextLevel, changes);
+								} else if (right.type.liquid && right.type.name == thisTile.type.name
+										&& right.metadata > nextLevel) {
+									// Strengthen weaker flowing block
 									setLiquid(x + 1, y, thisTile.type, nextLevel, changes);
 								}
 							}
@@ -637,14 +805,12 @@ public class World implements java.io.Serializable {
 		}
 		if (name == TileID.SAPLING && y + 1 < height) {
 			if (tiles[x][y + 1].type.name != TileID.DIRT
-					&& tiles[x][y + 1].type.name != TileID.GRASS) {
+					&& tiles[x][y + 1].type.name != TileID.GRASS
+					&& tiles[x][y + 1].type.name != TileID.FLOWER_POT) {
 				return false;
 			}
 		}
-		// CRITICAL FIX: Preserve existing backdrop when placing a new foreground tile
-		// Before: new Tile() would wipe out backdrop (backdropType = null in
-		// constructor)
-		// After: Save existing backdrop and restore it after creating new tile
+		// Preserve existing backdrop when placing a new foreground tile
 		TileType existingBackdrop = tiles[x][y].backdropType;
 
 		// Create NEW tile instance (not shared reference) to avoid backdrop sharing bug
@@ -665,8 +831,7 @@ public class World implements java.io.Serializable {
 		}
 		TileID name = tiles[x][y].type.name;
 
-		// CRITICAL FIX: Preserve existing backdrop when removing foreground
-		// Same pattern as addTile() (lines 427-433)
+		// Preserve existing backdrop when removing foreground
 		TileType existingBackdrop = tiles[x][y].backdropType;
 
 		// Create NEW Tile instance to prevent backdrop hivemind bug
@@ -796,6 +961,33 @@ public class World implements java.io.Serializable {
 		chests.put(ChestData.makeKey(x, y), chest);
 	}
 
+	// Furnace manipulation methods
+	public FurnaceData getFurnace(int x, int y) {
+		return furnaces.get(FurnaceData.makeKey(x, y));
+	}
+
+	public FurnaceData getOrCreateFurnace(int x, int y) {
+		String key = FurnaceData.makeKey(x, y);
+		FurnaceData furnace = furnaces.get(key);
+		if (furnace == null) {
+			furnace = new FurnaceData(x, y);
+			furnaces.put(key, furnace);
+		}
+		return furnace;
+	}
+
+	public void removeFurnace(int x, int y) {
+		furnaces.remove(FurnaceData.makeKey(x, y));
+	}
+
+	public java.util.Map<String, FurnaceData> getAllFurnaces() {
+		return furnaces;
+	}
+
+	public void setFurnace(int x, int y, FurnaceData furnace) {
+		furnaces.put(FurnaceData.makeKey(x, y), furnace);
+	}
+
 	/**
 	 * Provider interface for external logic to modify trap damage.
 	 */
@@ -821,22 +1013,35 @@ public class World implements java.io.Serializable {
 	}
 
 	// Furnace management
-	public FurnaceData getOrCreateFurnace(int x, int y) {
-		String key = FurnaceData.makeKey(x, y);
-		FurnaceData furnace = furnaces.get(key);
-		if (furnace == null) {
-			furnace = new FurnaceData(x, y);
-			furnaces.put(key, furnace);
-		}
-		return furnace;
-	}
-
-	public java.util.Map<String, FurnaceData> getAllFurnaces() {
-		return furnaces;
-	}
-
 	public void setFurnaces(java.util.Map<String, FurnaceData> furnaces) {
 		this.furnaces = furnaces;
+	}
+
+	// Alchemy Table manipulation methods
+	public AlchemyData getAlchemy(int x, int y) {
+		return alchemies.get(AlchemyData.makeKey(x, y));
+	}
+
+	public AlchemyData getOrCreateAlchemy(int x, int y) {
+		String key = AlchemyData.makeKey(x, y);
+		AlchemyData alchemy = alchemies.get(key);
+		if (alchemy == null) {
+			alchemy = new AlchemyData(x, y);
+			alchemies.put(key, alchemy);
+		}
+		return alchemy;
+	}
+
+	public void removeAlchemy(int x, int y) {
+		alchemies.remove(AlchemyData.makeKey(x, y));
+	}
+
+	public java.util.Map<String, AlchemyData> getAllAlchemies() {
+		return alchemies;
+	}
+
+	public void setAlchemies(java.util.Map<String, AlchemyData> alchemies) {
+		this.alchemies = alchemies;
 	}
 
 	private TileID[] breakPlant = new TileID[] {
@@ -1060,6 +1265,17 @@ public class World implements java.io.Serializable {
 		return tiles[x][y].type != null && tiles[x][y].type.liquid;
 	}
 
+	/**
+	 * Check if position contains a SOURCE liquid block (metadata = 0).
+	 * Used for drowning checks - only source water causes drowning.
+	 */
+	public boolean isSourceLiquid(int x, int y) {
+		if (x < 0 || x >= width || y < 0 || y >= height) {
+			return false;
+		}
+		return tiles[x][y].type != null && tiles[x][y].type.liquid && tiles[x][y].metadata == 0;
+	}
+
 	public boolean isAir(int x, int y) {
 		if (x < 0 || x >= width || y < 0 || y >= height) {
 			return false;
@@ -1126,9 +1342,8 @@ public class World implements java.io.Serializable {
 					}
 
 					// Found safe spawn ABOVE sea level!
-					if (GameLogger.get() != null)
-						GameLogger.get()
-								.info("World.findSafeSpawn: Found safe surface spawn at (" + x + ", " + (y - 2) + ")");
+					if (logger != null)
+						logger.info("World.findSafeSpawn: Found safe surface spawn at (" + x + ", " + (y - 2) + ")");
 					return new Int2(x, y - 2);
 				}
 			}
@@ -1137,8 +1352,8 @@ public class World implements java.io.Serializable {
 		// Fallback 1: If no surface spawn found above sea level, try ANY valid surface
 		// (even if low)
 		// This handles worlds that might be entirely low (unlikely but possible)
-		if (GameLogger.get() != null)
-			GameLogger.get().warn("World.findSafeSpawn: No high surface found, searching for ANY surface...");
+		if (logger != null)
+			logger.warn("World.findSafeSpawn: No high surface found, searching for ANY surface...");
 
 		for (int y = 3; y < height - 5; y++) {
 			if (isBreakable(startX, y) && isAir(startX, y - 1) && isAir(startX, y - 2) && isAir(startX, y - 3)) {
@@ -1147,8 +1362,8 @@ public class World implements java.io.Serializable {
 		}
 
 		// Fallback 2: Center
-		if (GameLogger.get() != null)
-			GameLogger.get().error("World.findSafeSpawn: CRITICAL FAILURE, using default center fallback");
+		if (logger != null)
+			logger.error("World.findSafeSpawn: CRITICAL FAILURE, using default center fallback");
 		return new Int2(startX, height / 2);
 	}
 
@@ -1156,9 +1371,15 @@ public class World implements java.io.Serializable {
 	 * @return a light value [0,1]
 	 **/
 	public float getLightValue(int x, int y) {
-		if (spelunking) // Use world's spelunking gamerule instead of global constant
+		if (spelunking) // Full light mode - no darkness at all
 			return 1;
 		float daylight = getDaylight();
+
+		// If darkness is disabled, provide a minimum light level at night
+		if (!darkness && daylight < 0.3f) {
+			daylight = 0.3f; // Minimum 30% light when darkness is disabled
+		}
+
 		float lightValueSun = ((float) lightingEngineSun.getLightValue(x, y))
 				/ Constants.LIGHT_VALUE_SUN * daylight;
 		float lightValueSourceBlocks = ((float) lightingEngineSourceBlocks.getLightValue(x, y))
@@ -1187,11 +1408,15 @@ public class World implements java.io.Serializable {
 	// returns a float in the range [0,1)
 	// 0 is dawn, 0.25 is noon, 0.5 is dusk, 0.75 is midnight
 	public float getTimeOfDay() {
-		return ((float) (ticksAlive % dayLength)) / dayLength;
+		return ((float) (ticksAlive % daylightSpeed)) / daylightSpeed;
 	}
 
 	public boolean isNight() {
 		return getTimeOfDay() > 0.5f;
+	}
+
+	public boolean isDay() {
+		return !isNight();
 	}
 
 	static final Color dawnSky = new Color(255, 217, 92);
@@ -1223,4 +1448,111 @@ public class World implements java.io.Serializable {
 		}
 	}
 
+	/**
+	 * Checks if a flowing liquid block has source support (adjacent source or
+	 * higher-level block).
+	 * Used for decay logic - flowing blocks without support evaporate.
+	 */
+	private boolean hasLiquidSupport(int x, int y, TileID liquidType) {
+		// Check block above (if liquid is falling from above, it's supported)
+		if (y - 1 >= 0) {
+			Tile above = tiles[x][y - 1];
+			if (above.type.liquid && above.type.name == liquidType) {
+				return true; // Supported by liquid above
+			}
+		}
+
+		// Check adjacent blocks for source (metadata=0) or higher level (lower metadata
+		// number)
+		int currentLevel = tiles[x][y].metadata;
+
+		// Left
+		if (x - 1 >= 0) {
+			Tile left = tiles[x - 1][y];
+			if (left.type.liquid && left.type.name == liquidType && left.metadata < currentLevel) {
+				return true;
+			}
+		}
+
+		// Right
+		if (x + 1 < width) {
+			Tile right = tiles[x + 1][y];
+			if (right.type.liquid && right.type.name == liquidType && right.metadata < currentLevel) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Checks for water/lava interaction and converts blocks appropriately.
+	 * Flowing lava + Water -> Cobblestone
+	 * Source lava + Water -> Stone
+	 * Returns true if an interaction occurred.
+	 */
+	private boolean checkLiquidInteraction(int x, int y, Tile thisTile, java.util.List<BlockChange> changes) {
+		boolean isLava = thisTile.type.name == TileID.LAVA;
+		boolean isWater = thisTile.type.name == TileID.WATER;
+
+		if (!isLava && !isWater)
+			return false;
+
+		TileID oppositeType = isLava ? TileID.WATER : TileID.LAVA;
+
+		// Check adjacent blocks for opposite liquid type
+		int[][] neighbors = { { x - 1, y }, { x + 1, y }, { x, y - 1 }, { x, y + 1 } };
+
+		for (int[] pos : neighbors) {
+			int nx = pos[0], ny = pos[1];
+			if (nx < 0 || nx >= width || ny < 0 || ny >= height)
+				continue;
+
+			Tile neighbor = tiles[nx][ny];
+			if (neighbor.type.liquid && neighbor.type.name == oppositeType) {
+				// Interaction! Convert the LAVA block (not water)
+				if (isLava) {
+					// This block is lava touching water -> convert this lava
+					TileID result = (thisTile.metadata == 0) ? TileID.STONE : TileID.COBBLE;
+					changeTile(x, y, Constants.tileTypes.get(result));
+					changes.add(new BlockChange(x, y, result));
+					return true;
+				} else {
+					// This is water touching lava -> convert the lava neighbor
+					TileID result = (neighbor.metadata == 0) ? TileID.STONE : TileID.COBBLE;
+					changeTile(nx, ny, Constants.tileTypes.get(result));
+					changes.add(new BlockChange(nx, ny, result));
+					// Don't return true - water continues to exist
+				}
+			}
+		}
+
+		return false;
+	}
+
+	public java.util.Collection<PotData> getPots() {
+		return pots.values();
+	}
+
+	public PotData getPot(int x, int y) {
+		return pots.get(PotData.makeKey(x, y));
+	}
+
+	public PotData getOrCreatePot(int x, int y) {
+		String key = PotData.makeKey(x, y);
+		PotData data = pots.get(key);
+		if (data == null) {
+			data = new PotData(x, y);
+			pots.put(key, data);
+		}
+		return data;
+	}
+
+	public void removePot(int x, int y) {
+		pots.remove(PotData.makeKey(x, y));
+	}
+
+	public java.util.Map<String, PotData> clonePots() {
+		return new java.util.HashMap<>(pots);
+	}
 }

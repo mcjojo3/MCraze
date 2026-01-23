@@ -26,9 +26,18 @@ public class EntityBoulder extends LivingEntity {
     // Rotation for visuals
     private float rotationAngle = 0;
 
+    // Ownership for damage attribution
+    public Entity owner;
+
     public EntityBoulder(float x, float y, boolean movingRight) {
         super(true, x, y, 32, 32); // Use LivingEntity constructor
+        // Critical Fix: Set moveDirection because LivingEntity.updatePosition
+        // overwrites dx based on it
+        this.moveDirection = movingRight ? 1.0f : -1.0f;
+        this.speedMultiplier = rollSpeed / this.walkSpeed; // 0.2f / 0.1f = 2.0f
+
         this.dx = movingRight ? rollSpeed : -rollSpeed;
+        this.facingRight = movingRight;
 
         // Try to load sprite, safe fallback
         try {
@@ -54,7 +63,7 @@ public class EntityBoulder extends LivingEntity {
             if (e != this && !e.dead && e instanceof LivingEntity) {
                 if (e.collidesWith(this, 32)) { // 32 is standard tile size
                     // Deal damage
-                    ((LivingEntity) e).takeDamage(IMPACT_DAMAGE);
+                    ((LivingEntity) e).takeDamage(IMPACT_DAMAGE, mc.sayda.mcraze.entity.DamageType.PHYSICAL);
                 }
             }
         }

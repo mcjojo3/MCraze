@@ -22,6 +22,10 @@ public abstract class LivingEntity extends Entity {
 	public int maxHP = 100;
 
 	public int hitPoints;
+	public int magicResistance = 0; // % reduction for magic damage (0-100)
+	public int armor = 0; // % reduction for physical damage
+
+	// Let's add basic fields here for mobs.
 	public boolean climbing = false;
 	public boolean facingRight = true;
 	public Inventory inventory;
@@ -38,6 +42,79 @@ public abstract class LivingEntity extends Entity {
 	public int ticksUnderwater = 0; // PUBLIC for network sync
 	public boolean jumping = false; // PUBLIC for network sync
 	public int invulnerabilityTicks = 0; // Cooldown between taking damage (approx 0.5s at 20fps)
+	public java.util.List<mc.sayda.mcraze.entity.buff.Buff> activeBuffs = new java.util.ArrayList<>();
+	public mc.sayda.mcraze.entity.Entity lastAttacker = null; // Who dealt the last bit of damage
+	private boolean lastDead = false;
+
+	public void addBuff(mc.sayda.mcraze.entity.buff.Buff buff) {
+		boolean merged = false;
+		for (mc.sayda.mcraze.entity.buff.Buff existing : activeBuffs) {
+			if (existing.getType() == buff.getType()) {
+				existing.combine(buff);
+				merged = true;
+				break;
+			}
+		}
+		if (!merged) {
+			activeBuffs.add(buff);
+		}
+	}
+
+	public void removeBuff(mc.sayda.mcraze.entity.buff.BuffType type) {
+		activeBuffs.removeIf(b -> b.getType() == type);
+	}
+
+	public boolean hasBuff(mc.sayda.mcraze.entity.buff.BuffType type) {
+		for (mc.sayda.mcraze.entity.buff.Buff b : activeBuffs) {
+			if (b.getType() == type)
+				return true;
+		}
+		return false;
+	}
+
+	public int getBuffAmplifier(mc.sayda.mcraze.entity.buff.BuffType type) {
+		for (mc.sayda.mcraze.entity.buff.Buff b : activeBuffs) {
+			if (b.getType() == type)
+				return b.getAmplifier();
+		}
+		return -1;
+	}
+
+	public float baseSpeedMultiplier = 1.0f; // Multiplier set by commands/events (persists)
+
+	protected void tickBuffs() {
+		// Reset transient stats to base value
+		this.speedMultiplier = baseSpeedMultiplier;
+
+		java.util.Iterator<mc.sayda.mcraze.entity.buff.Buff> it = activeBuffs.iterator();
+		while (it.hasNext()) {
+			mc.sayda.mcraze.entity.buff.Buff buff = it.next();
+			buff.tick();
+
+			// Apply tick-based effects (Regeneration, Poison, etc)
+			if (buff.getType() == mc.sayda.mcraze.entity.buff.BuffType.REGENERATION) {
+				// Regen: Heal 1 HP every 50 ticks (2.5s) at level 0, faster with level
+				int interval = 50 >> buff.getAmplifier();
+				if (interval > 0 && buff.getDuration() % interval == 0) {
+					heal(1);
+				}
+			} else if (buff.getType() == mc.sayda.mcraze.entity.buff.BuffType.SPEED) {
+				this.speedMultiplier += 0.2f * (buff.getAmplifier() + 1);
+			} else if (buff.getType() == mc.sayda.mcraze.entity.buff.BuffType.SLOWNESS) {
+				this.speedMultiplier -= 0.15f * (buff.getAmplifier() + 1);
+			} else if (buff.getType() == mc.sayda.mcraze.entity.buff.BuffType.WELL_FED) {
+				this.speedMultiplier += 0.10f; // +10% Speed from Well Fed
+			}
+
+			if (buff.isExpired()) {
+				it.remove();
+			}
+		}
+
+		// Clamp minimum speed
+		if (this.speedMultiplier < 0.1f)
+			this.speedMultiplier = 0.1f;
+	}
 
 	public LivingEntity(boolean gravityApplies, float x, float y, int width, int height) {
 		super(null, gravityApplies, x, y, width, height);
@@ -58,13 +135,22 @@ public abstract class LivingEntity extends Entity {
 		return inventory.addItem(item, count);
 	}
 
-	public int airRemaining() {
+	public static final int MAX_AIR_TICKS = 300; // 15 seconds at 20 ticks/sec
 
-		return Math.max(10 - (ticksUnderwater / 50), 0);
+	public int airRemaining() {
+		return Math.max(MAX_AIR_TICKS - ticksUnderwater, 0);
 	}
 
 	public int getMaxHP() {
 		return maxHP;
+	}
+
+	/**
+	 * Get base jump velocity (negative for up)
+	 * Overriden by subclasses (e.g. Zombie) to use custom values.
+	 */
+	protected float getBaseJumpVelocity() {
+		return -0.3f;
 	}
 
 	public void jump(World world, int tileSize) {
@@ -73,7 +159,7 @@ public abstract class LivingEntity extends Entity {
 		}
 
 		if (!this.isInWater(world, tileSize)) {
-			dy = -.3f * jumpMultiplier;
+			dy = getBaseJumpVelocity() * jumpMultiplier;
 			jumping = true;
 		} else {
 			dy = -maxWaterDY - .000001f;// BIG HACK
@@ -85,7 +171,14 @@ public abstract class LivingEntity extends Entity {
 	 * Called before updatePosition
 	 */
 	public void tick(mc.sayda.mcraze.server.SharedWorld sharedWorld) {
-		// Default implementation does nothing
+		tickBuffs();
+
+		// Death sound broadcast
+		if (dead && !lastDead) {
+			sharedWorld.broadcastPacket(
+					new mc.sayda.mcraze.network.packet.PacketPlaySound("death.wav", x, y, 1.0f, 16.0f));
+			lastDead = true;
+		}
 	}
 
 	@Override
@@ -162,19 +255,22 @@ public abstract class LivingEntity extends Entity {
 
 			super.updatePosition(world, tileSize);
 		}
+
 		if (this.dy == 0) {
 			jumping = false;
 		}
+
 		if (this.isInWater(world, tileSize)) {
 			jumping = false;
 		}
-		// drown check
+
+		// MCraze coordinate system: head is at player origin (top-left)
 		if (this.isHeadUnderWater(world, tileSize)) {
 			ticksUnderwater++;
 			if (this.airRemaining() == 0) {
-				this.takeDamage(5);
-				// back to about 4 bubbles' worth of air
-				ticksUnderwater = 300;
+				this.takeDamage(5, DamageType.TRUE_DAMAGE);
+				// back to 20% air (60 ticks grace period)
+				ticksUnderwater = MAX_AIR_TICKS - 60;
 			}
 		} else {
 			ticksUnderwater = 0;
@@ -246,8 +342,19 @@ public abstract class LivingEntity extends Entity {
 		return freeVar;
 	}
 
-	@Override
 	public void takeDamage(int amount) {
+		takeDamage(amount, DamageType.PHYSICAL);
+	}
+
+	public void takeDamage(int amount, DamageType type) {
+		takeDamage(amount, type, null);
+	}
+
+	public void takeDamage(int amount, DamageType type, mc.sayda.mcraze.entity.Entity attacker) {
+		if (attacker != null) {
+			this.lastAttacker = attacker;
+		}
+
 		// Respect invulnerability frames (cooldown)
 		if (invulnerabilityTicks > 0) {
 			// Debug: Invulnerability active
@@ -255,12 +362,44 @@ public abstract class LivingEntity extends Entity {
 		}
 
 		// Damage applied
-		this.hitPoints -= amount;
+		// Damage Calculation
+		int finalDamage = amount;
+
+		if (type == DamageType.PHYSICAL) {
+			// Basic armor reduction
+			float reduction = Math.min(getArmorValue() * 0.04f, 0.80f); // Cap at 80%?
+
+			int resistLevel = getBuffAmplifier(mc.sayda.mcraze.entity.buff.BuffType.DAMAGE_RESISTANCE);
+			if (resistLevel >= 0) {
+				// Each level provides 20% resistance
+				reduction += (resistLevel + 1) * 0.20f;
+			}
+			reduction = Math.min(reduction, 0.80f); // Cap at 80%
+
+			finalDamage = (int) (amount * (1.0f - reduction));
+		} else if (type == DamageType.MAGICAL) {
+			float reduction = Math.min(getMagicResistanceValue() * 0.01f, 0.80f);
+
+			int resistLevel = getBuffAmplifier(mc.sayda.mcraze.entity.buff.BuffType.DAMAGE_RESISTANCE);
+			if (resistLevel >= 0) {
+				reduction += (resistLevel + 1) * 0.20f;
+			}
+			reduction = Math.min(reduction, 0.80f);
+
+			finalDamage = (int) (amount * (1.0f - reduction));
+		}
+		// TRUE_DAMAGE ignores everything
+
+		this.hitPoints -= finalDamage;
 
 		// Trigger red flash and invulnerability cooldown
 		if (amount > 0) {
 			this.damageFlashTicks = 10;
-			this.invulnerabilityTicks = 10; // 0.5s cooldown at 20tps
+			int iFrameDuration = 10;
+			if (hasBuff(mc.sayda.mcraze.entity.buff.BuffType.STEADFAST)) {
+				iFrameDuration = 15; // +50% duration (0.75s) for Steadfast
+			}
+			this.invulnerabilityTicks = iFrameDuration; // 0.5s cooldown at 20tps (standard)
 		}
 
 		// Clamp health to 0 minimum (don't go below 0)
@@ -294,11 +433,16 @@ public abstract class LivingEntity extends Entity {
 	protected void onDeath() {
 		// PERFORMANCE: Commented out console logging
 		// System.out.println(getClass().getSimpleName() + " has died!");
-		// TODO: Add death sound effect when sound system is implemented
-		// Example: SoundPlayer.play("death");
 	}
 
-	@Override
+	public int getArmorValue() {
+		return armor;
+	}
+
+	public int getMagicResistanceValue() {
+		return magicResistance;
+	}
+
 	public void heal(int amount) {
 		if (amount <= 0 || dead) {
 			return;
@@ -310,9 +454,23 @@ public abstract class LivingEntity extends Entity {
 			return;
 		}
 		this.hitPoints += healAmount;
-		// PERFORMANCE: Commented out console logging
-		// System.out.println(
-		// "Healed " + healAmount + ". Current health = " + this.hitPoints
-		// );
+	}
+
+	/**
+	 * Apply impulse force (knockback) to this entity
+	 * 
+	 * @param sourceX X source of force (usually attacker x)
+	 * @param force   Force magnitude (usually 0.4f)
+	 */
+	public void applyKnockback(float sourceX, float force) {
+		if (this.hasBuff(mc.sayda.mcraze.entity.buff.BuffType.STEADFAST)) {
+			force *= 0.5f; // 50% Resistance
+		}
+
+		// Side-scroller Knockback: Push horizontally away, slight lift
+		float direction = (this.x < sourceX) ? -1.0f : 1.0f;
+
+		this.dx = direction * force;
+		this.dy = -0.2f; // Standard hop to break friction
 	}
 }

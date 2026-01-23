@@ -14,6 +14,7 @@ public class Color implements java.io.Serializable {
 	public static final Color lightGray = new Color(192, 192, 192);
 	public static final Color orange = new Color(255, 200, 0);
 	public static final Color red = new Color(255, 0, 0);
+	public static final Color magenta = new Color(255, 0, 255);
 	public static final Color brown = new Color(120, 90, 70);
 
 	public int R, G, B, A;
@@ -51,6 +52,20 @@ public class Color implements java.io.Serializable {
 		int g = (rgb >> 8) & 0xFF;
 		int b = rgb & 0xFF;
 		return new Color(r, g, b);
+	}
+
+	// [NEW] Create from Hex string (e.g., "#FF0000" or "FF0000")
+	public static Color fromHex(String hex) {
+		if (hex == null || hex.isEmpty())
+			return null;
+		if (hex.startsWith("#"))
+			hex = hex.substring(1);
+		try {
+			int rgb = Integer.parseInt(hex, 16);
+			return fromRGB(rgb);
+		} catch (NumberFormatException e) {
+			return null;
+		}
 	}
 
 	@Override

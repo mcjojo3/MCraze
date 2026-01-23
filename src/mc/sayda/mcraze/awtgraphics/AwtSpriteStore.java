@@ -13,34 +13,20 @@ import javax.imageio.ImageIO;
 import mc.sayda.mcraze.graphics.Sprite;
 
 /**
- * A resource manager for sprites in the game. Its often quite important
- * how and where you get your game resources from. In most cases
- * it makes sense to have a central resource loader that goes away, gets
- * your resources and caches them for future use.
- * <p>
+ * A resource manager for sprites in the game.
  * [singleton]
- * <p>
- * 
- * @author Kevin Glass
  */
 public class AwtSpriteStore extends mc.sayda.mcraze.graphics.SpriteStore {
 
 	@Override
 	public Sprite loadSprite(String ref) {
-		// otherwise, go away and grab the sprite from the resource
-		// loader
 		BufferedImage sourceImage = null;
-		String actualRef = ref; // Track which texture we actually loaded
+		String actualRef = ref;
 
 		try {
-			// The ClassLoader.getResource() ensures we get the sprite
-			// from the appropriate place, this helps with deploying the game
-			// with things like webstart. You could equally do a file look
-			// up here.
 			URL url = this.getClass().getClassLoader().getResource(ref);
 
 			if (url == null) {
-				// Try loading fallback texture
 				System.err.println("Warning: Can't find ref: " + ref + " - using missing texture");
 				actualRef = "assets/sprites/other/missing.png";
 				url = this.getClass().getClassLoader().getResource(actualRef);
@@ -50,10 +36,8 @@ public class AwtSpriteStore extends mc.sayda.mcraze.graphics.SpriteStore {
 				}
 			}
 
-			// use ImageIO to read the image in
 			sourceImage = ImageIO.read(url);
 		} catch (IOException e) {
-			// Try loading fallback texture on IO error
 			System.err.println("Warning: Failed to load: " + ref + " - using missing texture");
 			try {
 				actualRef = "assets/sprites/other/missing.png";
@@ -67,29 +51,45 @@ public class AwtSpriteStore extends mc.sayda.mcraze.graphics.SpriteStore {
 			}
 		}
 
-		// create an accelerated image of the right size to store our sprite in
 		GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment()
 				.getDefaultScreenDevice().getDefaultConfiguration();
 		Image image = gc.createCompatibleImage(sourceImage.getWidth(), sourceImage.getHeight(),
 				Transparency.BITMASK);
 
-		// draw our source image into the accelerated image
 		image.getGraphics().drawImage(sourceImage, 0, 0, null);
 
-		// create a sprite, add it the cache then return it
-		Sprite sprite = (Sprite) new AwtSprite(image, actualRef);
-		return sprite;
+		return new AwtSprite(image, actualRef);
 	}
 
-	/**
-	 * Utility method to handle resource loading failure
-	 *
-	 * @param message
-	 *                The message to display on failure
-	 */
+	@Override
+	public Sprite loadSprite(String ref, mc.sayda.mcraze.graphics.Color tint) {
+		AwtSprite baseSprite = (AwtSprite) getSprite(ref);
+		Image baseImage = baseSprite.image;
+
+		int w = baseImage.getWidth(null);
+		int h = baseImage.getHeight(null);
+
+		BufferedImage tintedImage = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+		java.awt.Graphics2D g2d = tintedImage.createGraphics();
+
+		g2d.drawImage(baseImage, 0, 0, null);
+
+		g2d.setComposite(java.awt.AlphaComposite.SrcAtop);
+		g2d.setColor(new java.awt.Color(tint.R, tint.G, tint.B, tint.A));
+		g2d.fillRect(0, 0, w, h);
+
+		g2d.dispose();
+
+		GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment()
+				.getDefaultScreenDevice().getDefaultConfiguration();
+		Image acceleratedImage = gc.createCompatibleImage(w, h, Transparency.TRANSLUCENT);
+
+		acceleratedImage.getGraphics().drawImage(tintedImage, 0, 0, null);
+
+		return new AwtSprite(acceleratedImage, ref);
+	}
+
 	private void fail(String message) {
-		// we're pretty dramatic here, if a resource isn't available
-		// we dump the message and exit the game
 		System.err.println(message);
 		System.exit(1);
 	}

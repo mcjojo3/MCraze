@@ -79,7 +79,6 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.graphics.GraphicsHandler
 
 		// add a listener to respond to the user closing the window. If they
 		// do we'd like to exit the game
-		// TODO: add this back in
 		container.addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosing(WindowEvent e) {
@@ -223,10 +222,13 @@ public class AwtGraphicsHandler extends mc.sayda.mcraze.graphics.GraphicsHandler
 	public void drawImage(Sprite sprite, int x, int y, int width, int height,
 			mc.sayda.mcraze.graphics.Color tint) {
 		drawImage(sprite, x, y, width, height);
-		java.awt.Color old = g.getColor();
-		this.setColor(tint);
-		this.fillRect(x, y, width, height);
-		g.setColor(old);
+
+		if (tint != null) {
+			java.awt.Color oldColor = g.getColor();
+			this.setColor(tint);
+			this.fillRect(x, y, width, height);
+			g.setColor(oldColor);
+		}
 	}
 
 	/**

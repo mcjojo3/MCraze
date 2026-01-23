@@ -30,4 +30,8 @@ public class Tile implements java.io.Serializable {
 		this.type = type;
 		this.backdropType = null;
 	}
+
+	// Trap/Owner System
+	public String ownerUUID = null;
+
 }

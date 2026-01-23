@@ -62,7 +62,7 @@
                 ],
                 [
                     "stone",
-                    "ruby",
+                    "stone",
                     "stone"
                 ],
                 [
@@ -83,19 +83,46 @@
         "recipe": {
             "pattern": [
                 [
-                    "wood",
-                    "gem_green",
-                    "wood"
+                    "stick",
+                    "ruby",
+                    "stick"
                 ],
                 [
-                    "0",
-                    "wood",
-                    "0"
+                    null,
+                    "stick",
+                    null
                 ],
                 [
-                    "0",
-                    "wood",
-                    "0"
+                    null,
+                    "stick",
+                    null
+                ]
+            ],
+            "yield": 1
+        }
+    },
+    {
+        "itemId": "alchemy_table",
+        "name": "Alchemy Table",
+        "spriteRef": "assets/sprites/tiles/alchemy_table.png",
+        "requiredClass": "DRUID",
+        "requiredPath": "ALCHEMIST",
+        "recipe": {
+            "pattern": [
+                [
+                    "bottle",
+                    "ruby",
+                    "bottle"
+                ],
+                [
+                    "plank",
+                    "plank",
+                    "plank"
+                ],
+                [
+                    "plank",
+                    null,
+                    "plank"
                 ]
             ],
             "yield": 1

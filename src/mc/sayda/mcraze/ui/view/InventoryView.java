@@ -35,7 +35,7 @@ public class InventoryView {
 	// Layout state
 	private int screenWidth;
 	private int screenHeight;
-	private boolean layoutDirty = true;
+	private boolean layoutDirty;
 
 	public InventoryView(Inventory inventory) {
 		this.inventory = inventory;
@@ -128,6 +128,25 @@ public class InventoryView {
 			int y = centerY + i * (TILE_SIZE + SEPARATION);
 
 			for (int j = 0; j < inventory.inventoryItems.length; j++) {
+				// Mapped Equipment slots (Top-left 5x2 area)
+				if (i < 2 && j < 5) {
+					// Draw mapped equipment slot
+					g.setColor(Color.magenta); // Purple highlight for equipment
+					g.fillRect(x + SEPARATION - 4, y + SEPARATION - 4, TILE_SIZE + 8, TILE_SIZE + 8);
+					g.setColor(Color.lightGray);
+					g.fillRect(x + SEPARATION, y + SEPARATION, TILE_SIZE, TILE_SIZE);
+
+					int equipIdx = i * 5 + j;
+					if (inventory.equipment != null && equipIdx < inventory.equipment.length) {
+						InventoryItem current = inventory.equipment[equipIdx];
+						if (current != null && !current.isEmpty()) {
+							current.draw(g, x + SEPARATION, y + SEPARATION, TILE_SIZE);
+						}
+					}
+					x += TILE_SIZE + SEPARATION;
+					continue;
+				}
+
 				// Skip crafting grid slots and gap
 				if ((i < inventory.craftingHeight && j < inventory.inventoryItems.length - inventory.tableSizeAvailable)
 						|| (inventory.craftingHeight != inventory.tableSizeAvailable
@@ -223,6 +242,14 @@ public class InventoryView {
 						SEPARATION, SEPARATION,
 						inventory.inventoryItems.length, inventory.inventoryItems[0].length);
 				if (slot != null) {
+					// Check mapped equipment slots 5x2
+					if (slot.y < 2 && slot.x < 5) {
+						int equipIdx = slot.y * 5 + slot.x;
+						if (inventory.equipment != null && equipIdx < inventory.equipment.length) {
+							return inventory.equipment[equipIdx];
+						}
+					}
+
 					// Area checks for gaps/crafting
 					if ((slot.y < inventory.craftingHeight
 							&& slot.x < inventory.inventoryItems.length - inventory.tableSizeAvailable)

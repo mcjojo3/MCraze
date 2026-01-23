@@ -133,6 +133,19 @@ public class PlayerConnection implements ServerPacketHandler {
 		// Apply sneaking state
 		player.sneaking = packet.sneak;
 
+		// Handle Bow Release
+		if (player.rightClick && !packet.rightClick) { // RELEASE event
+			// Check if holding charged bow
+			if (player.holdingBow && player.bowCharge >= 10) { // Min charge 0.5s
+				float pct = (float) player.bowCharge / player.maxBowCharge;
+				if (pct > 1f)
+					pct = 1f;
+				player.fireArrow(sharedWorld, packet.worldMouseX, packet.worldMouseY, pct);
+			}
+		}
+
+		player.rightClick = packet.rightClick;
+
 		// CRITICAL FIX: Update hand target position from world mouse coordinates
 		// This fixes the bug where remote players could only interact at (0,0)
 		// Convert world mouse coordinates to block coordinates
@@ -200,7 +213,6 @@ public class PlayerConnection implements ServerPacketHandler {
 
 	@Override
 	public void handleRespawn(mc.sayda.mcraze.network.packet.PacketRespawn packet) {
-		GameLogger logger = GameLogger.get();
 		if (player == null || !player.dead) {
 			if (logger != null) {
 				logger.warn("PlayerConnection.handleRespawn: Player " + playerName +
@@ -229,7 +241,6 @@ public class PlayerConnection implements ServerPacketHandler {
 					message, new mc.sayda.mcraze.graphics.Color(255, 255, 0));
 			connection.sendPacket(chatPacket);
 
-			GameLogger logger = GameLogger.get();
 			if (logger != null) {
 				logger.info("PlayerConnection.handleToggleBackdropMode: Player " + playerName +
 						" toggled backdrop mode to " + player.backdropPlacementMode);
@@ -250,6 +261,11 @@ public class PlayerConnection implements ServerPacketHandler {
 	@Override
 	public void handleFurnaceAction(mc.sayda.mcraze.network.packet.PacketFurnaceAction packet) {
 		sharedWorld.handleFurnaceAction(this, packet);
+	}
+
+	@Override
+	public void handleAlchemyAction(mc.sayda.mcraze.network.packet.PacketAlchemyAction packet) {
+		sharedWorld.handleAlchemyAction(this, packet);
 	}
 
 	@Override
@@ -301,6 +317,9 @@ public class PlayerConnection implements ServerPacketHandler {
 			// Broadcast inventory update because stats (like health) might have changed
 			sharedWorld.broadcastInventoryUpdates();
 
+			// Save playerdata after class selection to ensure persistence
+			sharedWorld.savePlayerData(this);
+
 			if (logger != null) {
 				logger.info("Player " + playerName + " successfully specialized as " + packet.getSelectedClass());
 			}
@@ -325,6 +344,7 @@ public class PlayerConnection implements ServerPacketHandler {
 
 			player.unlockedPassives.add(ability);
 			player.skillPoints--;
+			player.updateClassStats(); // RE-CALCULATE STATS (HP, Mana, etc)
 
 			if (logger != null) {
 				logger.info("Player " + playerName + " unlocked skill: " + ability.name());
@@ -453,5 +473,22 @@ public class PlayerConnection implements ServerPacketHandler {
 
 	public int getOpenedChestY() {
 		return openedChestY;
+	}
+
+	// Track open alchemy location
+	private int openedAlchemyX = -1;
+	private int openedAlchemyY = -1;
+
+	public void setOpenedAlchemy(int x, int y) {
+		this.openedAlchemyX = x;
+		this.openedAlchemyY = y;
+	}
+
+	public int getOpenedAlchemyX() {
+		return openedAlchemyX;
+	}
+
+	public int getOpenedAlchemyY() {
+		return openedAlchemyY;
 	}
 }

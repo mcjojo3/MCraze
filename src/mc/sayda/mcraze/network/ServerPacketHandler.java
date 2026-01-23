@@ -60,4 +60,6 @@ public interface ServerPacketHandler {
     void handleSkillUpgrade(PacketSkillUpgrade packet); // NEW: For skill tree upgrades
 
     void handleEntityInteract(PacketEntityInteract packet); // NEW: For entity interactions (e.g. taming)
+
+    void handleAlchemyAction(PacketAlchemyAction packet);
 }

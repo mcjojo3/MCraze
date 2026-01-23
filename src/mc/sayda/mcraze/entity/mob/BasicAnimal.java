@@ -33,8 +33,6 @@ public abstract class BasicAnimal extends LivingEntity {
     protected static final int ACTION_WALK_RIGHT = 2;
     protected int currentAction = ACTION_IDLE;
 
-    private int maxHP;
-
     public BasicAnimal(float x, float y, int width, int height, String spritePath, int maxHP, float speedMult) {
         super(true, x, y, width, height);
 

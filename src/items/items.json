@@ -24,27 +24,50 @@
     "itemId": "water_bucket",
     "name": "Water Bucket",
     "spriteRef": "assets/sprites/entities/water_bucket.png",
-    "requiredTool": null
+    "requiredTool": null,
+    "usage": {
+      "remains": "bucket"
+    }
   },
   {
     "itemId": "lava_bucket",
     "name": "Lava Bucket",
     "spriteRef": "assets/sprites/entities/lava_bucket.png",
-    "requiredTool": null
+    "requiredTool": null,
+    "usage": {
+      "remains": "bucket"
+    }
   },
   {
     "itemId": "dirt",
     "name": "Dirt",
     "spriteRef": "assets/sprites/tiles/dirt.png",
-    "yield": 0,
     "requiredTool": "Shovel",
     "requiredPower": "Wood"
+  },
+  {
+    "itemId": "clay",
+    "name": "Clay",
+    "spriteRef": "assets/sprites/tiles/clay.png",
+    "requiredTool": "Shovel",
+    "requiredPower": "Wood",
+    "smelting": {
+      "result": "hardened_clay",
+      "time": 200,
+      "yield": 1
+    }
+  },
+  {
+    "itemId": "hardened_clay",
+    "name": "Hardened Clay",
+    "spriteRef": "assets/sprites/tiles/hardened_clay.png",
+    "requiredTool": "Pick",
+    "requiredPower": "Stone"
   },
   {
     "itemId": "stone",
     "name": "Stone",
     "spriteRef": "assets/sprites/tiles/stone.png",
-    "yield": 0,
     "requiredTool": "Pick",
     "requiredPower": "Wood"
   },
@@ -79,7 +102,6 @@
     "itemId": "sand",
     "name": "Sand",
     "spriteRef": "assets/sprites/tiles/sand.png",
-    "yield": 0,
     "requiredTool": "Shovel",
     "requiredPower": "Wood",
     "smelting": {
@@ -243,7 +265,6 @@
     "itemId": "cobble",
     "name": "Cobblestone",
     "spriteRef": "assets/sprites/tiles/cobble.png",
-    "yield": 0,
     "requiredTool": "Pick",
     "requiredPower": "Wood",
     "smelting": {
@@ -256,7 +277,6 @@
     "itemId": "mossy_cobble",
     "name": "Mossy Cobblestone",
     "spriteRef": "assets/sprites/tiles/mossy_cobble.png",
-    "yield": 0,
     "requiredTool": "Pick",
     "requiredPower": "Wood"
   },
@@ -264,13 +284,14 @@
     "itemId": "cactus",
     "name": "Cactus",
     "spriteRef": "assets/sprites/tiles/cactus.png",
-    "yield": 0
+    "usage": {
+      "growthTime": 2400
+    }
   },
   {
     "itemId": "wood",
     "name": "Wood",
     "spriteRef": "assets/sprites/tiles/wood.png",
-    "yield": 1,
     "requiredTool": "Axe",
     "requiredPower": "Wood",
     "fuel": 300
@@ -279,8 +300,10 @@
     "itemId": "sapling",
     "name": "Sapling",
     "spriteRef": "assets/sprites/tiles/sapling.png",
-    "yield": 0,
-    "fuel": 100
+    "fuel": 100,
+    "usage": {
+      "growthTime": 3600
+    }
   },
   {
     "itemId": "plank",
@@ -377,50 +400,51 @@
   {
     "itemId": "wall_torch",
     "name": "Wall Torch",
-    "spriteRef": "assets/sprites/tiles/wall_torch.png",
-    "yield": 0
+    "spriteRef": "assets/sprites/tiles/wall_torch.png"
   },
   {
     "itemId": "wheat_seeds",
     "name": "Wheat Seeds",
     "spriteRef": "assets/sprites/entities/wheat_seeds.png",
-    "yield": 0
+    "usage": {
+      "growthTime": 1800
+    }
   },
   {
     "itemId": "wheat",
     "name": "Wheat",
-    "spriteRef": "assets/sprites/entities/wheat.png",
-    "yield": 0
+    "spriteRef": "assets/sprites/entities/wheat.png"
   },
   {
     "itemId": "rose",
     "name": "Rose",
     "spriteRef": "assets/sprites/tiles/rose.png",
-    "yield": 0
+    "usage": {
+      "growthTime": 1200
+    }
   },
   {
     "itemId": "dandelion",
     "name": "Dandelion",
     "spriteRef": "assets/sprites/tiles/dandelion.png",
-    "yield": 0
+    "usage": {
+      "growthTime": 1200
+    }
   },
   {
     "itemId": "tall_grass",
     "name": "Tall Grass",
-    "spriteRef": "assets/sprites/tiles/tall_grass.png",
-    "yield": 0
+    "spriteRef": "assets/sprites/tiles/tall_grass.png"
   },
   {
     "itemId": "leaves",
     "name": "Leaves",
-    "spriteRef": "assets/sprites/tiles/leaves.png",
-    "yield": 0
+    "spriteRef": "assets/sprites/tiles/leaves.png"
   },
   {
     "itemId": "string",
     "name": "String",
-    "spriteRef": "assets/sprites/entities/string.png",
-    "yield": 0
+    "spriteRef": "assets/sprites/entities/string.png"
   },
   {
     "itemId": "iron_block",
@@ -659,20 +683,17 @@
   {
     "itemId": "black_dye",
     "name": "Black Dye",
-    "spriteRef": "assets/sprites/entities/black_dye.png",
-    "yield": 0
+    "spriteRef": "assets/sprites/entities/black_dye.png"
   },
   {
     "itemId": "purple_dye",
     "name": "Purple Dye",
-    "spriteRef": "assets/sprites/entities/purple_dye.png",
-    "yield": 0
+    "spriteRef": "assets/sprites/entities/purple_dye.png"
   },
   {
     "itemId": "gray_dye",
     "name": "Gray Dye",
-    "spriteRef": "assets/sprites/entities/gray_dye.png",
-    "yield": 0
+    "spriteRef": "assets/sprites/entities/gray_dye.png"
   },
   {
     "itemId": "white_wool",
@@ -772,6 +793,9 @@
     "itemId": "bread",
     "name": "Bread",
     "spriteRef": "assets/sprites/entities/bread.png",
+    "usage": {
+      "healingAmount": 20
+    },
     "recipe": {
       "pattern": [
         [
@@ -787,6 +811,9 @@
     "itemId": "bad_apple",
     "name": "Bad Apple",
     "spriteRef": "assets/sprites/entities/bad_apple.png",
+    "usage": {
+      "healingAmount": 10
+    },
     "recipe": {
       "pattern": [
         [
@@ -802,6 +829,9 @@
     "itemId": "rotten_flesh",
     "name": "Rotten Flesh",
     "spriteRef": "assets/sprites/entities/rotten_flesh.png",
+    "usage": {
+      "healingAmount": 0
+    },
     "smelting": {
       "result": "leather",
       "time": 200,
@@ -812,6 +842,9 @@
     "itemId": "pork",
     "name": "Raw Pork",
     "spriteRef": "assets/sprites/entities/pork.png",
+    "usage": {
+      "healingAmount": 5
+    },
     "smelting": {
       "result": "cooked_pork",
       "time": 200,
@@ -822,6 +855,9 @@
     "itemId": "beef",
     "name": "Raw Beef",
     "spriteRef": "assets/sprites/entities/beef.png",
+    "usage": {
+      "healingAmount": 5
+    },
     "smelting": {
       "result": "cooked_beef",
       "time": 200,
@@ -831,12 +867,18 @@
   {
     "itemId": "cooked_pork",
     "name": "Cooked Pork",
-    "spriteRef": "assets/sprites/entities/cooked_pork.png"
+    "spriteRef": "assets/sprites/entities/cooked_pork.png",
+    "usage": {
+      "healingAmount": 30
+    }
   },
   {
     "itemId": "cooked_beef",
     "name": "Cooked Beef",
-    "spriteRef": "assets/sprites/entities/cooked_beef.png"
+    "spriteRef": "assets/sprites/entities/cooked_beef.png",
+    "usage": {
+      "healingAmount": 30
+    }
   },
   {
     "itemId": "leather",
@@ -934,12 +976,17 @@
     "itemId": "apple",
     "name": "Apple",
     "spriteRef": "assets/sprites/entities/apple.png",
-    "yield": 1
+    "usage": {
+      "healingAmount": 5
+    }
   },
   {
     "itemId": "golden_apple",
     "name": "Golden Apple",
     "spriteRef": "assets/sprites/entities/golden_apple.png",
+    "usage": {
+      "healingAmount": 100
+    },
     "recipe": {
       "pattern": [
         [
@@ -1001,19 +1048,29 @@
     "itemId": "bricks",
     "name": "Bricks",
     "spriteRef": "assets/sprites/tiles/bricks.png",
-    "yield": 0
+    "recipe": {
+      "pattern": [
+        [
+          "hardened_clay",
+          "hardened_clay"
+        ],
+        [
+          "hardened_clay",
+          "hardened_clay"
+        ]
+      ],
+      "yield": 4
+    }
   },
   {
     "itemId": "glass",
     "name": "Glass",
-    "spriteRef": "assets/sprites/tiles/glass.png",
-    "yield": 0
+    "spriteRef": "assets/sprites/tiles/glass.png"
   },
   {
     "itemId": "bookshelf",
     "name": "Bookshelf",
-    "spriteRef": "assets/sprites/tiles/bookshelf.png",
-    "yield": 0
+    "spriteRef": "assets/sprites/tiles/bookshelf.png"
   },
   {
     "itemId": "furnace",
@@ -1043,14 +1100,15 @@
   {
     "itemId": "spawner",
     "name": "Spawner",
-    "spriteRef": "assets/sprites/tiles/spawner.png",
-    "yield": 0
+    "spriteRef": "assets/sprites/tiles/spawner.png"
   },
   {
     "itemId": "crazy_hamburger",
     "name": "Crazy Hamburger",
     "spriteRef": "assets/sprites/entities/crazy_hamburger.png",
-    "yield": 1
+    "usage": {
+      "healingAmount": 50
+    }
   },
   {
     "itemId": "door",
@@ -1119,6 +1177,26 @@
     "name": "Kingdom Flag",
     "spriteRef": "assets/sprites/tiles/flag.png",
     "yield": 1
+  },
+  {
+    "itemId": "flower_pot",
+    "name": "Flower Pot",
+    "spriteRef": "assets/sprites/tiles/flower_pot.png",
+    "recipe": {
+      "pattern": [
+        [
+          "hardened_clay",
+          null,
+          "hardened_clay"
+        ],
+        [
+          null,
+          "hardened_clay",
+          null
+        ]
+      ],
+      "yield": 1
+    }
   },
   {
     "itemId": "bone",

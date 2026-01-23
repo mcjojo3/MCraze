@@ -19,16 +19,15 @@ import mc.sayda.mcraze.util.SystemTimer;
 import mc.sayda.mcraze.logging.GameLogger;
 import mc.sayda.mcraze.server.Server;
 import mc.sayda.mcraze.client.Client;
-import mc.sayda.mcraze.network.Connection;
 import mc.sayda.mcraze.logging.CrashReport;
 import mc.sayda.mcraze.network.LocalConnection;
 import mc.sayda.mcraze.server.ServerTickThread;
-import mc.sayda.mcraze.player.specialization.ui.ClassSelectionUI;
 
 /**
  * Main game coordinator - creates and runs integrated server + client
  */
 public class Game {
+
 	private Server server;
 	private Client client;
 	private ServerTickThread serverTickThread; // Dedicated server tick thread (Phase 4)
@@ -42,6 +41,8 @@ public class Game {
 	private String loggedInPassword;
 	private boolean isLoggedIn = false;
 	private mc.sayda.mcraze.ui.menu.LoginScreen loginScreen;
+
+	private final mc.sayda.mcraze.logging.GameLogger logger = mc.sayda.mcraze.logging.GameLogger.get();
 
 	/**
 	 * Construct game with integrated server (singleplayer)
@@ -58,8 +59,8 @@ public class Game {
 	 */
 	private Game(boolean integratedServer) {
 		if (integratedServer) {
-			if (GameLogger.get() != null)
-				GameLogger.get().info("=== Starting MCraze with Integrated Server ===");
+			if (logger != null)
+				logger.info("=== Starting MCraze with Integrated Server ===");
 
 			// Create local connection pair
 			LocalConnection[] connections = LocalConnection.createPair();
@@ -77,11 +78,11 @@ public class Game {
 			// Initialize login screen
 			loginScreen = new mc.sayda.mcraze.ui.menu.LoginScreen(this, client.getUIRenderer());
 
-			if (GameLogger.get() != null)
-				GameLogger.get().info("Integrated server initialized");
+			if (logger != null)
+				logger.info("Integrated server initialized");
 		} else {
-			if (GameLogger.get() != null)
-				GameLogger.get().info("=== Starting MCraze Client Only (Multiplayer) ===");
+			if (logger != null)
+				logger.info("=== Starting MCraze Client Only (Multiplayer) ===");
 
 			// Client only, no integrated server
 			server = null;
@@ -108,8 +109,8 @@ public class Game {
 				client.render(); // Force render to display loading screen
 			}
 
-			if (GameLogger.get() != null)
-				GameLogger.get().info("Connecting to multiplayer server: " + host + ":" + port);
+			if (logger != null)
+				logger.info("Connecting to multiplayer server: " + host + ":" + port);
 
 			// Create network connection
 			mc.sayda.mcraze.network.NetworkConnection connection = mc.sayda.mcraze.network.NetworkConnection
@@ -156,21 +157,24 @@ public class Game {
 				client.addLoadingMessage("Receiving world data...");
 			}
 
-			if (GameLogger.get() != null)
-				GameLogger.get().info("Connected to multiplayer server successfully");
+			if (logger != null)
+				logger.info("Connected to multiplayer server successfully");
 			// Loading screen will be hidden automatically when world init is complete (in
 			// Client.java)
 		} catch (java.io.IOException e) {
-			if (GameLogger.get() != null)
-				GameLogger.get().error("Failed to connect to server: " + e.getMessage());
+			if (logger != null)
+				logger.error("Failed to connect to server: " + e.getMessage());
 			e.printStackTrace();
 			// Transition back to MENU state
 			stateManager.transitionTo(GameState.MENU);
 			// Hide loading screen on error
 			if (client != null) {
 				client.hideLoadingScreen();
+				// Report error to MainMenu
+				if (client.getMainMenu() != null) {
+					client.getMainMenu().setError("Connection failed: " + e.getMessage());
+				}
 			}
-			// TODO: Show error message to user
 		}
 	}
 
@@ -185,12 +189,13 @@ public class Game {
 	 */
 	public void startGame(String worldName, boolean load, int width, String username, String password) {
 		// Default overload
-		startGame(worldName, load, width, username, password, mc.sayda.mcraze.world.GameMode.CLASSIC, false, true, 0.0);
+		startGame(worldName, load, width, username, password, mc.sayda.mcraze.world.GameMode.CLASSIC, false, true, true,
+				true, false, 0.0);
 	}
 
 	public void startGame(String worldName, boolean load, int width, String username, String password,
-			mc.sayda.mcraze.world.GameMode gameMode, boolean keepInventory, boolean daylightCycle,
-			double noiseModifier) {
+			mc.sayda.mcraze.world.GameMode gameMode, boolean keepInventory, boolean daylightCycle, boolean mobGriefing,
+			boolean pvp, boolean insomnia, double noiseModifier) {
 		this.currentWorldName = worldName;
 
 		// Transition to LOADING state
@@ -205,8 +210,8 @@ public class Game {
 		// If server is null (e.g., after returning from multiplayer), recreate
 		// integrated server
 		if (server == null) {
-			if (GameLogger.get() != null)
-				GameLogger.get().info("Recreating integrated server for singleplayer");
+			if (logger != null)
+				logger.info("Recreating integrated server for singleplayer");
 			client.addLoadingMessage("Creating server...");
 			client.render(); // Update display
 
@@ -231,12 +236,12 @@ public class Game {
 			loadedWorld = mc.sayda.mcraze.world.storage.WorldSaveManager.loadWorldOnly(worldName);
 
 			if (loadedWorld != null) {
-				if (GameLogger.get() != null)
-					GameLogger.get().info("World '" + worldName + "' loaded");
+				if (logger != null)
+					logger.info("World '" + worldName + "' loaded");
 				client.addLoadingMessage("World loaded successfully");
 			} else {
-				if (GameLogger.get() != null)
-					GameLogger.get().warn("Failed to load world, will generate new one");
+				if (logger != null)
+					logger.warn("Failed to load world, will generate new one");
 				client.addLoadingMessage("Load failed, generating new world...");
 			}
 			client.render(); // Update display
@@ -251,7 +256,7 @@ public class Game {
 		client.render(); // Update display
 
 		server.startGame(width, worldName, username, password, loadedWorld, gameMode, keepInventory, daylightCycle,
-				noiseModifier);
+				mobGriefing, pvp, insomnia, noiseModifier);
 
 		// Update client connection to use the new one from SharedWorld
 		client.switchToMultiplayer(server.getHostClientConnection(), server);
@@ -259,8 +264,8 @@ public class Game {
 		if (loadedWorld != null) {
 			client.addLoadingMessage("Game started with loaded world");
 		} else {
-			if (GameLogger.get() != null)
-				GameLogger.get().info("Created new world: " + worldName);
+			if (logger != null)
+				logger.info("Created new world: " + worldName);
 			client.addLoadingMessage("World generated successfully");
 		}
 		client.setLoadingProgress(80);
@@ -275,8 +280,8 @@ public class Game {
 		// Phase 5: Add state barriers to ensure proper initialization order
 		// 1. Verify player exists (should already be true, but defensive check)
 		if (server.player == null) {
-			if (GameLogger.get() != null)
-				GameLogger.get().error("ERROR: Player is null after server.startGame()!");
+			if (logger != null)
+				logger.error("ERROR: Player is null after server.startGame()!");
 			client.addLoadingMessage("Error: Player not created");
 			client.render();
 			try {
@@ -312,8 +317,8 @@ public class Game {
 		if (server != null && server.getSharedWorld() != null) {
 			serverTickThread = new ServerTickThread(server.getSharedWorld(), stateManager);
 			serverTickThread.start();
-			if (GameLogger.get() != null)
-				GameLogger.get().info("ServerTickThread started (target 60 TPS)");
+			if (logger != null)
+				logger.info("ServerTickThread started (target 60 TPS)");
 		}
 
 		// Hide loading screen after a short delay (so user can see 100%)
@@ -364,8 +369,8 @@ public class Game {
 						// Check for saved credentials and auto-login
 						CredentialManager.SavedCredentials saved = CredentialManager.loadCredentials();
 						if (saved != null) {
-							if (GameLogger.get() != null)
-								GameLogger.get().info("Auto-login with saved credentials: " + saved.username);
+							if (logger != null)
+								logger.info("Auto-login with saved credentials: " + saved.username);
 							setLoggedInUser(saved.username, saved.password);
 							stateManager.transitionTo(GameState.MENU);
 						} else {
@@ -484,14 +489,14 @@ public class Game {
 				mc.sayda.mcraze.world.storage.WorldSaveManager.saveWorldAsync(currentWorldName, server)
 						.thenAccept(success -> {
 							if (success) {
-								if (GameLogger.get() != null)
-									GameLogger.get().info("Game saved asynchronously");
+								if (logger != null)
+									logger.info("Game saved asynchronously");
 								if (client != null) {
 									client.chat.addMessage("World saved!", mc.sayda.mcraze.graphics.Color.green);
 								}
 							} else {
-								if (GameLogger.get() != null)
-									GameLogger.get().error("Failed to save world asynchronously");
+								if (logger != null)
+									logger.error("Failed to save world asynchronously");
 								if (client != null) {
 									client.chat.addMessage("Save failed!", mc.sayda.mcraze.graphics.Color.red);
 								}
@@ -500,12 +505,12 @@ public class Game {
 
 				server.savePlayerData(); // Save playerdata (fast enough to be sync usually, or move to async too)
 			} else {
-				if (GameLogger.get() != null)
-					GameLogger.get().error("Cannot save: no world name set");
+				if (logger != null)
+					logger.error("Cannot save: no world name set");
 			}
 		} else {
-			if (GameLogger.get() != null)
-				GameLogger.get().warn("Cannot save in multiplayer mode");
+			if (logger != null)
+				logger.warn("Cannot save in multiplayer mode");
 		}
 	}
 
@@ -515,21 +520,21 @@ public class Game {
 	public void goToMainMenu() {
 		// 1. Stop server tick thread FIRST (Phase 4 cleanup)
 		if (serverTickThread != null && serverTickThread.isRunning()) {
-			if (GameLogger.get() != null)
-				GameLogger.get().info("Stopping ServerTickThread...");
+			if (logger != null)
+				logger.info("Stopping ServerTickThread...");
 			serverTickThread.shutdown();
 			try {
 				serverTickThread.join(2000); // Wait up to 2 seconds for clean shutdown
 				if (serverTickThread.isAlive()) {
-					if (GameLogger.get() != null)
-						GameLogger.get().warn("Warning: ServerTickThread did not stop in time");
+					if (logger != null)
+						logger.warn("Warning: ServerTickThread did not stop in time");
 				} else {
-					if (GameLogger.get() != null)
-						GameLogger.get().info("ServerTickThread stopped successfully");
+					if (logger != null)
+						logger.info("ServerTickThread stopped successfully");
 				}
 			} catch (InterruptedException e) {
-				if (GameLogger.get() != null)
-					GameLogger.get().error("Interrupted while waiting for ServerTickThread shutdown");
+				if (logger != null)
+					logger.error("Interrupted while waiting for ServerTickThread shutdown");
 			}
 			serverTickThread = null;
 		}
@@ -563,8 +568,8 @@ public class Game {
 			try {
 				client.getMusicPlayer().close();
 			} catch (Exception e) {
-				if (GameLogger.get() != null)
-					GameLogger.get().error("Error closing music player: " + e.getMessage());
+				if (logger != null)
+					logger.error("Error closing music player: " + e.getMessage());
 			}
 		}
 		System.exit(0);
@@ -624,8 +629,8 @@ public class Game {
 		// Return to login screen
 		stateManager.transitionTo(GameState.LOGIN);
 
-		if (GameLogger.get() != null)
-			GameLogger.get().info("Logged out successfully");
+		if (logger != null)
+			logger.info("Logged out successfully");
 	}
 
 	/**
@@ -671,6 +676,28 @@ public class Game {
 			String arg = argv[i];
 			if (arg.equals("-d") || arg.equals("--debug")) {
 				Constants.DEBUG = true;
+			} else if (arg.equals("-e") || arg.equals("--editor")) {
+				// Launch World Editor Tool - check for optional -dir argument
+				String editorDir = null;
+				if (i + 2 < argv.length && (argv[i + 1].equals("-dir") || argv[i + 1].equals("--directory"))) {
+					editorDir = argv[i + 2];
+					i += 2; // Skip -dir and its value
+				}
+				System.out.println("Launching World Editor Tool...");
+				try {
+					// Use Nimbus L&F (avoids conflicts with WindowBlinds/custom themes)
+					for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager
+							.getInstalledLookAndFeels()) {
+						if ("Nimbus".equals(info.getName())) {
+							javax.swing.UIManager.setLookAndFeel(info.getClassName());
+							break;
+						}
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				new mc.sayda.mcraze.tools.WorldEditor(editorDir).setVisible(true);
+				return; // Exit main game path
 			} else if (arg.equals("-s") || arg.equals("--server")) {
 				dedicatedServer = true;
 			} else if (arg.equals("-p") || arg.equals("--port")) {
@@ -681,11 +708,11 @@ public class Game {
 				if (i + 1 < argv.length) {
 					worldWidth = Integer.parseInt(argv[++i]);
 				}
-			} else if (arg.equals("--username")) {
+			} else if (arg.equals("-user") || arg.equals("--username")) {
 				if (i + 1 < argv.length) {
 					autoUsername = argv[++i];
 				}
-			} else if (arg.equals("--password")) {
+			} else if (arg.equals("-pass") || arg.equals("--password")) {
 				if (i + 1 < argv.length) {
 					autoPassword = argv[++i];
 				}
@@ -693,12 +720,14 @@ public class Game {
 				System.out.println("MCraze - A 2D Minecraft-like game");
 				System.out.println("Usage: java mc.sayda.Game [options]");
 				System.out.println("Options:");
+				System.out.println("  -e, --editor             Start the World Editor tool");
+				System.out.println("      -dir, --directory    Auto-open world folder (use with -e)");
 				System.out.println("  -d, --debug              Enable debug mode");
 				System.out.println("  -s, --server             Start dedicated server (no client)");
 				System.out.println("  -p, --port <port>        Server port (default: 25565)");
 				System.out.println("  -w, --world-width <size> World width (default: 512)");
-				System.out.println("  --username <name>        Auto-login with username");
-				System.out.println("  --password <pass>        Auto-login with password");
+				System.out.println("  -user, --username <name> Auto-login with username");
+				System.out.println("  -pass, --password <pass> Auto-login with password");
 				System.out.println("  -h, --help               Show this help message");
 				return;
 			} else {

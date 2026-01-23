@@ -1,3 +1,15 @@
+/*
+ * Copyright 2026 SaydaGames (mc_jojo3)
+ *
+ * This file is part of MCraze
+ *
+ * MCraze is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * MCraze is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MCraze. If not, see http://www.gnu.org/licenses/.
+ */
+
 package mc.sayda.mcraze.player.specialization;
 
 import mc.sayda.mcraze.entity.Entity;
@@ -15,24 +27,32 @@ import java.util.List;
 public class ClassStats {
     private final PlayerClass playerClass;
     private final List<SpecializationPath> paths;
-    private final AbstractClassProvider provider;
+    private final List<PassiveEffectType> passives;
+    /**
+     * Provider for class-specific stat calculations. Public for advanced passive
+     * checks.
+     */
+    public final AbstractClassProvider provider;
 
-    public ClassStats(PlayerClass playerClass, SpecializationPath... chosenPaths) {
+    public ClassStats(PlayerClass playerClass, List<SpecializationPath> chosenPaths,
+            List<PassiveEffectType> unlockedPassives) {
         this.playerClass = playerClass != null ? playerClass : PlayerClass.NONE;
-        this.paths = chosenPaths != null ? Arrays.asList(chosenPaths) : new ArrayList<>();
-        this.provider = createProvider(this.playerClass, this.paths);
+        this.paths = chosenPaths != null ? chosenPaths : new ArrayList<>();
+        this.passives = unlockedPassives != null ? unlockedPassives : new ArrayList<>();
+        this.provider = createProvider(this.playerClass, this.paths, this.passives);
     }
 
-    private AbstractClassProvider createProvider(PlayerClass pClass, List<SpecializationPath> paths) {
+    private AbstractClassProvider createProvider(PlayerClass pClass, List<SpecializationPath> paths,
+            List<PassiveEffectType> passives) {
         switch (pClass) {
             case VANGUARD:
-                return new VanguardStats(paths);
+                return new VanguardStats(paths, passives);
             case ENGINEER:
-                return new EngineerStats(paths);
+                return new EngineerStats(paths, passives);
             case ARCANIST:
-                return new ArcanistStats(paths);
+                return new ArcanistStats(paths, passives);
             case DRUID:
-                return new DruidStats(paths);
+                return new DruidStats(paths, passives);
             case NONE:
             default:
                 return null;
